@@ -39,11 +39,11 @@ public class FunctionExpander {
     /**
      * The upper boundary value of x.
      */
-    private double xUpper;
+    private Double xUpper;
     /**
      * The lower boundary value of x.
      */
-    private double xLower;
+    private Double xLower;
 
     /**
      * The function string.
@@ -54,12 +54,12 @@ public class FunctionExpander {
      */
     private String polynomial;
     /**
-     * Uses the precision of double numbers to expand the function. This is
+     * Uses the precision of Double numbers to expand the function. This is
      * about 16 places of decimal.
      */
     public static final int DOUBLE_PRECISION = 1;
     /**
-     * Uses the precision of double numbers to expand the function. This is
+     * Uses the precision of Double numbers to expand the function. This is
      * about 33 places of decimal.
      * <br><b color='red'>CAUTION!!!!</b><br>
      * This should be used only if the algorithm of the parser that expands the
@@ -85,7 +85,7 @@ public class FunctionExpander {
      * @param precision The precision mode to employ in expanding the Function.
      * @param function The function string.
      */
-    public FunctionExpander(double xLower, double xUpper, int degree, int precision, Function function) {
+    public FunctionExpander(Double xLower, Double xUpper, int degree, int precision, Function function) {
         this.xLower = xLower;
         this.xUpper = xUpper;
         this.degree = degree;
@@ -148,27 +148,27 @@ public class FunctionExpander {
         this.degree = degree;
     }
 
-    public void setxLower(double xLower) {
+    public void setxLower(Double xLower) {
         this.xLower = xLower;
     }
 
-    public double getxLower() {
+    public Double getxLower() {
         return xLower;
     }
 
-    public void setxUpper(double xUpper) {
+    public void setxUpper(Double xUpper) {
         this.xUpper = xUpper;
     }
 
-    public double getxUpper() {
+    public Double getxUpper() {
         return xUpper;
     }
 
     /**
      * @return the unit step along x.
      */
-    private double getXStep() {
-        double val = degree;
+    private Double getXStep() {
+        Double val = (double)degree;
         return (xUpper - xLower) / val;
     }
 
@@ -186,8 +186,8 @@ public class FunctionExpander {
      */
     public Matrix getMatrix() {
         MathExpression fun = function.getMathExpression();
-        double dx = getXStep();
-        double arr[][] = new double[degree + 1][degree + 2];
+        Double dx = getXStep();
+        Double arr[][] = new Double[degree + 1][degree + 2];
 
         for (int rows = 0; rows < degree + 1; rows++) {
             for (int cols = 0; cols < degree + 2; cols++) {
@@ -216,7 +216,7 @@ public class FunctionExpander {
      */
     public PrecisionMatrix getPrecisionMatrix() {
         MathExpression fun = function.getMathExpression();
-        double dx = getXStep();
+        Double dx = getXStep();
         BigDecimal arr[][] = new BigDecimal[degree + 1][degree + 2];
 
         for (int rows = 0; rows < degree + 1; rows++) {
@@ -271,7 +271,7 @@ public class FunctionExpander {
         if (expression.startsWith("poly(") && expression.endsWith(")")) {
             expression = expression.substring(expression.indexOf("(") + 1);
             expression = expression.substring(0, expression.length() - 1);//remove the last bracket
-            double args[] = new double[3];
+            Double args[] = new Double[3];
             args[0] = Double.NaN;
 //The expression should look like...function,x1,x2,iterations(optional)
             int lastCommaIndex = expression.lastIndexOf(",");
@@ -329,7 +329,7 @@ public class FunctionExpander {
 
                 setxLower(args[0]);
                 setxUpper(args[1]);
-                setDegree((int) args[2]);
+                setDegree(args[2].intValue());
                 setFunction(new Function(expression));
             }//end else if
             else {
@@ -360,7 +360,7 @@ public class FunctionExpander {
             String poly = "";
 
             int power = 0;
-            double arr[][] = mat.getArray();
+            Double arr[][] = mat.getArray();
             for (int rows = 0; rows < mat.getRows(); rows++, power++) {
                 for (int cols = 0; cols < mat.getCols(); cols++) {
 

@@ -211,7 +211,7 @@ public class Function implements Savable {
      * were supplied in the original question.
      * @return the value of the function with these variables set.
      */
-    public double calc(double... x) {
+    public Double calc(Double... x) {
         int i = 0;
         if (x.length == independentVariables.size()) {
             for (Variable var : independentVariables) {
@@ -733,22 +733,22 @@ public class Function implements Savable {
             rangeDescr = rangeDescr.substring(rangeDescr.indexOf(":") + 1);
             String xEnd = rangeDescr.substring(0, rangeDescr.indexOf(":"));
             rangeDescr = rangeDescr.substring(rangeDescr.indexOf(":") + 1);
-            double xStep = Double.valueOf(rangeDescr);
+            Double xStep = Double.valueOf(rangeDescr);
 
-            double x1 = Double.valueOf(xStart);
-            double x2 = Double.valueOf(xEnd);
+            Double x1 = Double.valueOf(xStart);
+            Double x2 = Double.valueOf(xEnd);
             int sz = (int) ((x2 - x1) / xStep);
 
             String[][] results = new String[2][sz + 1];
 
             if (x1 > x2) {
-                double p = x1;
+                Double p = x1;
                 x1 = x2;
                 x2 = p;
             }
             int i = 0;
             int len = sz + 1;
-            for (double x = x1; i < len && x <= x2; x += xStep, i++) {
+            for (Double x = x1; i < len && x <= x2; x += xStep, i++) {
                 String xStr = String.valueOf(x);
                 mathExpression.setValue(variableName, xStr);
                 results[0][i] = mathExpression.solve();
@@ -776,19 +776,19 @@ public class Function implements Savable {
      * the rangeDescr parameter is not valid.. it returns a2D array containing 2
      * null arrays.
      */
-    public double[][] evalRange(double xLower, double xUpper, double xStep, String variableName, int DRG) {
+    public Double[][] evalRange(Double xLower, Double xUpper, Double xStep, String variableName, int DRG) {
 
         if (xLower > xUpper) {
-            double p = xLower;
+            Double p = xLower;
             xLower = xUpper;
             xUpper = p;
         }
         int sz = (int) ((xUpper - xLower) / xStep);
 
-        double[][] results = new double[2][sz + 1];
+        Double[][] results = new Double[2][sz + 1];
         int len = sz + 1;
         int i = 0;
-        for (double x = xLower; i < len && x <= xUpper; x += xStep, i++) {
+        for (Double x = xLower; i < len && x <= xUpper; x += xStep, i++) {
             mathExpression.setValue(variableName, String.valueOf(x));
             results[0][i] = Double.parseDouble(mathExpression.solve());
             results[1][i] = x;
@@ -955,7 +955,7 @@ public class Function implements Savable {
      * @return the determinant of the function if it is of type
      * {@link Function#MATRIX} Otherwise it returns {@link Double#NaN}
      */
-    public double calcDet() {
+    public Double calcDet() {
         if (type == MATRIX) {
             return matrix.determinant();
         }
@@ -1025,7 +1025,7 @@ public class Function implements Savable {
 
         if (numRows * numCols == size) {
 
-            double arr[][] = new double[numRows][numCols];
+            Double arr[][] = new Double[numRows][numCols];
             int row = 0;
             int col = 0;
             for (int i = 0; i < size; i++) {
@@ -1103,16 +1103,16 @@ public class Function implements Savable {
        
         Function func = new Function("p=@(x)sin(x)+x+x^2");
         FunctionManager.add(func);
-        System.out.println(func.calc(4));
+        System.out.println(func.calc(4d));
         
         int count = 10000;
         
         
-        double start = System.nanoTime();
+        Double start = (double)System.nanoTime();
         for(int i=1;i<=count;i++){
             String val = func.evalArgs("p("+i+")");
         }
-        double duration = System.nanoTime() - start;
+        Double duration = System.nanoTime() - start;
         System.out.println("Eval took: "+(duration/(count*1.0E6))+"ms");
         
         

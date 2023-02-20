@@ -15,28 +15,28 @@ package math.complex;
  * @author JIBOYE Oluwagbemiro Olaoluwa
  */
 public class ComplexNumber {
-    private double real;
-    private double imag;
+    private Double real;
+    private Double imag;
     public static final String radical = "i";
     private ComplexState state = ComplexState.CARTESIAN;
     /**
-     * The 2 double arguments have interpretations that vary with the state argument.
+     * The 2 Double arguments have interpretations that vary with the state argument.
      * If state = POLAR ,
-     * then the first double argument represents the radius or 
-     * absolute value of the ComplexNumber and the second double argument represents its angle.
+     * then the first Double argument represents the radius or 
+     * absolute value of the ComplexNumber and the second Double argument represents its angle.
      *
-     * If state = CARTESIAN , then the first double argument represents the real part of the complex number
+     * If state = CARTESIAN , then the first Double argument represents the real part of the complex number
      * and the second one represents its imaginary part.
      *
      * If state = EXPONENTIAL, then the first argument represents the radius or
-     * absolute value of the ComplexNumber and the second double argument represents its angle just as in
+     * absolute value of the ComplexNumber and the second Double argument represents its angle just as in
      * the Polar form.
      *
      * @param real The real part in CARTESIAN and the radius in POLAR.
      * @param imag The imaginary part in CARTESIAN and the angle in POLAR
      * @param state The state of the ComplexNumber object, POLAR or CARTESIAN.
      */
-    public ComplexNumber(double real, double imag,ComplexState state) {
+    public ComplexNumber(Double real, Double imag,ComplexState state) {
             this.state = state;
         if (state.isCartesian()){
         this.real = real;
@@ -53,19 +53,19 @@ this.state = ComplexState.CARTESIAN;
 
 
 
-    public double getImag() {
+    public Double getImag() {
         return imag;
     }
 
-    public void setImag(double imag) {
+    public void setImag(Double imag) {
         this.imag = imag;
     }
 
-    public double getReal() {
+    public Double getReal() {
         return real;
     }
 
-    public void setReal(double real) {
+    public void setReal(Double real) {
         this.real = real;
     }
 
@@ -84,7 +84,7 @@ this.state = ComplexState.CARTESIAN;
  *
  * @return the angle of this object
  */
-    public double getAngle(){
+    public Double getAngle(){
         if(state.isCartesian()){
             return Math.atan(imag/real);
         }
@@ -96,7 +96,7 @@ this.state = ComplexState.CARTESIAN;
  *
  * @return the radius of this object
  */
-    public double getRadius(){
+    public Double getRadius(){
         if(state.isPolar()){
             return abs();
         }
@@ -131,11 +131,11 @@ this.state = ComplexState.CARTESIAN;
  * @return the product of the two objects as a new ComplexNumber object.
  */
 public ComplexNumber multiply(ComplexNumber complexNumber){
-double a = real;
-double b =imag;
+Double a = real;
+Double b =imag;
 
-double c =complexNumber.real;
-double d =complexNumber.imag;
+Double c =complexNumber.real;
+Double d =complexNumber.imag;
     return new ComplexNumber( (a*c-b*d) ,   (a*d + b*c),state);
 }
 
@@ -145,11 +145,11 @@ double d =complexNumber.imag;
  * @return the division of the two objects as a new ComplexNumber object.
  */
 public ComplexNumber divide(ComplexNumber complexNumber){
-double a = real;
-double b =imag;
+Double a = real;
+Double b =imag;
 
-double c =complexNumber.real;
-double d =complexNumber.imag;
+Double c =complexNumber.real;
+Double d =complexNumber.imag;
     return new ComplexNumber( (a*c+b*c+b*d)/( c*c + d*d )  ,   (a*d)/( c*c + d*d ),state );
 }
 
@@ -160,7 +160,7 @@ double d =complexNumber.imag;
  * @param number The scalar to be used in dividing this object
  * @return a scaled version of this object stored in a new object.
  */
-public ComplexNumber scalarDivide(double number){
+public ComplexNumber scalarDivide(Double number){
     return new ComplexNumber( real/number,imag/number,ComplexState.CARTESIAN );
 }
 
@@ -169,7 +169,7 @@ public ComplexNumber scalarDivide(double number){
  * @param number The scalar to be used in multiplying this object
  * @return a magnified version of this object stored in a new object.
  */
-public ComplexNumber scalarMultiply(double number){
+public ComplexNumber scalarMultiply(Double number){
     return new ComplexNumber( real*number,imag*number,ComplexState.CARTESIAN );
 }
 
@@ -187,9 +187,9 @@ public ComplexNumber getConjugate(){
  * Finds the absolute value of this object
  * @return the absolute value of this objet.
  */
-public double abs(){
-double a = real;
-double b =imag;
+public Double abs(){
+Double a = real;
+Double b =imag;
 return Math.sqrt(a*a+b*b);
 }
 /**
@@ -212,7 +212,7 @@ public ComplexNumber exp(){
  * @return the inverse of this object
  */
 public ComplexNumber inverse(){
-    double den = real*real + imag*imag;
+    Double den = real*real + imag*imag;
     return new ComplexNumber(real/den, -imag/den, ComplexState.CARTESIAN);
 }
 
@@ -223,8 +223,8 @@ public ComplexNumber inverse(){
  * @return the nth power of the ComplexNumber object.
  */
 
-public ComplexNumber pow(double n){
-    double r = abs();
+public ComplexNumber pow(Double n){
+    Double r = abs();
     return new ComplexNumber(  Math.pow( r,n ) , n*getAngle(), ComplexState.POLAR);
 }
 /**
@@ -250,13 +250,13 @@ public ComplexNumber cos(){
  * @return the tangent of this ComplexNumber object
  */
 public ComplexNumber tan(){
-    double tanreal = Math.tan(real);
-    double tanhimag = Math.tanh(imag);
+    Double tanreal = Math.tan(real);
+    Double tanhimag = Math.tanh(imag);
 
-   double sechImag = 1/Math.cosh(imag);
-   double secReal = 1/Math.cos(real);
+   Double sechImag = 1/Math.cosh(imag);
+   Double secReal = 1/Math.cos(real);
 
-   double den = 1 - tanreal*tanreal*tanhimag*tanhimag;
+   Double den = 1 - tanreal*tanreal*tanhimag*tanhimag;
 
 return new ComplexNumber( tanreal*sechImag*sechImag/den  ,  tanhimag*secReal*secReal/den , ComplexState.CARTESIAN);
 }
@@ -306,13 +306,13 @@ public ComplexNumber cosh(){
  * @return the hyperbolic tangent of this ComplexNumber object
  */
 public ComplexNumber tanh(){
-   double tanhreal = Math.tanh(real);
-    double tanimag = Math.tan(imag);
+   Double tanhreal = Math.tanh(real);
+    Double tanimag = Math.tan(imag);
 
-   double secImag = 1/Math.cos(imag);
-   double sechReal = 1/Math.cosh(real);
+   Double secImag = 1/Math.cos(imag);
+   Double sechReal = 1/Math.cosh(real);
 
-   double den = 1 + tanhreal*tanhreal*tanimag*tanimag;
+   Double den = 1 + tanhreal*tanhreal*tanimag*tanimag;
 
 return new ComplexNumber( tanhreal*secImag*secImag/den  ,  -tanimag*sechReal*sechReal/den , ComplexState.CARTESIAN);
 
@@ -377,10 +377,10 @@ return comp;
 
     public static void main(String args[]){
 
- ComplexNumber Z = new ComplexNumber(2, -3.5, ComplexState.CARTESIAN);
- ComplexNumber Z1 = new ComplexNumber(2, -3.5, ComplexState.CARTESIAN);
+ ComplexNumber Z = new ComplexNumber(2d, -3.5, ComplexState.CARTESIAN);
+ ComplexNumber Z1 = new ComplexNumber(2d, -3.5, ComplexState.CARTESIAN);
 
-System.out.println( Z.sin().pow(2).add( Z.cos().pow(2) ) );
+System.out.println( Z.sin().pow(2d).add( Z.cos().pow(2d) ) );
     }
 
 

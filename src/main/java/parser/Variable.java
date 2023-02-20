@@ -119,7 +119,7 @@ public class Variable implements Savable{
      * represents a constant, whose value cannot be altered.Else,it represents a
      * Variable object whose value can change.
      */
-    public Variable(String name, double value, boolean constant) {
+    public Variable(String name, Double value, boolean constant) {
         this(name, value + "", constant);
     }
 

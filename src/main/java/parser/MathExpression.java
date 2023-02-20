@@ -1668,7 +1668,7 @@ public class MathExpression implements Savable, Solvable {
 
         // correct the anomaly: [ (,-,number....,) ]
         // turn it into: [ (,,-number........,) ]
-        // The double commas show that there exists an empty location in between the 2
+        // The Double commas show that there exists an empty location in between the 2
         // commas
         if (list.get(0).equals("(") && list.get(1).equals(MINUS) && isNumber(list.get(2))) {
             list.set(1, "");

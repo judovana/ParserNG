@@ -49,7 +49,7 @@ public class MatrixVariableManager {
      *It can contain duplicate values of a Variable,
      * This is due to the space-time trade-off.Here we go for time in preference to space.
      * This means that we use more space so that we can quickly get the value of a given Variable.
-     * To use less space we would need to use a double for loop to compare the name of each Variable object
+     * To use less space we would need to use a Double for loop to compare the name of each Variable object
      * with the names of other Variable objects in the storage. This would take more time but use less space.
      *
      * However in this device, speed is essential and so we use a larger space by placing Variables having the same name

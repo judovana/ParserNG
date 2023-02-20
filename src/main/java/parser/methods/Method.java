@@ -587,7 +587,7 @@ public class Method {
             } // end else if
             else if (name.equals(LOG)) {
                 if (sz == 1) {
-                    result = String.valueOf(Maths.logToAnyBase(Double.valueOf(list.get(0)), 10));
+                    result = String.valueOf(Maths.logToAnyBase(Double.valueOf(list.get(0)), (double)10));
                     list.clear();
                     list.add(result);
                 } else if (sz == 2) {
@@ -600,7 +600,7 @@ public class Method {
                 return list;
             } else if ((name.equals(LOG_INV) || name.equals(LOG_INV_ALT))) {
                 if (sz == 1) {
-                    result = String.valueOf(Maths.antiLogToAnyBase(Double.valueOf(list.get(0)), 10));
+                    result = String.valueOf(Maths.antiLogToAnyBase(Double.valueOf(list.get(0)), (double)10));
                     list.clear();
                     list.add(result);
                     return list;
@@ -851,13 +851,13 @@ public class Method {
                             } else if (name.equals(CBRT)) {
                                 result = String.valueOf(Math.cbrt(Double.valueOf(list.get(0))));
                             } else if (name.equals(SQUARE)) {
-                                double val = Double.valueOf(list.get(0));
+                                Double val = Double.valueOf(list.get(0));
                                 result = String.valueOf(val * val);
                             } else if (name.equals(CUBE)) {
-                                double val = Double.valueOf(list.get(0));
+                                Double val = Double.valueOf(list.get(0));
                                 result = String.valueOf(val * val * val);
                             } else if (name.equals(INVERSE)) {
-                                double val = Double.valueOf(list.get(0));
+                                Double val = Double.valueOf(list.get(0));
                                 result = String.valueOf(1 / val);
                             } else if (name.equals(FACT)) {
                                 result = Maths.fact(list.get(0));
@@ -931,13 +931,13 @@ public class Method {
                             } else if (name.equals(CBRT)) {
                                 result = String.valueOf(Math.cbrt(Double.valueOf(list.get(0))));
                             } else if (name.equals(SQUARE)) {
-                                double val = Double.valueOf(list.get(0));
+                                Double val = Double.valueOf(list.get(0));
                                 result = String.valueOf(val * val);
                             } else if (name.equals(CUBE)) {
-                                double val = Double.valueOf(list.get(0));
+                                Double val = Double.valueOf(list.get(0));
                                 result = String.valueOf(val * val * val);
                             } else if (name.equals(INVERSE)) {
-                                double val = Double.valueOf(list.get(0));
+                                Double val = Double.valueOf(list.get(0));
                                 result = String.valueOf(1 / val);
                             } else if (name.equals(FACT)) {
                                 result = Maths.fact(list.get(0));
@@ -1011,13 +1011,13 @@ public class Method {
                             } else if (name.equals(CBRT)) {
                                 result = String.valueOf(Math.cbrt(Double.valueOf(list.get(0))));
                             } else if (name.equals(SQUARE)) {
-                                double val = Double.valueOf(list.get(0));
+                                Double val = Double.valueOf(list.get(0));
                                 result = String.valueOf(val * val);
                             } else if (name.equals(CUBE)) {
-                                double val = Double.valueOf(list.get(0));
+                                Double val = Double.valueOf(list.get(0));
                                 result = String.valueOf(val * val * val);
                             } else if (name.equals(INVERSE)) {
-                                double val = Double.valueOf(list.get(0));
+                                Double val = Double.valueOf(list.get(0));
                                 result = String.valueOf(1 / val);
                             } else if (name.equals(FACT)) {
                                 result = Maths.fact(list.get(0));

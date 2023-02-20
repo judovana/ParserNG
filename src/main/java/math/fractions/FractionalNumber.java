@@ -50,7 +50,7 @@ reduce();
  */
 public void reduce(){
 
-    double den = numerator>=denominator?numerator:denominator;
+    Double den = numerator>=(double)denominator?(double)numerator:(double)denominator;
 
     for(int i=2;i<den;i++){
         if( numerator%i==0 && denominator%i==0){
@@ -82,7 +82,7 @@ else if( isEven(numerator) && isPowerOf2(numerator) &&!isEven(denominator) ){
  * @return true if the number is a power of 2 i.e 1,2,4,8,16........
  */
 public static boolean isPowerOf2( long num){
-    double x = log(num)/log(2);
+    Double x = log(num)/log(2);
     return ( x % 2.0 == 0 )||( x%2.0 == 1 );
 }
 

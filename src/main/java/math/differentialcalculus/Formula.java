@@ -71,7 +71,7 @@ public class Formula {
         return data;
     }
 
-    public static boolean approxEquals(double num1, double num2) {
+    public static boolean approxEquals(Double num1, Double num2) {
         return Math.abs((num1 - num2) / num2) <= 1.0E-11;
     }
 
@@ -124,7 +124,7 @@ public class Formula {
      * @return a constant which is the ratio of this Formula and the parameter
      * Formula and returns Nan if not possible.
      */
-    public double getFactor(Formula formula) {
+    public Double getFactor(Formula formula) {
         boolean same = true;
         /**
          * Try a straightforward token by token comparison
@@ -199,7 +199,7 @@ public class Formula {
          * then we check if the 2 Formulae always have the same value.
          *
          */
-        double[][] values = new double[vars.size()][4];
+        Double[][] values = new Double[vars.size()][4];
 
         //Choose variable test values.
         Random rnd = new Random();
@@ -219,7 +219,7 @@ public class Formula {
          *
          */
         boolean sameValue = true;
-        double[] ratios = new double[4];
+        Double[] ratios = new Double[4];
         for (int j = 0; j < variables[0].values.length && sameValue; j++) {
             /**
              * Create 2 fresh images of the lists and substitute the values in
@@ -265,8 +265,8 @@ public class Formula {
             String v2 = ExpressionSimplifier.solve(formulaImage).get(0);
 
             try {
-                double thisresult = Double.parseDouble(v1);
-                double formularesult = Double.parseDouble(v2);
+                Double thisresult = Double.parseDouble(v1);
+                Double formularesult = Double.parseDouble(v2);
                 ratios[j] = thisresult / formularesult;
 
             }//end try
@@ -356,8 +356,8 @@ public class Formula {
             //Use an approximate comparator to account for truncation errors.
             else {
                 try {
-                    double thisresult = Double.parseDouble(v1);
-                    double formularesult = Double.parseDouble(v2);
+                    Double thisresult = Double.parseDouble(v1);
+                    Double formularesult = Double.parseDouble(v2);
 
                     if (approxEquals(thisresult, formularesult)) {
                         return true;
@@ -385,7 +385,7 @@ public class Formula {
          * then we check if then 2 Formulae always have the same value.
          *
          */
-        double[][] values = new double[vars.size()][4];
+        Double[][] values = new Double[vars.size()][4];
 
         //Choose variable test values.
         Random rnd = new Random();
@@ -455,8 +455,8 @@ public class Formula {
             //Use an approximate comparator to account for truncation errors.
             else {
                 try {
-                    double thisresult = Double.parseDouble(v1);
-                    double formularesult = Double.parseDouble(v2);
+                    Double thisresult = Double.parseDouble(v1);
+                    Double formularesult = Double.parseDouble(v2);
 
                     if (approxEquals(thisresult, formularesult)) {
                         sameValue = true;
@@ -892,7 +892,7 @@ public class Formula {
                             continue;
                         }
                         if (i % 2 == 1) {
-                            double multiplier = Double.parseDouble(value.get(i + 1));
+                            Double multiplier = Double.parseDouble(value.get(i + 1));
                             if (multiplier < 0) {
                                 list.add("-");
                                 list.add(String.valueOf(Math.abs(multiplier)));
@@ -919,7 +919,7 @@ public class Formula {
                 }//end if
                 else {
                     for (int i = 0; i < value.size(); i += 2) {
-                        double multiplier = Double.parseDouble(value.get(i + 1));
+                        Double multiplier = Double.parseDouble(value.get(i + 1));
                         if (multiplier < 0) {
                             list.add("-");
                             list.add(String.valueOf(Math.abs(multiplier)));
@@ -1013,7 +1013,7 @@ public class Formula {
 
         //correct the anomaly: [ ,-,number....,  ]
         //   turn it into: [ -number........     ]
-        //The double commas show that there exists an empty location in between the 2 commas
+        //The Double commas show that there exists an empty location in between the 2 commas
         if (list.get(0).equals("-") && isNumber(list.get(1))) {
             list.remove(0);
             list.set(0, "" + (-1 * Double.parseDouble(list.get(0))));
@@ -1081,7 +1081,7 @@ public class Formula {
                 continue;
             }
             Formula f = new Formula("myForm_1", compoundToken);//Avoid the +|- sign at the beginning of the List.
-            double coeff = 1;
+            Double coeff = 1d;
             for (int j = i + 1; j < compoundTokens.size(); j++) {
                 try {
 
@@ -1095,7 +1095,7 @@ public class Formula {
                         j--;
                         continue;
                     }
-                    double factor = fj.getFactor(f);
+                    Double factor = fj.getFactor(f);
 
                     if (!Double.isNaN(factor)) {
                         coeff += factor;
@@ -1179,7 +1179,7 @@ public class Formula {
         /**
          * The various values which this object can hold.
          */
-        double[] values;
+        Double[] values;
 
         /**
          *
@@ -1189,7 +1189,7 @@ public class Formula {
          * @param name The name of the object.
          * @param values The various values which this object can hold.
          */
-        public MultivaluedVariable(int index, String name, double[] values) {
+        public MultivaluedVariable(int index, String name, Double[] values) {
             this.index = index;
             this.name = name;
             this.values = values;
@@ -1203,7 +1203,7 @@ public class Formula {
          *
          * @return the current value of the object.
          */
-        public double currentValue() {
+        public Double currentValue() {
             return values[cursor];
         }
 
@@ -1212,7 +1212,7 @@ public class Formula {
          * @return Changes the value of the object to the next one and returns
          * that value.
          */
-        public double nextValue() {
+        public Double nextValue() {
             if (cursor < values.length - 1) {
                 ++cursor;
             } else {

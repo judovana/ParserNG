@@ -12,23 +12,23 @@ import static java.lang.Math.*;
  */
 public class Line{
 
-    private double m;
-    private double c;
+    private Double m;
+    private Double c;
 
 
 /**
  * Creates a straight line parallel to the x axis
  */
     public Line(){
-        this.m=0;
-        this.c=0;
+        this.m=0d;
+        this.c=0d;
     }
 /**
  * Creates a new Line object give the gradient and the y intercept
  * @param m the gradient of the Line object
  * @param c the y intercept of the Line object
  */
-    public Line(double m,double c){
+    public Line(Double m,Double c){
 this.m=m;
 this.c=c;
     }
@@ -38,7 +38,7 @@ this.c=c;
  * @param m the gradient of the Line object
  * @param p a Point object that lies on the Line object.
  */
-    public Line(double m,Point p){
+    public Line(Double m,Point p){
 this.m=m;
 this.c=p.y-(m*p.x);
     }
@@ -50,7 +50,7 @@ this.c=p.y-(m*p.x);
  * @param x2 the x coordinate of the second point
  * @param y2 the y coordinate of the second point
  */
-    public Line(double x1,double y1, double x2,double y2){
+    public Line(Double x1,Double y1, Double x2,Double y2){
         this.m= new Point(x1,y1).findXYGrad(new Point(x2,y2));
         this.c=y1-this.m*x1;
     }
@@ -74,28 +74,28 @@ this.c=p.y-(m*p.x);
  *
  * @param m sets the gradient of this Line.
  */
-    public void setM(double m) {
+    public void setM(Double m) {
         this.m = m;
     }
 /**
  *
  * @return  the gradient of this Line.
  */
-    public double getM() {
+    public Double getM() {
         return m;
     }
 /**
  *
  * @param c sets the intercept of this Line.
  */
-    public void setC(double c) {
+    public void setC(Double c) {
         this.c = c;
     }
 /**
  *
  * @return the intercept of this Line.
  */
-    public double getC() {
+    public Double getC() {
         return c;
     }
 
@@ -106,7 +106,7 @@ this.c=p.y-(m*p.x);
  * a given point on a Line object.
  * @return the x coordinate of that point.
  */
-public double getX(double y){
+public Double getX(Double y){
     return (y-this.c)/this.m;
 }
 /**
@@ -115,7 +115,7 @@ public double getX(double y){
  * a given point on a Line object.
  * @return the y coordinate of that point.
  */
-public double getY(double x){
+public Double getY(Double x){
  return (this.m*x)+this.c;
 }
 
@@ -129,8 +129,8 @@ public double getY(double x){
  * @return the distance along this Line
  * object between the 2 given Point objects lying on it
  */
-public double distance(Point p1,Point p2){
-    double dist=0;
+public Double distance(Point p1,Point p2){
+    Double dist=0d;
     if(passesThroughPoint(p1)&&passesThroughPoint(p2)){
        dist = p2.calcDistanceTo(p1);
     }
@@ -146,8 +146,8 @@ public double distance(Point p1,Point p2){
  * @return the distance along this Line
  * object between the 2 given Point objects lying on it
  */
-public double distanceSquared(Point p1,Point p2){
-    double dist=0;
+public Double distanceSquared(Point p1,Point p2){
+    Double dist=0d;
     if(passesThroughPoint(p1)&&passesThroughPoint(p2)){
        dist = pow( (p2.x-p1.x),2 )+pow( (p2.y-p1.y),2 );
     }
@@ -191,8 +191,8 @@ public boolean isParallelTo(Line line){
  * @return the point of intersection of both Line objects
  */
 public Point intersectionWithLine(Line line){
-    double x= (-1*(this.c-line.c)/(this.m-line.m));
-    double y= this.m*x+this.c;
+    Double x= (-1*(this.c-line.c)/(this.m-line.m));
+    Double y= this.m*x+this.c;
     return new Point(x,y);
 }
 
@@ -205,7 +205,7 @@ public Point intersectionWithLine(Line line){
  * @param x2 The x coordinate of the second point on this Line object
  * where drawing is to start
  */
-public void draw(Object g,double x1, double x2){
+public void draw(Object g,Double x1, Double x2){
 
 
 }
@@ -219,7 +219,7 @@ public void draw(Object g,double x1, double x2){
  * @return true if the values deviate by 1.0E-14 or lesser.
  */
 
-public boolean approxEquals(double val1,double val2){
+public boolean approxEquals(Double val1,Double val2){
  return abs(abs(val1)-abs(val2))<=1.0E-14;
 }
 
@@ -233,7 +233,7 @@ public boolean approxEquals(double val1,double val2){
  * @return true if the values deviate by 1.0E-14 or lesser.
  */
 
-public boolean approxEquals(double val1,double val2,double minDeviation){
+public boolean approxEquals(Double val1,Double val2,Double minDeviation){
  return abs(abs(val1)-abs(val2))<=abs(minDeviation);
 }
 
@@ -248,7 +248,7 @@ public String toString(){
 
 
       public static void main(String args[]){
-    Line ell=new Line(2,4,-2,-1);
+    Line ell=new Line(2d,4d,-2d,-1d);
 
     System.out.println(ell.toString() );
 

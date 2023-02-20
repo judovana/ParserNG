@@ -323,7 +323,7 @@ public class MathExpressionManager {
                 return val;
             }
 
-            double v = Double.parseDouble(val);//test to see that a valid number was returned
+            Double v = Double.parseDouble(val);//test to see that a valid number was returned
             return val;
 
         }

@@ -134,12 +134,12 @@ class MathExpressionTest {
 //        System.out.println(0xFF888888);
 //        System.out.println(0xFFFFFFFF);
         Function f = FunctionManager.add("f(x,y) = x - x/y");
-        double r = f.calc(2, 3);
+        Double r = f.calc(2d, 3d);
         Assertions.assertEquals((double) 2 - ((double) 2 / (double) 3), r);
         int iterations = 10000;
         long start = System.nanoTime();
         for (int i = 1; i < iterations; i++) {
-            f.calc(2, 3);
+            f.calc(2d, 3d);
         }
         long duration = System.nanoTime() - start;
 
@@ -221,13 +221,13 @@ class MathExpressionTest {
 
          MathExpression f = new MathExpression(fun);
          String ans ="";
-         double start = System.nanoTime();
+         Double start = System.nanoTime();
 
          for(int i=0;i<1;i++){
          ans = f.solve();
          }
 
-         double time = (System.nanoTime()-start)/1.0E6;
+         Double time = (System.nanoTime()-start)/1.0E6;
          System.out.println("ans = "+ans+" calculated in "+time+" ms");
 
          */
@@ -318,10 +318,10 @@ class MathExpressionTest {
         long start = System.nanoTime();
         int iterations = 100;
         for (int i = 0; i < iterations; i++) {
-            f.calc(i + 3);
+            f.calc(i + 3d);
         }
         long elapsedNanos = (System.nanoTime() - start) / iterations;
-        double durationms = (double) elapsedNanos / 1.0E6;
+        Double durationms = (double) elapsedNanos / 1.0E6;
         if (print) System.out.println("DONE: " + durationms + " ms");
         Assertions.assertTrue(durationms < 1);
 

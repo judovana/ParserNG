@@ -77,7 +77,7 @@ public class ExpressionSimplifier {
                   //Formula found is factor of incoming Formula.----where: factor=data/stored_formula.data
                   else{
                       try {
-                          double factor = Double.parseDouble(info[2].toString());
+                          Double factor = Double.parseDouble(info[2].toString());
                           Formula stored = manager.getFormula(indexOfFormula);
                              subList.clear();
                              subList.add("(");
@@ -253,7 +253,7 @@ public class ExpressionSimplifier {
     
 //correct the anomaly: [ (,-,number....,)  ]
         //   turn it into: [ (,,-number........,)     ]
-        //The double commas show that there exists an empty location in between the 2 commas
+        //The Double commas show that there exists an empty location in between the 2 commas
         if (list.get(0).equals("(") && list.get(1).equals("-") && isNumber(list.get(2))) {
             list.set(1, "");
             //if the number is negative,make it positive
@@ -267,7 +267,7 @@ public class ExpressionSimplifier {
         
 //correct the anomaly: [ ,-,number....,  ]
         //   turn it into: [ -number........     ]
-        //The double commas show that there exists an empty location in between the 2 commas
+        //The Double commas show that there exists an empty location in between the 2 commas
         if (list.get(0).equals("-") && isNumber(list.get(1))) {
             list.remove(0);
                 list.set(0, ""+(-1*Double.parseDouble(list.get(0))));

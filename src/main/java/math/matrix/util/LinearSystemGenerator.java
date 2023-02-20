@@ -87,25 +87,25 @@ for(int i=1;i<=size;i++){
 return vars;
 }
 /**
- * @return a double number randomly generated.
+ * @return a Double number randomly generated.
  */
-private double generateCoefficient(){
+private Double generateCoefficient(){
 
 Random ran = new Random();
-double number = 1.0;
+Double number = 1.0;
 int choiceOfSign=ran.nextInt(2);
 
 /**
  * Generate a number greater than zero or equal to zero
  */
 if(choiceOfSign==0){
-number = 1+ran.nextInt(maximumPossibleNumberInSystem);
+number = 1d+ran.nextInt(maximumPossibleNumberInSystem);
 
     /**
      * Generate a divisor randomly between zero and the value generated for number.
      */
-int val=(int) number;
-    double divisor = 1+ran.nextInt(val);
+int val=number.intValue();
+    Double divisor = 1d+ran.nextInt(val);
     number/=divisor;
 
 
@@ -115,13 +115,13 @@ int val=(int) number;
  * Generate a number less than zero
  */
 else if(choiceOfSign==1){
-number = 1+ran.nextInt(maximumPossibleNumberInSystem);
+number = 1d+ran.nextInt(maximumPossibleNumberInSystem);
     /**
      * Generate a divisor randomly between zero and the value generated for number.
      */
-int val=(int) number;
-    double divisor = 1+ran.nextInt(val);
-    number/=(-1.0*divisor);
+int val= number.intValue();
+    Double divisor = 1d+ran.nextInt(val);
+    number/=(-1.0d*divisor);
 }
 
 return number;

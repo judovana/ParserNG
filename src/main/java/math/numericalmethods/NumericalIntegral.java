@@ -43,11 +43,11 @@ public class NumericalIntegral {
     /**
      * The upper boundary value of x.
      */
-    private double xUpper;
+    private Double xUpper;
     /**
      * The lower boundary value of x.
      */
-    private double xLower;
+    private Double xLower;
     /**
      * The function to integrate.
      */
@@ -65,7 +65,7 @@ public class NumericalIntegral {
      * @param function The name of a Function that has been defined before
      * in the WorkSpace or an anonymous Function just specified.
      */
-    public NumericalIntegral(double xLower, double xUpper, int iterations, String function) {
+    public NumericalIntegral(Double xLower, Double xUpper, int iterations, String function) {
         this.xLower = xLower;
         this.xUpper = xUpper;
         try{
@@ -151,19 +151,19 @@ public class NumericalIntegral {
         this.function = function;
     }
 
-    public double getxLower() {
+    public Double getxLower() {
         return xLower;
     }
 
-    public void setxLower(double xLower) {
+    public void setxLower(Double xLower) {
         this.xLower = xLower;
     }
 
-    public double getxUpper() {
+    public Double getxUpper() {
         return xUpper;
     }
 
-    public void setxUpper(double xUpper) {
+    public void setxUpper(Double xUpper) {
         this.xUpper = xUpper;
     }
     /**
@@ -177,24 +177,24 @@ public class NumericalIntegral {
      * h= (xUpper-xLower)/(2*m)
      */
     public String findSimpsonIntegral(){
-        double m = 20000;
-        double h = (xUpper - xLower)/( 2.0 * m );
+        Double m = 20000d;
+        Double h = (xUpper - xLower)/( 2.0 * m );
         MathExpression fun = function.getMathExpression();
         String variable = function.getIndependentVariables().get(0).getName();
 
 
         fun.setValue(variable, String.valueOf(xLower));
-        double first = Double.parseDouble( fun.solve() );
+        Double first = Double.parseDouble( fun.solve() );
 
         fun.setValue(variable, String.valueOf(xUpper));
-        double last = Double.parseDouble( fun.solve() );
+        Double last = Double.parseDouble( fun.solve() );
 
-        double count = 1.0;
+        Double count = 1.0;
 
-        double sumFirstAndLast=first+last;
-        double sumEven=0.0;
-        double sumOdd=0.0;
-        double x=0.0;
+        Double sumFirstAndLast=first+last;
+        Double sumEven=0.0;
+        Double sumOdd=0.0;
+        Double x=0.0;
 
 
         for(;x<(xUpper-h);){
@@ -215,7 +215,7 @@ public class NumericalIntegral {
         }//end for
 
 
-        double sum = (h/3.0)*(sumFirstAndLast+4.0*sumOdd+2.0*sumEven);
+        Double sum = (h/3.0)*(sumFirstAndLast+4.0*sumOdd+2.0*sumEven);
 
         return String.valueOf(sum);
     }//end method
@@ -230,13 +230,13 @@ public class NumericalIntegral {
      * The x distances must also be equal.
      * h= (xUpper-xLower)/(2*m)
      */
-    public String findSimpsonIntegral( double h ){
+    public String findSimpsonIntegral( Double h ){
 
-        double n = (xUpper-xLower)/(h);
+        Double n = (xUpper-xLower)/(h);
 
 
-        double xLower = this.xLower;
-        double xUpper = xLower+Math.floor(n)*h;
+        Double xLower = this.xLower;
+        Double xUpper = xLower+Math.floor(n)*h;
 
 
         MathExpression fun = function.getMathExpression();
@@ -244,17 +244,17 @@ public class NumericalIntegral {
 
 
         fun.setValue(variable, String.valueOf(xLower));
-        double first = Double.parseDouble( fun.solve() );
+        Double first = Double.parseDouble( fun.solve() );
 
         fun.setValue(variable, String.valueOf(xUpper));
-        double last = Double.parseDouble( fun.solve() );
+        Double last = Double.parseDouble( fun.solve() );
 
-        double count = 1.0;
+        Double count = 1.0;
 
-        double sumFirstAndLast=first+last;
-        double sumEven=0.0;
-        double sumOdd=0.0;
-        double x=0.0;
+        Double sumFirstAndLast=first+last;
+        Double sumEven=0.0;
+        Double sumOdd=0.0;
+        Double x=0.0;
 
         for(;x<(xUpper-h);){
             x= xLower+count*h;
@@ -274,7 +274,7 @@ public class NumericalIntegral {
         }//end for
 
 
-        double mainSum = (h/3.0)*(sumFirstAndLast+4.0*sumOdd+2.0*sumEven);
+        Double mainSum = (h/3.0)*(sumFirstAndLast+4.0*sumOdd+2.0*sumEven);
 
         if( xUpper == this.xUpper ){
             return String.valueOf(mainSum);
@@ -316,7 +316,7 @@ public class NumericalIntegral {
                 }//end catch
             }//end for
 
-            double sum=(h/3.0)*(sumFirstAndLast+4.0*sumOdd+2.0*sumEven);
+            Double sum=(h/3.0)*(sumFirstAndLast+4.0*sumOdd+2.0*sumEven);
 
             return String.valueOf(sum+mainSum);
         }
@@ -330,24 +330,24 @@ public class NumericalIntegral {
      * function using the trapezoidal rule.
      */
     public String findTrapezoidalIntegral(){
-        double dx = (xUpper - xLower)/( 10000.0 );
+        Double dx = (xUpper - xLower)/( 10000.0 );
         MathExpression fun = function.getMathExpression();
         String variable = function.getIndependentVariables().get(0).getName();
         fun.setValue(variable, String.valueOf(xLower));
 
 
-        double first = Double.parseDouble(fun.solve());
+        Double first = Double.parseDouble(fun.solve());
 
         fun.setValue(variable, String.valueOf(xUpper));
 
-        double last = Double.parseDouble(fun.solve());
+        Double last = Double.parseDouble(fun.solve());
 
         fun.setValue(variable, String.valueOf(xLower+dx));
 
-        double y = 0.0;
-        double count=0.0;
-        double sum=0.0;
-        double x=xLower+dx;
+        Double y = 0.0;
+        Double count=0.0;
+        Double sum=0.0;
+        Double x=xLower+dx;
         for(;x<(xUpper);){
             try{
                 fun.setValue(variable, String.valueOf(x));
@@ -369,13 +369,13 @@ public class NumericalIntegral {
      * @return the integral of the
      * function using the trapezoidal rule.
      */
-    public String findTrapezoidalIntegral( double h ){
+    public String findTrapezoidalIntegral( Double h ){
 
-        double n = (xUpper-xLower)/(h);
+        Double n = (xUpper-xLower)/(h);
 
 
-        double xLower = this.xLower;
-        double xUpper = xLower+Math.floor(n)*h;
+        Double xLower = this.xLower;
+        Double xUpper = xLower+Math.floor(n)*h;
 
 
         MathExpression fun = function.getMathExpression();
@@ -383,16 +383,16 @@ public class NumericalIntegral {
         fun.setValue(variable, String.valueOf(xLower));
 
 
-        double first = Double.parseDouble(fun.solve());
+        Double first = Double.parseDouble(fun.solve());
 
         fun.setValue(variable, String.valueOf(xUpper));
 
-        double last = Double.parseDouble(fun.solve());
+        Double last = Double.parseDouble(fun.solve());
 
 
-        double count=1.0;
-        double mainSum=0.0;
-        double x=xLower+h;
+        Double count=1.0;
+        Double mainSum=0.0;
+        Double x=xLower+h;
         for(;x<(xUpper);){
             try{
                 fun.setValue(variable, String.valueOf(x));
@@ -419,7 +419,7 @@ public class NumericalIntegral {
             fun.setValue(variable, String.valueOf(xUpper));
 
             last = Double.parseDouble(fun.solve());
-            double sum = 0.50*(xUpper-xLower)*(first+last);
+            Double sum = 0.50*(xUpper-xLower)*(first+last);
 
 
             return String.valueOf( h*mainSum+sum );
@@ -437,7 +437,7 @@ public class NumericalIntegral {
      * @return the integral of the
      * function using the polynomial rule.
      */
-    public double findPolynomialIntegral(){
+    public Double findPolynomialIntegral(){
 
         FunctionExpander expander = new FunctionExpander( xLower, xUpper,iterations,FunctionExpander.DOUBLE_PRECISION, function);
         //System.out.printf("xLower = %4.2f, xUpper = %4.2f\n",xLower,xUpper);
@@ -446,11 +446,11 @@ public class NumericalIntegral {
         String variable = function.getIndependentVariables().get(0).getName();
         approxFunction.setValue(variable, String.valueOf( xLower ) );
 
-        double lower = Double.parseDouble( approxFunction.solve() );
+        Double lower = Double.parseDouble( approxFunction.solve() );
 
         approxFunction.setValue(variable, String.valueOf( xUpper ) );
 
-        double upper = Double.parseDouble( approxFunction.solve() );
+        Double upper = Double.parseDouble( approxFunction.solve() );
 
         return     upper - lower;
     }
@@ -465,8 +465,8 @@ public class NumericalIntegral {
      * @return the integral of the
      * function using the trapezoidal rule.
      */
-    public double findHighRangeIntegralWithAdvancedPolynomial(){
-        double dx = 0.5;
+    public Double findHighRangeIntegralWithAdvancedPolynomial(){
+        Double dx = 0.5;
 
         String fName = function.getName();
 
@@ -476,9 +476,9 @@ public class NumericalIntegral {
         }
         else{
 
-            double sum = 0.0;
+            Double sum = 0.0;
             if(xLower<=xUpper){
-                double x=xLower;
+                Double x=xLower;
                 for(;x<(xUpper-dx);x+=dx){
                     NumericalIntegral integral = new NumericalIntegral(x, x+dx,iterations, fName );
                     sum += integral.findAdvancedPolynomialIntegral();
@@ -502,7 +502,7 @@ public class NumericalIntegral {
             }
 
             else if(xUpper < xLower){
-                double x=xLower;
+                Double x=xLower;
                 for(;x>(xUpper+dx);x-=dx){
                     NumericalIntegral integral = new NumericalIntegral(x, x-dx,iterations, fName );
                     sum += integral.findAdvancedPolynomialIntegral();
@@ -538,8 +538,8 @@ public class NumericalIntegral {
      * @return the integral of the
      * function using the trapezoidal rule.
      */
-    public double findHighRangeIntegral(){
-        double dx = 0.2;
+    public Double findHighRangeIntegral(){
+        Double dx = 0.2;
 
         String fName = function.getName();
 
@@ -549,9 +549,9 @@ public class NumericalIntegral {
             }
             else{
 
-                double sum = 0.0;
+                Double sum = 0.0;
                 if(xLower<=xUpper){
-                    double x=xLower;
+                    Double x=xLower;
                     for(;x<(xUpper-dx);x+=dx){
                         NumericalIntegral integral = new NumericalIntegral(x, x+dx,iterations, fName );
                         sum += integral.findGaussianQuadrature();
@@ -575,7 +575,7 @@ public class NumericalIntegral {
                 }
 
                 else if(xUpper < xLower){
-                    double x=xLower;
+                    Double x=xLower;
                     for(;x>(xUpper+dx);x-=dx){
                         NumericalIntegral integral = new NumericalIntegral(x, x-dx,iterations, fName );
                         sum += integral.findGaussianQuadrature();
@@ -616,7 +616,7 @@ public class NumericalIntegral {
      *
      * @return The Gaussian Quadrature Version.
      */
-    public double findGaussianQuadrature(){
+    public Double findGaussianQuadrature(){
         return Integration.gaussQuad(function, xLower, xUpper, 8);
     }
 
@@ -624,9 +624,9 @@ public class NumericalIntegral {
      * Algorithm that combines a variant of the Simpson rule
      * and the polynomial rule to produce higher accuracy integrals.
      */
-    public double findAdvancedPolynomialIntegral(){
+    public Double findAdvancedPolynomialIntegral(){
 
-        double dx = ( xUpper - xLower )/(iterations);
+        Double dx = ( xUpper - xLower )/(iterations);
 
         FunctionExpander expander = new FunctionExpander( xLower, xUpper,iterations,FunctionExpander.DOUBLE_PRECISION ,function);
 
@@ -638,11 +638,11 @@ public class NumericalIntegral {
 
 
 
-        double sum1=  this.findPolynomialIntegral();
-        double sum2=0.0;
-        for(double x = xLower;x<xUpper;x+=dx){
+        Double sum1=  this.findPolynomialIntegral();
+        Double sum2=0.0;
+        for(Double x = xLower;x<xUpper;x+=dx){
 
-            double x1 = ( x+(x+dx) )/2.0;
+            Double x1 = ( x+(x+dx) )/2.0;
 
             fun.setValue( variable, String.valueOf(x1) );
             approxFunction.setValue( variable ,   String.valueOf(x1) );
@@ -794,7 +794,7 @@ public class NumericalIntegral {
             if(expression.startsWith("intg(") && expression.endsWith(")")){
                 expression=expression.substring(expression.indexOf("(")+1);
                 expression =expression.substring(0,expression.length()-1);//remove the last bracket
-                double args[] = new double[3];
+                Double args[] = new Double[3];
                 args[0]=Double.NaN;
 //The expression should look like...function,x1,x2,iterations(optional)
                 int lastCommaIndex=expression.lastIndexOf(",");
@@ -866,7 +866,7 @@ public class NumericalIntegral {
                 else if( !new Double(args[0]).isNaN() ){
                     setxLower(args[0]);
                     setxUpper(args[1]);
-                    setIterations((int) args[2]);
+                    setIterations(args[2].intValue());
                     try{
                         if(expression.startsWith("@")){
                             //expression="anon=".concat(expression);
@@ -938,7 +938,7 @@ public class NumericalIntegral {
 
         public Function getFunctionFromSymbolicIntegralCommand(String expression){
             expression = expression.trim();
-            double args[] = new double[3];
+            Double args[] = new Double[3];
             args[0]=Double.NaN;
             if(expression.startsWith("∫(")){
 
@@ -986,8 +986,8 @@ public class NumericalIntegral {
         //∫(F,2,3)dx
 //    NumericalIntegral intg = new NumericalIntegral(2,10,12,"F");
 //    System.out.println( intg.findPolynomialIntegral(12));
-        double x1 = -10;
-        double x2 = 10;
+        Double x1 = -10d;
+        Double x2 = 10d;
 
         NumericalIntegral numericalIntegral = new NumericalIntegral("intg(H,"+x1+","+x2+")", FUNCTIONAL_INTEGRATION);
 //System.out.println(numericalIntegral.findTrapezoidalIntegral(0.1));
@@ -995,10 +995,10 @@ public class NumericalIntegral {
 //System.out.println("GaussianQuadrature: "+numericalIntegral.findGaussianQuadrature());
 
 
-        double numericalValue = numericalIntegral.findHighRangeIntegralWithAdvancedPolynomial();
+        Double numericalValue = numericalIntegral.findHighRangeIntegralWithAdvancedPolynomial();
         Function f = FunctionManager.lookUp("I");
 
-        double realValue = f.calc(x2) - f.calc(x1);
+        Double realValue = f.calc(x2) - f.calc(x1);
         System.out.println("Numerical value: "+ numericalValue);
         System.out.println("Real value: "+realValue);
 

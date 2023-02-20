@@ -205,7 +205,7 @@ multiplyOutProductBrackets(scan);
 /**
  * 
  * 
- * Help methods acquire double brackets so that
+ * Help methods acquire Double brackets so that
  * the pattern..sin(4*x-7)...sin((4*x-7)):u=(4*x-7)....sin(u)
  * 
  * 
@@ -215,15 +215,15 @@ multiplyOutProductBrackets(scan);
             
             if(isMethodName(scan.get(i))&&isOpeningBracket(scan.get(i+1))){
                 int initialCloseIndex = Bracket.getComplementIndex(true, i+1, scan); 
-                //Check for double brackets.
+                //Check for Double brackets.
                 if(isOpeningBracket(scan.get(i+2))){
                     /**
-                     * Check if the inside bracket is really double to the outer one...
-                     * Because the pattern is possible...sin((4*x-7)+1) and this is not really double.
+                     * Check if the inside bracket is really Double to the outer one...
+                     * Because the pattern is possible...sin((4*x-7)+1) and this is not really Double.
                      * The pattern we wish to build is sin(((4*x-7)+1))
                      */
                     int closeIndex = Bracket.getComplementIndex(true, i+2, scan);
-                    //method has double bracket already..sin((expr))..so do not add extra.
+                    //method has Double bracket already..sin((expr))..so do not add extra.
                     if(closeIndex+1==initialCloseIndex){
                         
                     }

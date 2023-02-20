@@ -23,8 +23,8 @@ import static java.lang.Math.*;
  * to one index behind the ending index.So the character at the ending index is not deleted.
  * So if we write   At( u,0,u.length() ),the whole string is deleted.
  *
- * Method isDouble1 takes a single argument;that is the number string which we wish to know if it is of type double or not.
- * It is a bold attempt by the author to devise a means of checking if a number entry qualifies as a double number string.
+ * Method isDouble1 takes a single argument;that is the number string which we wish to know if it is of type Double or not.
+ * It is a bold attempt by the author to devise a means of checking if a number entry qualifies as a Double number string.
  * This checking is done at much higher speeds in comparison to method isDouble.
  */
 
@@ -83,9 +83,9 @@ return newString;
 //  234567
 
 /**
- * isfullyDouble allows you to verify if an input string is in double number format or not.
+ * isfullyDouble allows you to verify if an input string is in Double number format or not.
  * @param num ..The string to be analyzed.
- * @return true or false depending on if or not the input represents a valid double number
+ * @return true or false depending on if or not the input represents a valid Double number
  */
 public static boolean isfullyDouble(String num){
 
@@ -625,7 +625,7 @@ return result;
  * @return true if the input string ends with
  * a mathematical operator string name
 
-public static double endsWithKeyWord( String val  ){
+public static Double endsWithKeyWord( String val  ){
 
 
 
@@ -891,7 +891,7 @@ return t;
 
 
       /**
-       * boolean Method isDouble(Object a) detects if a string entry is in double number format or not.
+       * boolean Method isDouble(Object a) detects if a string entry is in Double number format or not.
        *
        * @param a
        * @return
@@ -900,7 +900,7 @@ return t;
  public static boolean isDouble(String a) throws NumberFormatException{
 boolean truth=false;
  try{
-   double v=
+   Double v=
            Double.valueOf(a);
    truth=true;
     }
@@ -1517,7 +1517,7 @@ return u;
  }
 
    public static boolean isEven(String a) {
-   double ir=a.length();
+   Double ir=(double)(a.length());
  String h=String.valueOf(0.5*ir);
  if(h.substring(h.length()-1,h.length()).equals("0")){  return true;  }
  else if(!h.substring(h.length()-1,h.length()).equals("0")){  return false;  }
@@ -1525,8 +1525,8 @@ return u;
 
   return true;
 }
-private static double convertdoubleDigitToString(String num){
-       double ans = -1;
+private static Double convertdoubleDigitToString(String num){
+       int ans = -1;
        if(num.equals("0")){
          ans=0;
        }
@@ -1560,9 +1560,9 @@ private static double convertdoubleDigitToString(String num){
        else{
            throw new NoSuchElementException("Only 0 through 9 can be converted");
        }
-       return ans;
+       return (double)ans;
    }
-   private static String convertdoubleDigitToString(double a){
+   private static String convertdoubleDigitToString(Double a){
        String ans="";
        if(a==0){
          ans="0";
@@ -1600,12 +1600,12 @@ private static double convertdoubleDigitToString(String num){
        return ans;
    }
  //45.89===4589000000000000000
-  public static String doubleToString(double num){
-      //assume precision of 10^-17 for double
+  public static String doubleToString(Double num){
+      //assume precision of 10^-17 for Double
       //e.g 0.00000000000000001
       int count=0;
 String number="";
-    double absVal=Math.abs(num);
+    Double absVal=Math.abs(num);
 
 if(absVal<1){
     while(absVal<1){
@@ -1628,11 +1628,11 @@ e.g in 123.55
 */
 
 while(number.length()<17){
-    double abs=absVal;//shadow variable for absVal
+    Double abs=absVal;//shadow variable for absVal
     number+=convertdoubleDigitToString(floor(absVal));
     absVal-=floor(absVal);   //(   absVal = abs-Math.floor(abs))
     //the last step generates some error,try and get it out by using the shadow variable for absVal
-    double error = abs-(absVal+floor(abs));
+    Double error = abs-(absVal+floor(abs));
     //23.987
     absVal+=error;
 
@@ -1678,7 +1678,7 @@ if(num<0){
  * @param a the number
  * @return true if a is even
  */
-public static boolean isEven(double a) {
+public static boolean isEven(Double a) {
    return (a%2)==0;
 }
 /**

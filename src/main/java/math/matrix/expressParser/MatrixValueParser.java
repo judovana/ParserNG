@@ -193,7 +193,7 @@ public class MatrixValueParser {
         ArrayList<String> purify = new ArrayList<String>();
         purify.add(":");
         scan.removeAll(purify);
-        double[][] arr = new double[size.width][size.height];
+        Double[][] arr = new Double[size.width][size.height];
         if (isValid()) {
 
             int count = 0;

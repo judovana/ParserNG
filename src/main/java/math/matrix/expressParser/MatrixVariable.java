@@ -88,7 +88,7 @@ MatrixValueParser parser = new MatrixValueParser(expression);
     public String getCreatingExpression(){
 
 
-double matArray[][]=matrix.getArray();
+Double matArray[][]=matrix.getArray();
 String stringvalue=name+" = [";
 
 for(int rows=0;rows<matrix.getRows();rows++){

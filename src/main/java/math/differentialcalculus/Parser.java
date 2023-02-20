@@ -49,7 +49,7 @@ public class Parser {
     /**
      * The x coordinate at which the derivative is to be evaluated.
      */
-    private double evalPoint = Double.POSITIVE_INFINITY;
+    private Double evalPoint = Double.POSITIVE_INFINITY;
     /**
      * The {@link Function} object created from the command
      */
@@ -103,7 +103,7 @@ public class Parser {
         this.function = localParseDerivativeCommand(scanner);
     }//end constructor
 
-    public double getEvalPoint() {
+    public Double getEvalPoint() {
         return evalPoint;
     }
 

@@ -91,7 +91,7 @@ if(expr.substring(i, i+1).equals("+")&&expr.substring(i+1, i+2).equals("-")){
  */
 public static boolean isNumber( String token){
     try{
-        double val = Double.parseDouble(token);
+        Double val = Double.parseDouble(token);
         return true;
     }
     catch(Exception numErr){

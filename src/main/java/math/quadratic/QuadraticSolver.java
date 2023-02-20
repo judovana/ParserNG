@@ -13,9 +13,9 @@ import static java.lang.Math.*;
 
 public class QuadraticSolver {
   
-    private double a;
-    private double b;
-    private double c;
+    private Double a;
+    private Double b;
+    private Double c;
 
 
 /**
@@ -24,7 +24,7 @@ public class QuadraticSolver {
  * @param b the co-efficient of the variable
  * @param c the constant term
  */
-    public QuadraticSolver(double a, double b, double c) {
+    public QuadraticSolver(Double a, Double b, Double c) {
         this.a = a;
         this.b = b;
         this.c = c;
@@ -33,42 +33,42 @@ public class QuadraticSolver {
  * 
  * @param a the co-efficient of the squared variable
  */
-    public void setA(double a) {
+    public void setA(Double a) {
         this.a = a;
     }
 /**
  *
  * @return the co-efficient of the squared variable
  */
-    public double getA() {
+    public Double getA() {
         return a;
     }
 /**
  *
  * @param b the co-efficient of the variable
  */
-    public void setB(double b) {
+    public void setB(Double b) {
         this.b = b;
     }
 /**
  *
  * @return the co-efficient of the squared variable
  */
-    public double getB() {
+    public Double getB() {
         return b;
     }
 /**
  *
  * @param c the constant term
  */
-    public void setC(double c) {
+    public void setC(Double c) {
         this.c = c;
     }
 /**
  *
  * @return the constant term
  */
-    public double getC() {
+    public Double getC() {
         return c;
     }
 
@@ -132,7 +132,7 @@ public String toString(){
 }
 
 public static void main(String args[]){
-    QuadraticSolver ohMy = new QuadraticSolver(3,-9,6);
+    QuadraticSolver ohMy = new QuadraticSolver(3d,-9d,6d);
   System.out.println(ohMy.soln()[0]+", "+ohMy.soln()[1]);
 
     System.out.println(ohMy );

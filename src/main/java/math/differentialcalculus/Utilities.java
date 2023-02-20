@@ -65,7 +65,7 @@ public class Utilities {
     /**
      * 
      * @param value The item to check
-     * Always double check in the scanner where this item exists
+     * Always Double check in the scanner where this item exists
      * that the next token to <code>value</code> is not an open bracket
      * if value is a valid variable name.
      * @return true if it can be differentiated to get a value.
@@ -455,7 +455,7 @@ public static void evaluateTokens(ArrayList<String>scan){
             int close = i;
             int open = Bracket.getComplementIndex(false, close, scan);
             int j = open+1;
-            double value=0;
+            Double value=0d;
           while(j<close){
               
          if( isPlusOrMinus(scan.get(j)) ){
@@ -540,7 +540,7 @@ public static void tokenRearranger(ArrayList<String>scan){
             int close = i;
             int open = Bracket.getComplementIndex(false, close, scan);
             int j = open+1;
-            double value=0;
+            Double value=0d;
           while(j<close){
               
               

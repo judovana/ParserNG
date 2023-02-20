@@ -300,7 +300,7 @@ return new PrecisionMatrix(matrix);
      * The operation is ( scalar X matrice )
      * @return an array containing the product matrix.
      */
-    public PrecisionMatrix scalarMultiply(double scalar){
+    public PrecisionMatrix scalarMultiply(Double scalar){
 
 BigDecimal scale = new BigDecimal(String.valueOf(scalar));
 
@@ -321,7 +321,7 @@ return new PrecisionMatrix(matrix);
      * The operation is (  matrice/scalar )
      * @return an array containing the scaled matrix.
      */
-    public PrecisionMatrix scalarDivide(double scalar){
+    public PrecisionMatrix scalarDivide(Double scalar){
 BigDecimal scale = new BigDecimal(String.valueOf(scalar));
         BigDecimal matrix[][]=new BigDecimal[getRows()][getCols()];
        for(int row=0;row < getRows();row++){

@@ -42,7 +42,7 @@ public class Set {
      *
      * @param data
      */
-    public Set(double... data) {
+    public Set(Double... data) {
 
         for (int i = 0; i < data.length; i++) {
             this.data.add(data[i] + "");
@@ -99,8 +99,8 @@ public class Set {
      *
      * @return the sum of all elements in the data set
      */
-    public double sum() {
-        double u = 0;
+    public Double sum() {
+        Double u = 0d;
         for (int i = 0; i < data.size(); i++) {
             u += Double.valueOf(data.get(i));
         }
@@ -130,8 +130,8 @@ public class Set {
      *
      * @return the sum of squares of values in the data set.
      */
-    public double sumOfSquares() {
-        double u = 0;
+    public Double sumOfSquares() {
+        Double u = 0d;
         for (int i = 0; i < data.size(); i++) {
             u += Math.pow(Double.valueOf(data.get(i)), 2);
         }
@@ -143,8 +143,8 @@ public class Set {
      * @return the product of all elements in the data set.
      */
 
-    public double prod() {
-        double u = 1;
+    public Double prod() {
+        Double u = 1d;
         for (int i = 0; i < data.size(); i++) {
             u *= Double.valueOf(data.get(i));
         }
@@ -157,11 +157,11 @@ public class Set {
      * @return the least value in a set of numbers
      * @throws NumberFormatException
      */
-    public double min() {
+    public Double min() {
 //the maximum finder algorithm begins
-        double minval = Double.valueOf(data.get(0));
+        Double minval = Double.valueOf(data.get(0));
         for (int i = 0; i < data.size(); i++) {
-            double y = Double.valueOf(data.get(i));
+            Double y = Double.valueOf(data.get(i));
             if (y < minval) {
                 minval = y;
             }
@@ -174,11 +174,11 @@ public class Set {
      *
      * @return the maximum value in the data set.
      */
-    public double max() {
+    public Double max() {
 //the maximum finder algorithm begins
-        double maxval = Double.valueOf(data.get(0));
+        Double maxval = Double.valueOf(data.get(0));
         for (int i = 0; i < data.size(); i++) {
-            double y = Double.valueOf(data.get(i));
+            Double y = Double.valueOf(data.get(i));
             if (y > maxval) {
                 maxval = y;
             }
@@ -191,7 +191,7 @@ public class Set {
      *
      * @return the meanor average value of a data set
      */
-    public double avg() {
+    public Double avg() {
         return sum() / size();
     }//end avg
 
@@ -199,7 +199,7 @@ public class Set {
      *
      * @return the root mean squared value of the data set
      */
-    public double rms() {
+    public Double rms() {
         return Math.sqrt(sumOfSquares()) / size();
     }//end rms
 
@@ -207,7 +207,7 @@ public class Set {
      *
      * @return the range of the data set
      */
-    public double rng() {
+    public Double rng() {
         return max() - min();
     }//end range
 
@@ -215,7 +215,7 @@ public class Set {
      *
      * @return the midrange of the data set
      */
-    public double mrng() {
+    public Double mrng() {
         return 0.5 * (max() + min());
     }//end midrange
 
@@ -223,11 +223,11 @@ public class Set {
      *
      * @return the variance
      */
-    public double var() {
-        double u = 0;
-        double u1 = 0;
-        double avrg = avg();
-        double N = size();
+    public Double var() {
+        Double u = 0d;
+        Double u1 = 0d;
+        Double avrg = avg();
+        Double N = (double)size();
         for (int i = 0; i < N; i++) {
             u = (Double.valueOf(data.get(i)) - avrg);
             u1 += Math.pow(u, 2);
@@ -239,7 +239,7 @@ public class Set {
      *
      * @return the standard deviation
      */
-    public double std_dev() {//Finds the variance
+    public Double std_dev() {//Finds the variance
         return Math.sqrt(var());
     }
 
@@ -247,7 +247,7 @@ public class Set {
      *
      * @return the standard error
      */
-    public double std_err() {//Finds the variance
+    public Double std_err() {//Finds the variance
         return (std_dev() / Math.sqrt(size()));
     }
 
@@ -278,14 +278,14 @@ public class Set {
      */
     public List<String> sort() {
         List<String> sort = new ArrayList<String>();
-        double[] array = new double[data.size()];
+        Double[] array = new Double[data.size()];
         int count = 0;
         for (String a : data) {
             array[count++] = Double.parseDouble(a);
         }
         Arrays.sort(array);
         count = 0;
-        for (double d : array) {
+        for (Double d : array) {
             String c = String.valueOf(d);
             sort.add(c.endsWith(".0") ? c.substring(0 , c.length()-2) : c);
         }
@@ -305,13 +305,13 @@ public class Set {
 
         int size = data.size();
 
-        double dimen = Math.sqrt(size);
+        Double dimen = Math.sqrt(size);
 
         if (Math.floor(dimen) == dimen) {
-            double arr[][] = new double[(int) dimen][(int) dimen];
+            Double arr[][] = new Double[(int) dimen.intValue()][(int) dimen.intValue()];
             int row = 0;
             int col = 0;
-            int dim = (int) dimen;
+            int dim = (int) dimen.intValue();
             for (int i = 0; i < data.size(); i++) {
                 arr[row][col] = Double.parseDouble(data.get(i));
                 if (col == dim - 1) {
@@ -343,14 +343,14 @@ public class Set {
         List<String> result = new ArrayList<String>();
         int size = data.size();
 
-        double dimen = Math.sqrt(size);
+        Double dimen = Math.sqrt(size);
 
-        int numRows = (int) dimen;
+        int numRows = (int) dimen.intValue();
         int numCols = numRows + 1;
 
         if (numRows * numCols == size) {
 
-            double arr[][] = new double[numRows][numCols];
+            Double arr[][] = new Double[numRows][numCols];
             int row = 0;
             int col = 0;
             for (int i = 0; i < size; i++) {
@@ -385,7 +385,7 @@ public class Set {
 
         if (numRows * numCols == size) {
 
-            double arr[][] = new double[numRows][numCols];
+            Double arr[][] = new Double[numRows][numCols];
             int row = 0;
             int col = 0;
             for (int i = 0; i < size; i++) {
@@ -427,7 +427,7 @@ public class Set {
 
         if (numRows * numCols == size) {
 
-            double arr[][] = new double[numRows][numCols];
+            Double arr[][] = new Double[numRows][numCols];
             int row = 0;
             int col = 0;
             for (int i = 0; i < size; i++) {
@@ -466,7 +466,7 @@ public class Set {
 
         if (numRows * numCols == size) {
 
-            double arr[][] = new double[numRows][numCols];
+            Double arr[][] = new Double[numRows][numCols];
             int row = 0;
             int col = 0;
             for (int i = 0; i < size; i++) {
@@ -488,14 +488,14 @@ public class Set {
      *
      * @return the median of the data set
      */
-    public double median() {
-        double median = 0;
+    public Double median() {
+        Double median = 0d;
  
         List<String> scan = new ArrayList<String>();
         scan = sort();
         int g = size();
         if (STRING.isEven(g)) {
-            double med = (Double.valueOf(scan.get(g / 2)) + Double.valueOf(scan.get((g / 2) - 1))) / 2;
+            Double med = (Double.valueOf(scan.get(g / 2)) + Double.valueOf(scan.get((g / 2) - 1))) / 2;
             median = med;
         } else if (!STRING.isEven(g)) {
             median = Double.valueOf(scan.get((g - 1) / 2));
@@ -523,10 +523,10 @@ public class Set {
             count = 0;
         }//end for
 //Get the highest frequency
-        double big = 0;
+        Double big = 0d;
         for (int i = 0; i < freq.length; i++) {
             if (big < freq[i]) {
-                big = freq[i];
+                big = (double)freq[i];
             }//end if
         }//end for
 
@@ -567,10 +567,10 @@ public class Set {
             data.set(0, String.valueOf((int) val));
         } //check if it came with 2 arguments
         else if (size() == 2) {
-            double val = Double.valueOf(data.get(0));
-            double val1 = Double.valueOf(data.get(1));
-            data.set(0, String.valueOf((int) val));
-            data.set(1, String.valueOf((int) val1));
+            Double val = Double.valueOf(data.get(0));
+            Double val1 = Double.valueOf(data.get(1));
+            data.set(0, String.valueOf((int) val.intValue()));
+            data.set(1, String.valueOf((int) val1.intValue()));
         }
 
         if (size() == 0) {
@@ -600,8 +600,8 @@ public class Set {
         String n = data.get(0);
         String r = data.get(1);
 
-        double n_Factorial = Double.parseDouble(Maths.fact(n));
-        double n_Minus_r_Factorial = Double.parseDouble(Maths.fact(String.valueOf(Double.valueOf(n) - Double.valueOf(r))));
+        Double n_Factorial = Double.parseDouble(Maths.fact(n));
+        Double n_Minus_r_Factorial = Double.parseDouble(Maths.fact(String.valueOf(Double.valueOf(n) - Double.valueOf(r))));
 
         return String.valueOf(n_Factorial / n_Minus_r_Factorial);
     }
@@ -614,9 +614,9 @@ public class Set {
         String n = data.get(0);
         String r = data.get(1);
 
-        double n_Factorial = Double.parseDouble(Maths.fact(n));
-        double n_Minus_r_Factorial = Double.parseDouble(Maths.fact(String.valueOf(Double.valueOf(n) - Double.valueOf(r))));
-        double r_Factorial = Double.parseDouble(Maths.fact(r));
+        Double n_Factorial = Double.parseDouble(Maths.fact(n));
+        Double n_Minus_r_Factorial = Double.parseDouble(Maths.fact(String.valueOf(Double.valueOf(n) - Double.valueOf(r))));
+        Double r_Factorial = Double.parseDouble(Maths.fact(r));
 
         return String.valueOf(n_Factorial / (n_Minus_r_Factorial * r_Factorial));
     }
@@ -627,8 +627,8 @@ public class Set {
      * index 1.
      */
     public String power() {
-        double n = Double.parseDouble(data.get(0));
-        double pow = Double.parseDouble(data.get(1));
+        Double n = Double.parseDouble(data.get(0));
+        Double pow = Double.parseDouble(data.get(1));
         return String.valueOf(Math.pow(n, pow));
     }
 
@@ -653,7 +653,7 @@ public class Set {
             case 2:
             {
                 String anonFunc = data.get(0);
-                double value = Double.valueOf(data.get(1));
+                Double value = Double.valueOf(data.get(1));
                 
                 String solution = Derivative.eval("diff(" + anonFunc + "," + value + ")");
                 /*  NumericalDerivative der = new NumericalDerivative(new Function(anonFunc), value );
@@ -663,7 +663,7 @@ public class Set {
             case 3:
             {
                 String anonFunc = data.get(0);
-                double value = Double.valueOf(data.get(1));
+                Double value = Double.valueOf(data.get(1));
                 int order = Integer.parseInt(data.get(2));
                 /*  NumericalDerivative der = new NumericalDerivative(FunctionManager.lookUp(data.get(0)),Double.valueOf(data.get(1)));
                 return der.findDerivativeByPolynomialExpander();
@@ -805,7 +805,7 @@ public class Set {
 
             NumericalIntegral intg = new NumericalIntegral(Double.valueOf(data.get(sz - 3)), Double.valueOf(data.get(sz - 2)),
                     (int) Math.round(Double.parseDouble(data.get(sz - 1))), function);
-            double val = intg.findHighRangeIntegral();
+            Double val = intg.findHighRangeIntegral();
             return String.valueOf(val);
 
         }//end else if
@@ -817,7 +817,7 @@ public class Set {
      * @return the determinant or {@link Double#NaN} if the determinant does not
      * exist.
      */
-    public double determinant() {
+    public Double determinant() {
 
         if (data.size() == 1) {
             Function f = FunctionManager.lookUp(data.get(0));
@@ -826,13 +826,13 @@ public class Set {
 
         int size = data.size();
 
-        double dimen = Math.sqrt(size);
+        Double dimen = Math.sqrt(size);
 
         if (Math.floor(dimen) == dimen) {
-            double arr[][] = new double[(int) dimen][(int) dimen];
+            Double arr[][] = new Double[(int) dimen.intValue()][(int) dimen.intValue()];
             int row = 0;
             int col = 0;
-            int dim = (int) dimen;
+            int dim = (int) dimen.intValue();
             for (int i = 0; i < data.size(); i++) {
                 arr[row][col] = Double.parseDouble(data.get(i));
                 if (col == dim - 1) {
@@ -876,7 +876,7 @@ public class Set {
                     } else {
                         Variable v = VariableManager.lookUp(nextToken);
                         if (v != null) {
-                            double val = Double.parseDouble(v.getValue());
+                            Double val = Double.parseDouble(v.getValue());
                             return f.getMatrix().scalarMultiply(val);
                         }
 
@@ -924,7 +924,7 @@ public class Set {
                     } else {
                         Variable v = VariableManager.lookUp(nextToken);
                         if (v != null) {
-                            double val = Double.parseDouble(v.getValue());
+                            Double val = Double.parseDouble(v.getValue());
                             return f.getMatrix().scalarDivide(val);
                         }
 
@@ -1010,7 +1010,7 @@ public class Set {
 
     /**
      * The list must have been originally supplied: matrix_pow(A,n) {where A is
-     * a Matrix and n is an integer. If n is a double, it is rounded down to the
+     * a Matrix and n is an integer. If n is a Double, it is rounded down to the
      * nearest int.} It raises the Matrix to the power of the second argument
      * and returns the result as a list.
      *
@@ -1026,10 +1026,10 @@ public class Set {
             if (Variable.isVariableString(token)) {
                 if (Variable.isVariableString(nextToken) || Number.validNumber(nextToken)) {
                     Function f = FunctionManager.lookUp(token);
-                    double pow = Variable.isVariableString(nextToken) ? Double.parseDouble(VariableManager.lookUp(nextToken).getValue()) : Double.parseDouble(nextToken);
+                    Double pow = Variable.isVariableString(nextToken) ? Double.parseDouble(VariableManager.lookUp(nextToken).getValue()) : Double.parseDouble(nextToken);
 
                     if (f != null) {
-                        return Matrix.pow(f.getMatrix(), (int) pow);
+                        return Matrix.pow(f.getMatrix(), (int) pow.intValue());
                     }
 
                 }
@@ -1254,7 +1254,7 @@ public class Set {
                     int col = Integer.parseInt(data.get(2));
                     
                     
-                    double val = Double.parseDouble(data.get(3));
+                    Double val = Double.parseDouble(data.get(3));
                     boolean updated = m.update(val, row, col);
                     if(!updated){
                         throw new InputMismatchException("Trying to update outside matrix bounds. Matrix has: "+m.getRows()+" rows and "+m.getCols()+" columns\n But input was: row = "+row+" rows and columns = "+col);

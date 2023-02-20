@@ -94,7 +94,7 @@ public class Number {
      */
     public static boolean validNumber(String num) {
         try {
-            double number = Double.valueOf(num);
+            Double number = Double.valueOf(num);
             return true;
         } catch (NumberFormatException numErr) {
             return false;

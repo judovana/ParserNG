@@ -99,7 +99,7 @@ public class BigMathExpression extends MathExpression {
     protected List<String> solve(List<String> list) {
         //correct the anomaly: [ (,-,number....,)  ]
                 //   turn it into: [ (,,-number........,)     ]
-                //The double commas show that there exists an empty location in between the 2 commas
+                //The Double commas show that there exists an empty location in between the 2 commas
                 if (list.get(0).equals("(") && list.get(1).equals(Operator.MINUS) && isNumber(list.get(2))) {
                     list.set(1, "");
         

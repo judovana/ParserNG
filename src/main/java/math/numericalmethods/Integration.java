@@ -57,8 +57,8 @@ public class Integration{
 
         private Function function = null;   // Function to be integrated
         private boolean setFunction = false;        // = true when Function set
-        private double lowerLimit = Double.NaN;     // Lower integration limit
-        private double upperLimit = Double.NaN;     // Upper integration limit
+        private Double lowerLimit = Double.NaN;     // Lower integration limit
+        private Double upperLimit = Double.NaN;     // Upper integration limit
         private boolean setLimits = false;          // = true when limits set
 
         private int glPoints = 0;                   // Number of points in the Gauss-Legendre integration
@@ -66,18 +66,18 @@ public class Integration{
         private int nIntervals = 0;                 // Number of intervals in the rectangular rule integrations
         private boolean setIntervals = false;       // = true when nIntervals set
 
-        private double integralSum = 0.0D;          // Sum returned by the numerical integration method
+        private Double integralSum = 0.0D;          // Sum returned by the numerical integration method
         private boolean setIntegration = false;     // = true when integration performed
 
     	// ArrayLists to hold Gauss-Legendre Coefficients saving repeated calculation
     	private static ArrayList<Integer> gaussQuadIndex = new ArrayList<Integer>();         // Gauss-Legendre indices
-    	private static ArrayList<double[]> gaussQuadDistArrayList = new ArrayList<double[]>();  // Gauss-Legendre distances
-    	private static ArrayList<double[]> gaussQuadWeightArrayList = new ArrayList<double[]>();// Gauss-Legendre weights
+    	private static ArrayList<Double[]> gaussQuadDistArrayList = new ArrayList<Double[]>();  // Gauss-Legendre distances
+    	private static ArrayList<Double[]> gaussQuadWeightArrayList = new ArrayList<Double[]>();// Gauss-Legendre weights
 
     	// Iterative trapezium rule
-    	private double requiredAccuracy = 0.0D;     // required accuracy at which iterative trapezium is terminated
-    	private double trapeziumAccuracy = 0.0D;    // actual accuracy at which iterative trapezium is terminated as instance variable
-    	private static double trapAccuracy = 0.0D;  // actual accuracy at which iterative trapezium is terminated as class variable
+    	private Double requiredAccuracy = 0.0D;     // required accuracy at which iterative trapezium is terminated
+    	private Double trapeziumAccuracy = 0.0D;    // actual accuracy at which iterative trapezium is terminated as instance variable
+    	private static Double trapAccuracy = 0.0D;  // actual accuracy at which iterative trapezium is terminated as class variable
     	private int maxIntervals = 0;               // maximum number of intervals allowed in iterative trapezium
     	private int trapeziumIntervals = 1;         // number of intervals in trapezium at which accuracy was satisfied as instance variable
     	private static int trapIntervals = 1;       // number of intervals in trapezium at which accuracy was satisfied as class variable
@@ -95,7 +95,7 @@ public class Integration{
         }
 
         // Constructor taking function to be integrated and the limits
-        public Integration(Function intFunc, double lowerLimit, double upperLimit){
+        public Integration(Function intFunc, Double lowerLimit, Double upperLimit){
             this.function = intFunc;
             this.setFunction = true;
             this.lowerLimit = lowerLimit;
@@ -112,32 +112,32 @@ public class Integration{
         }
 
         // Set limits
-        public void setLimits(double lowerLimit, double upperLimit){
+        public void setLimits(Double lowerLimit, Double upperLimit){
              this.lowerLimit = lowerLimit;
              this.upperLimit = upperLimit;
              this.setLimits = true;
         }
 
         // Set lower limit
-        public void setLowerLimit(double lowerLimit){
+        public void setLowerLimit(Double lowerLimit){
              this.lowerLimit = lowerLimit;
              if(!Fmath.isNaN(this.upperLimit))this.setLimits=true;
         }
 
         // Set lower limit
-        public void setlowerLimit(double lowerLimit){
+        public void setlowerLimit(Double lowerLimit){
              this.lowerLimit = lowerLimit;
              if(!Fmath.isNaN(this.upperLimit))this.setLimits=true;
         }
 
         // Set upper limit
-        public void setUpperLimit(double upperLimit){
+        public void setUpperLimit(Double upperLimit){
              this.upperLimit = upperLimit;
              if(!Fmath.isNaN(this.lowerLimit))this.setLimits=true;
         }
 
         // Set upper limit
-        public void setupperLimit(double upperLimit){
+        public void setupperLimit(Double upperLimit){
              this.upperLimit = upperLimit;
              if(!Fmath.isNaN(this.lowerLimit))this.setLimits=true;
         }
@@ -157,7 +157,7 @@ public class Integration{
     	// GET METHODS
 
         // Get the sum returned by the numerical integration
-        public double getIntegralSum(){
+        public Double getIntegralSum(){
             if(!this.setIntegration)throw new IllegalArgumentException("No integration has been performed");
             return this.integralSum;
         }
@@ -166,17 +166,17 @@ public class Integration{
 
     	// Numerical integration using n point Gaussian-Legendre quadrature (instance method)
     	// All parameters preset
-    	public double gaussQuad(){
+    	public Double gaussQuad(){
     	    if(!this.setGLpoints)throw new IllegalArgumentException("Number of points not set");
     	    if(!this.setLimits)throw new IllegalArgumentException("One limit or both limits not set");
     	    if(!this.setFunction)throw new IllegalArgumentException("No integral function has been set");
 
-        	double[] gaussQuadDist = new double[glPoints];
-        	double[] gaussQuadWeight = new double[glPoints];
-        	double sum=0.0D;
-        	double xplus = 0.5D*(upperLimit + lowerLimit);
-        	double xminus = 0.5D*(upperLimit - lowerLimit);
-        	double dx = 0.0D;
+        	Double[] gaussQuadDist = new Double[glPoints];
+        	Double[] gaussQuadWeight = new Double[glPoints];
+        	Double sum=0.0D;
+        	Double xplus = 0.5D*(upperLimit + lowerLimit);
+        	Double xminus = 0.5D*(upperLimit - lowerLimit);
+        	Double dx = 0.0D;
         	boolean test = true;
         	int k=-1, kn=-1;
 
@@ -217,7 +217,7 @@ public class Integration{
 
     	// Numerical integration using n point Gaussian-Legendre quadrature (instance method)
         // All parametes except the number of points in the Gauss-Legendre integration preset
-    	public double gaussQuad(int glPoints){
+    	public Double gaussQuad(int glPoints){
     	    this.glPoints = glPoints;
     	    this.setGLpoints = true;
             return this.gaussQuad();
@@ -225,7 +225,7 @@ public class Integration{
 
     	// Numerical integration using n point Gaussian-Legendre quadrature (static method)
         // All parametes provided
-    	public static double gaussQuad(Function intFunc, double lowerLimit, double upperLimit, int glPoints){
+    	public static Double gaussQuad(Function intFunc, Double lowerLimit, Double upperLimit, int glPoints){
     	    Integration intgrtn = new Integration(intFunc, lowerLimit, upperLimit);
     	    return intgrtn.gaussQuad(glPoints);
     	}
@@ -234,20 +234,20 @@ public class Integration{
     	// for an n point Gauss-Legendre Quadrature.
     	// The Gauss-Legendre distances, gaussQuadDist, are scaled to -1 to 1
     	// See Numerical Recipes for details
-    	public static void gaussQuadCoeff(double[] gaussQuadDist, double[] gaussQuadWeight, int n){
+    	public static void gaussQuadCoeff(Double[] gaussQuadDist, Double[] gaussQuadWeight, int n){
 
-	    	double	z=0.0D, z1=0.0D;
-		    double  pp=0.0D, p1=0.0D, p2=0.0D, p3=0.0D;
+	    	Double	z=0.0D, z1=0.0D;
+		    Double  pp=0.0D, p1=0.0D, p2=0.0D, p3=0.0D;
 
-	    	double 	eps = 3e-11;	// set required precision
-	    	double	x1 = -1.0D;		// lower limit
-	    	double	x2 = 1.0D;		// upper limit
+	    	Double 	eps = 3e-11;	// set required precision
+	    	Double	x1 = -1.0D;		// lower limit
+	    	Double	x2 = 1.0D;		// upper limit
 
 	    	//  Calculate roots
 	    	// Roots are symmetrical - only half calculated
 	    	int m  = (n+1)/2;
-	    	double	xm = 0.5D*(x2+x1);
-	    	double	xl = 0.5D*(x2-x1);
+	    	Double	xm = 0.5D*(x2+x1);
+	    	Double	xl = 0.5D*(x2-x1);
 
 	    	// Loop for  each root
 	    	for(int i=1; i<=m; i++){
@@ -282,16 +282,16 @@ public class Integration{
 
     	// Numerical integration using the trapeziodal rule (instance method)
     	// all parameters preset
-    	public double trapezium(){
+    	public Double trapezium(){
     	    if(!this.setIntervals)throw new IllegalArgumentException("Number of intervals not set");
     	    if(!this.setLimits)throw new IllegalArgumentException("One limit or both limits not set");
     	    if(!this.setFunction)throw new IllegalArgumentException("No integral function has been set");
 
-        	double 	y1 = 0.0D;
-        	double 	interval = (this.upperLimit - this.lowerLimit)/this.nIntervals;
-        	double	x0 = this.lowerLimit;
-        	double 	x1 = this.lowerLimit + interval;
-        	double	y0 = this.function.calc(x0);
+        	Double 	y1 = 0.0D;
+        	Double 	interval = (this.upperLimit - this.lowerLimit)/this.nIntervals;
+        	Double	x0 = this.lowerLimit;
+        	Double 	x1 = this.lowerLimit + interval;
+        	Double	y0 = this.function.calc(x0);
         	this.integralSum = 0.0D;
 
 		    for(int i=0; i<nIntervals; i++){
@@ -314,7 +314,7 @@ public class Integration{
 
     	// Numerical integration using the trapeziodal rule (instance method)
     	// all parameters except the number of intervals preset
-    	public double trapezium(int nIntervals){
+    	public Double trapezium(int nIntervals){
     	    this.nIntervals = nIntervals;
     	    this.setIntervals = true;
             return this.trapezium();
@@ -322,20 +322,20 @@ public class Integration{
 
     	// Numerical integration using the trapeziodal rule (static method)
     	// all parameters to be provided
-    	public static double trapezium(Function intFunc, double lowerLimit, double upperLimit, int nIntervals){
+    	public static Double trapezium(Function intFunc, Double lowerLimit, Double upperLimit, int nIntervals){
   	        Integration intgrtn = new Integration(intFunc, lowerLimit, upperLimit);
     	    return intgrtn.trapezium(nIntervals);
     	}
 
     	// Numerical integration using an iteration on the number of intervals in the trapeziodal rule
     	// until two successive results differ by less than a predetermined accuracy times the penultimate result
-    	public double trapezium(double accuracy, int maxIntervals){
+    	public Double trapezium(Double accuracy, int maxIntervals){
     	    this.requiredAccuracy = accuracy;
     	    this.maxIntervals = maxIntervals;
         	this.trapeziumIntervals = 1;
 
-        	double  summ = this.trapezium(this.function, this.lowerLimit, this.upperLimit, 1);
-        	double oldSumm = summ;
+        	Double  summ = this.trapezium(this.function, this.lowerLimit, this.upperLimit, 1);
+        	Double oldSumm = summ;
         	int i = 2;
         	for(i=2; i<=this.maxIntervals; i++){
             		summ = this.trapezium(this.function, this.lowerLimit, this.upperLimit, i);
@@ -359,7 +359,7 @@ public class Integration{
     	// Numerical integration using an iteration on the number of intervals in the trapeziodal rule (static method)
     	// until two successive results differ by less than a predtermined accuracy times the penultimate result
     	// All parameters to be provided
-    	public static double trapezium(Function intFunc, double lowerLimit, double upperLimit, double accuracy, int maxIntervals){
+    	public static Double trapezium(Function intFunc, Double lowerLimit, Double upperLimit, Double accuracy, int maxIntervals){
   	        Integration intgrtn = new Integration(intFunc, lowerLimit, upperLimit);
     	    return intgrtn.trapezium(accuracy, maxIntervals);
         }
@@ -375,12 +375,12 @@ public class Integration{
     	}
 
     	// Get the actual accuracy acheived when the iterative trapezium calls were terminated, using the instance method
-    	public double getTrapeziumAccuracy(){
+    	public Double getTrapeziumAccuracy(){
         	return this.trapeziumAccuracy;
     	}
 
     	// Get the actual accuracy acheived when the iterative trapezium calls were terminated, using the static method
-    	public static double getTrapAccuracy(){
+    	public static Double getTrapAccuracy(){
         	return Integration.trapAccuracy;
     	}
 
@@ -388,14 +388,14 @@ public class Integration{
 
     	// Numerical integration using the backward rectangular rule (instance method)
     	// All parameters preset
-    	public double backward(){
+    	public Double backward(){
     	    if(!this.setIntervals)throw new IllegalArgumentException("Number of intervals not set");
     	    if(!this.setLimits)throw new IllegalArgumentException("One limit or both limits not set");
     	    if(!this.setFunction)throw new IllegalArgumentException("No integral function has been set");
 
-        	double interval = (this.upperLimit - this.lowerLimit)/this.nIntervals;
-        	double x = this.lowerLimit + interval;
-        	double y = this.function.calc(x);
+        	Double interval = (this.upperLimit - this.lowerLimit)/this.nIntervals;
+        	Double x = this.lowerLimit + interval;
+        	Double y = this.function.calc(x);
         	this.integralSum = 0.0D;
 
         	for(int i=0; i<this.nIntervals; i++){
@@ -417,7 +417,7 @@ public class Integration{
 
     	// Numerical integration using the backward rectangular rule (instance method)
     	// all parameters except number of intervals preset
-    	public double backward(int nIntervals){
+    	public Double backward(int nIntervals){
     	    this.nIntervals = nIntervals;
     	    this.setIntervals = true;
             return this.backward();
@@ -425,7 +425,7 @@ public class Integration{
 
     	// Numerical integration using the backward rectangular rule (static method)
     	// all parameters must be provided
-    	public static double backward(Function intFunc, double lowerLimit, double upperLimit, int nIntervals){
+    	public static Double backward(Function intFunc, Double lowerLimit, Double upperLimit, int nIntervals){
    	        Integration intgrtn = new Integration(intFunc, lowerLimit, upperLimit);
     	    return intgrtn.backward(nIntervals);
          }
@@ -434,11 +434,11 @@ public class Integration{
 
     	// Numerical integration using the forward rectangular rule
     	// all parameters preset
-    	public double forward(){
+    	public Double forward(){
 
-        	double interval = (this.upperLimit - this.lowerLimit)/this.nIntervals;
-        	double x = this.lowerLimit;
-        	double y = this.function.calc(x);
+        	Double interval = (this.upperLimit - this.lowerLimit)/this.nIntervals;
+        	Double x = this.lowerLimit;
+        	Double y = this.function.calc(x);
         	this.integralSum = 0.0D;
 
         	for(int i=0; i<this.nIntervals; i++){
@@ -459,7 +459,7 @@ public class Integration{
 
     	// Numerical integration using the forward rectangular rule
     	// all parameters except number of intervals preset
-    	public double forward(int nIntervals){
+    	public Double forward(int nIntervals){
     	    this.nIntervals = nIntervals;
     	    this.setIntervals = true;
             return this.forward();
@@ -467,12 +467,12 @@ public class Integration{
 
     	// Numerical integration using the forward rectangular rule (static method)
     	// all parameters provided
-    	public static double forward(Function integralFunc, double lowerLimit, double upperLimit, int nIntervals){
+    	public static Double forward(Function integralFunc, Double lowerLimit, Double upperLimit, int nIntervals){
    	        Integration intgrtn = new Integration(integralFunc, lowerLimit, upperLimit);
     	    return intgrtn.forward(nIntervals);
          }
 
-         public static double foreward(Function integralFunc, double lowerLimit, double upperLimit, int nIntervals){
+         public static Double foreward(Function integralFunc, Double lowerLimit, Double upperLimit, int nIntervals){
    	        Integration intgrtn = new Integration(integralFunc, lowerLimit, upperLimit);
     	    return intgrtn.forward(nIntervals);
          }
@@ -482,7 +482,7 @@ public class Integration{
          public static void main(String[] args) {
         
         Function func = new Function("y=@(x)1/(x^2+1)");
-         Integration intg = new Integration(func, 2, 30);
+         Integration intg = new Integration(func, 2d, 30d);
          intg.gaussQuad(20);
              System.err.println("The value "+intg.getIntegralSum() );
          

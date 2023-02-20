@@ -13,14 +13,14 @@ import util.Dimension;
  * @author GBEMIRO
  */
 public class Size {
-public double width;
-public double height;
+public Double width;
+public Double height;
 /**
  * Creates a new object of this class.
  * @param width Stores the width.
  * @param height Stores the height.
  */
-    public Size(double width, double height) {
+    public Size(Double width, Double height) {
         this.width = width;
         this.height = height;
     }//end constructor
@@ -30,8 +30,8 @@ public double height;
  * @param dim The givem Dimension object.
  */
 public Size(Dimension dim){
-    this.width=dim.width;
-    this.height=dim.height;
+    this.width=(double)dim.width;
+    this.height=(double)dim.height;
 }
 
 /**
@@ -50,28 +50,28 @@ public Size(Size size){
  *
  * @return The height
  */
-    public double getHeight() {
+    public Double getHeight() {
         return height;
     }//end method
 /**
  *
  * @param height sets the height
  */
-    public void setHeight(double height) {
+    public void setHeight(Double height) {
         this.height = height;
     }//end method
 /**
  *
  * @return the width
  */
-    public double getWidth() {
+    public Double getWidth() {
         return width;
     }//end method
 /**
  *
  * @param width sets the height
  */
-    public void setWidth(double width) {
+    public void setWidth(Double width) {
         this.width = width;
     }//end method
     /**
@@ -79,7 +79,7 @@ public Size(Size size){
      * @param width sets the width attribute of this object
      * @param height sets the height attribute of this object
      */
-public void setSize(double width,double height){
+public void setSize(Double width,Double height){
     this.width=width;
     this.height=height;
 }//end method
@@ -109,7 +109,7 @@ public Size getSize(){
  *
  * @param scaleFactor the factor by which this Size object is to be scaled.
  */
-public void scale(double scaleFactor){
+public void scale(Double scaleFactor){
     setSize(scaleFactor*width, scaleFactor*height);
 }
 
@@ -117,7 +117,7 @@ public void scale(double scaleFactor){
  *returns a new Size object scaled to the value given by scaleFactor
  * @param scaleFactor the factor by which this Size object is to be scaled.
  */
-public Size getScaledInstance(double scaleFactor){
+public Size getScaledInstance(Double scaleFactor){
     return new Size(scaleFactor*width, scaleFactor*height);
 }
 /**
@@ -127,7 +127,7 @@ public Size getScaledInstance(double scaleFactor){
  * @param scaleWidth  the factor by which the width of this Size object is to be scaled.
  * @param scaleHeight    the factor by which the height of this Size object is to be scaled.
  */
-public Size getScaledInstance(double scaleWidth,double scaleHeight){
+public Size getScaledInstance(Double scaleWidth,Double scaleHeight){
     return new Size(scaleWidth*width, scaleHeight*height);
 }
 
@@ -144,7 +144,7 @@ public Size getScaledInstance(double scaleWidth,double scaleHeight){
  * closest in value to this Size object.
  */
 public Dimension getAWTDimension(){
-    return new Dimension((int)width,(int)height   );
+    return new Dimension(width.intValue(),height.intValue()   );
 }
 
 

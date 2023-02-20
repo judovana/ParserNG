@@ -207,7 +207,7 @@ For repeated iterations of an expression over a value range, say 'x^2+5*x+1', th
 ```java
 for(int i=0;i<10000;i++){
 
-double x = i;
+Double x = i;
 MathExpression expression = new MathExpression("x="+i+";x^2+5*x+1");
 expression.solve();
 
@@ -436,7 +436,7 @@ This can be extracted as a function by doing a simple lookup:
     Function matrixFun = FunctionManager.lookUp("M");
 To find its determinant, do something like:
 
-    double det = matrixFun.calcDet();
+    Double det = matrixFun.calcDet();
 
 You can do more by getting the underlying Matrix object, i.e do:
 

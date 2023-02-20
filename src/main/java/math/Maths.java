@@ -20,13 +20,13 @@ public class Maths {                       //3.14159265358979323846;
     @SuppressWarnings("empty-statement")
     public static String fact(String p) {
         String fact5 = "";
-        double i = 1;
-        double prod = 1;
-        double fact = 0;
-        double dbVal = Double.parseDouble(p);
-        double n = Math.floor(dbVal);
-        double k = dbVal - n;
-        double d = 160 + k;
+        Double i = 1d;
+        Double prod = 1d;
+        Double fact = 0d;
+        Double dbVal = Double.parseDouble(p);
+        Double n = Math.floor(dbVal);
+        Double k = dbVal - n;
+        Double d = 160 + k;
 
 
         if ((dbVal == 0) || (dbVal == 1.0)) {
@@ -40,15 +40,15 @@ public class Maths {                       //3.14159265358979323846;
             }//end while
             fact = prod;
         } else if ((dbVal <= d) && (k != 0)) {
-            double dSquare = d * d;
-            double dCube = dSquare * d;
-            double dFour = dCube * d;
-            double dFive = dFour * d;
-            double dSix = dFive * d;
-            double dSeven = dSix * d;
-            double dEight = dSeven * d;
-            double dNine = dEight * d;
-            double fact1 = Math.pow((d / Math.E), d) * Math.sqrt(2 * d * Math.PI) * (1 + (1 / (12 * d)) + (1 / (288 * dSquare)) - (139 / (51840 * dCube)) -
+            Double dSquare = d * d;
+            Double dCube = dSquare * d;
+            Double dFour = dCube * d;
+            Double dFive = dFour * d;
+            Double dSix = dFive * d;
+            Double dSeven = dSix * d;
+            Double dEight = dSeven * d;
+            Double dNine = dEight * d;
+            Double fact1 = Math.pow((d / Math.E), d) * Math.sqrt(2 * d * Math.PI) * (1 + (1 / (12 * d)) + (1 / (288 * dSquare)) - (139 / (51840 * dCube)) -
                     (59909 / (2.592E8 * dFour)) + (1208137 / (1.492992E9 * dFive)) - (1151957 / (1.875E11 * dSix)) - (101971 / (2.88E8 * dSeven)) +
                     (189401873 / (2.4E12 * dEight)) + (1293019 / (1.8E10 * dNine)));
             while ((n + i) <= 160) {
@@ -57,15 +57,15 @@ public class Maths {                       //3.14159265358979323846;
             }
             fact = fact1 / prod;
         } else if ((dbVal > 160)) {
-            double dbValSquare = dbVal * dbVal;
-            double dbValCube = dbValSquare * dbVal;
-            double dbValFour = dbValCube * dbVal;
-            double dbValFive = dbValFour * dbVal;
-            double dbValSix = dbValFive * dbVal;
-            double dbValSeven = dbValSix * dbVal;
-            double dbValEight = dbValSeven * dbVal;
-            double dbValNine = dbValEight * dbVal;
-            double fact1 = Math.pow((dbVal / Math.E), dbVal) * Math.sqrt(2 * dbVal * Math.PI) * (1 + (1 / (12 * dbVal)) + (1 / (288 * dbValSquare)) - (139 / (51840 * dbValCube)) - (59909 / (2.592E8 * dbValFour)) + (1208137 / (1.492992E9 * dbValFive)) - (1151957 / (1.875E11 * dbValSix)) - (101971 / (2.88E8 * dbValSeven)) + (189401873 / (2.4E12 * dbValEight)) + (1293019 / (1.8E10 * dbValNine)));
+            Double dbValSquare = dbVal * dbVal;
+            Double dbValCube = dbValSquare * dbVal;
+            Double dbValFour = dbValCube * dbVal;
+            Double dbValFive = dbValFour * dbVal;
+            Double dbValSix = dbValFive * dbVal;
+            Double dbValSeven = dbValSix * dbVal;
+            Double dbValEight = dbValSeven * dbVal;
+            Double dbValNine = dbValEight * dbVal;
+            Double fact1 = Math.pow((dbVal / Math.E), dbVal) * Math.sqrt(2 * dbVal * Math.PI) * (1 + (1 / (12 * dbVal)) + (1 / (288 * dbValSquare)) - (139 / (51840 * dbValCube)) - (59909 / (2.592E8 * dbValFour)) + (1208137 / (1.492992E9 * dbValFive)) - (1151957 / (1.875E11 * dbValSix)) - (101971 / (2.88E8 * dbValSeven)) + (189401873 / (2.4E12 * dbValEight)) + (1293019 / (1.8E10 * dbValNine)));
             fact = fact1;
 
         }
@@ -79,11 +79,11 @@ public class Maths {                       //3.14159265358979323846;
      * method getExponent returns the power to which 10 is raised when the number is written in standard form
      * e.g an argument of 34.543 for the method gives a result of 1,since 34.543=3.4543*10^1
      *
-     * @param num the double number argument whose exponent is desire
+     * @param num the Double number argument whose exponent is desire
      * @return the base 10 exponent of the number when written in standard form
      */
-    public static int getExponent(double num) {
-        double absVal = Math.abs(num);
+    public static int getExponent(Double num) {
+        Double absVal = Math.abs(num);
         int count = 0;
         if (absVal < 1) {
             while (absVal < 1) {
@@ -100,11 +100,11 @@ public class Maths {                       //3.14159265358979323846;
         return count;
     }//end method getExponent
 
-    public static double logToAnyBase(double num, double base) {
+    public static Double logToAnyBase(Double num, Double base) {
         return Math.log(num) / Math.log(base);
     }
 
-    public static double antiLogToAnyBase(double num, double base) {
+    public static Double antiLogToAnyBase(Double num, Double base) {
         return Math.pow(base, num);
     }
 
@@ -456,11 +456,11 @@ public class Maths {                       //3.14159265358979323846;
     private static String frac_dec_to_other_base(String dec_no, String base_no) {
         String h = "";
         String j = "";
-        double f = 0;
-        double f1 = 0;
+        Double f = 0d;
+        Double f1 = 0d;
         try {
             f = Double.valueOf(dec_no);
-            f1 = Integer.parseInt(base_no);
+            f1 = (double)Integer.parseInt(base_no);
             while (h.length() <= 18) {
                 h += String.valueOf(f1 * f).substring(0, String.valueOf(f1 * f).indexOf("."));
                 if (f1 * f * f1 < f1) {
@@ -646,7 +646,7 @@ public class Maths {                       //3.14159265358979323846;
                 //accomplish the same purpose.H accumulates the whole part of the conversion,
                 //while Ha accumulates the fractional part.
                 int i = 0;
-                double H = 0;
+                Double H = 0d;
 
                 while (i < r.length()) {//process the whole part
                     H += (Double.valueOf(r.substring(i, i + 1)) * Math.pow(u, i));
@@ -654,7 +654,7 @@ public class Maths {                       //3.14159265358979323846;
                 }
                 i = 0;
 
-                double Ha = 0;
+                Double Ha = 0d;
 
                 while (i < y.length()) {//process the decimal part
                     Ha += (Double.valueOf(y.substring(i, i + 1)) * Math.pow(u, -i - 1));
@@ -799,27 +799,27 @@ public class Maths {                       //3.14159265358979323846;
     }
 
 
-    public static double degToRad(double deg) {//from degrees to radians
+    public static Double degToRad(Double deg) {//from degrees to radians
         return deg * (Math.PI / 180.0);
     }
 
-    public static double radToDeg(double rad) {//from rad to degrees
+    public static Double radToDeg(Double rad) {//from rad to degrees
         return rad * (180.0 / Math.PI);
     }
 
-    public static double degToGrad(double deg) {//from rad to degrees
+    public static Double degToGrad(Double deg) {//from rad to degrees
         return (10 * deg / 9.0);
     }
 
-    public static double gradToDeg(double grad) {//from grad to degrees
+    public static Double gradToDeg(Double grad) {//from grad to degrees
         return 0.9 * grad;
     }
 
-    public static double radToGrad(double rad) {//from rad to grad
+    public static Double radToGrad(Double rad) {//from rad to grad
         return rad * (200.0 / Math.PI);
     }
 
-    public static double gradToRad(double grad) {//from rad to degrees
+    public static Double gradToRad(Double grad) {//from rad to degrees
         return grad * (Math.PI / 200.0);
     }
 
@@ -828,7 +828,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angRad the angle in rads
      * @return the sine of an angle in degrees
      */
-    public static double sinRadToDeg(double angRad) {
+    public static Double sinRadToDeg(Double angRad) {
         return sin(radToDeg(angRad));
     }
 
@@ -836,7 +836,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angDeg the angle in degs
      * @return the sine of an angle in rads
      */
-    public static double sinDegToRad(double angDeg) {
+    public static Double sinDegToRad(Double angDeg) {
         return sin(degToRad(angDeg));
     }
 
@@ -844,7 +844,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angRad the angle in rads
      * @return the sine of an angle in grad
      */
-    public static double sinRadToGrad(double angRad) {
+    public static Double sinRadToGrad(Double angRad) {
         return sin(radToGrad(angRad));
     }
 
@@ -852,7 +852,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angGrad the angle in grads
      * @return the sine of an angle in rad
      */
-    public static double sinGradToRad(double angGrad) {
+    public static Double sinGradToRad(Double angGrad) {
         return sin(gradToRad(angGrad));
     }
 
@@ -860,7 +860,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angGrad the angle in degs
      * @return the sine of an angle in grad
      */
-    public static double sinDegToGrad(double angGrad) {
+    public static Double sinDegToGrad(Double angGrad) {
         return sin(degToGrad(angGrad));
     }
 
@@ -868,7 +868,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angDeg the angle in degs
      * @return the sine of an angle in grad
      */
-    public static double sinGradToDeg(double angDeg) {
+    public static Double sinGradToDeg(Double angDeg) {
         return sin(gradToDeg(angDeg));
     }
 
@@ -877,7 +877,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angRad the angle in rads
      * @return the cosine of an angle in degrees
      */
-    public static double cosRadToDeg(double angRad) {
+    public static Double cosRadToDeg(Double angRad) {
         return cos(radToDeg(angRad));
     }
 
@@ -885,7 +885,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angDeg the angle in degs
      * @return the cosine of an angle in rads
      */
-    public static double cosDegToRad(double angDeg) {
+    public static Double cosDegToRad(Double angDeg) {
         return cos(degToRad(angDeg));
     }
 
@@ -893,7 +893,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angRad the angle in rads
      * @return the cosine of an angle in grad
      */
-    public static double cosRadToGrad(double angRad) {
+    public static Double cosRadToGrad(Double angRad) {
         return cos(radToGrad(angRad));
     }
 
@@ -901,7 +901,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angGrad the angle in grads
      * @return the cosine of an angle in rad
      */
-    public static double cosGradToRad(double angGrad) {
+    public static Double cosGradToRad(Double angGrad) {
         return cos(gradToRad(angGrad));
     }
 
@@ -909,7 +909,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angGrad the angle in degs
      * @return the cosine of an angle in grad
      */
-    public static double cosDegToGrad(double angGrad) {
+    public static Double cosDegToGrad(Double angGrad) {
         return cos(degToGrad(angGrad));
     }
 
@@ -917,7 +917,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angDeg the angle in degs
      * @return the cosine of an angle in grad
      */
-    public static double cosGradToDeg(double angDeg) {
+    public static Double cosGradToDeg(Double angDeg) {
         return cos(gradToDeg(angDeg));
     }
 
@@ -926,7 +926,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angRad the angle in rads
      * @return the tangent of an angle in degrees
      */
-    public static double tanRadToDeg(double angRad) {
+    public static Double tanRadToDeg(Double angRad) {
         return tan(radToDeg(angRad));
     }
 
@@ -934,7 +934,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angDeg the angle in degs
      * @return the tangent of an angle in rads
      */
-    public static double tanDegToRad(double angDeg) {
+    public static Double tanDegToRad(Double angDeg) {
         return tan(degToRad(angDeg));
     }
 
@@ -942,7 +942,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angRad the angle in rads
      * @return the tangent of an angle in grad
      */
-    public static double tanRadToGrad(double angRad) {
+    public static Double tanRadToGrad(Double angRad) {
         return tan(radToGrad(angRad));
     }
 
@@ -950,7 +950,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angGrad the angle in grads
      * @return the tangent of an angle in rad
      */
-    public static double tanGradToRad(double angGrad) {
+    public static Double tanGradToRad(Double angGrad) {
         return tan(gradToRad(angGrad));
     }
 
@@ -958,7 +958,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angGrad the angle in degs
      * @return the tangent of an angle in grad
      */
-    public static double tanDegToGrad(double angGrad) {
+    public static Double tanDegToGrad(Double angGrad) {
         return tan(degToGrad(angGrad));
     }
 
@@ -966,7 +966,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angDeg the angle in degs
      * @return the tangent of an angle in grad
      */
-    public static double tanGradToDeg(double angDeg) {
+    public static Double tanGradToDeg(Double angDeg) {
         return tan(gradToDeg(angDeg));
     }
 
@@ -975,7 +975,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angRad the angle in rads
      * @return the arctan of an angle in degrees
      */
-    public static double atanRadToDeg(double angRad) {
+    public static Double atanRadToDeg(Double angRad) {
         return radToDeg(atan(angRad));
     }
 
@@ -983,7 +983,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angRad the angle in rads
      * @return the arccos of an angle in degrees
      */
-    public static double acosRadToDeg(double angRad) {
+    public static Double acosRadToDeg(Double angRad) {
         return radToDeg(acos(angRad));
     }
 
@@ -992,7 +992,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angRad the angle in rads
      * @return the arcsine of an angle in degrees
      */
-    public static double asinRadToDeg(double angRad) {
+    public static Double asinRadToDeg(Double angRad) {
         return radToDeg(asin(angRad));
     }
 
@@ -1000,7 +1000,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angDeg the angle in rads
      * @return the arcsine of an angle in rads
      */
-    public static double asinDegToRad(double angDeg) {
+    public static Double asinDegToRad(Double angDeg) {
         return degToRad(asin(angDeg));
     }
 
@@ -1008,7 +1008,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angRad the angle in rads
      * @return the arcsine of an angle in grads
      */
-    public static double asinRadToGrad(double angRad) {
+    public static Double asinRadToGrad(Double angRad) {
         return radToGrad(asin(angRad));
     }
 
@@ -1016,7 +1016,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angGrad the angle in rads
      * @return the arcsine of an angle in rads
      */
-    public static double asinGradToRad(double angGrad) {
+    public static Double asinGradToRad(Double angGrad) {
         return gradToRad(asin(angGrad));
     }
 
@@ -1024,7 +1024,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angDeg the angle in rads
      * @return the arcsine of an angle in grads
      */
-    public static double asinDegToGrad(double angDeg) {
+    public static Double asinDegToGrad(Double angDeg) {
         return (asinDegToGrad(angDeg));
     }
 
@@ -1032,7 +1032,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angGrad the angle in rads
      * @return the arcsine of an angle in degrees
      */
-    public static double asinGradToDeg(double angGrad) {
+    public static Double asinGradToDeg(Double angGrad) {
         return gradToDeg(asin(angGrad));
     }
 
@@ -1041,7 +1041,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angDeg the angle in rads
      * @return the arccos of an angle in rads
      */
-    public static double acosDegToRad(double angDeg) {
+    public static Double acosDegToRad(Double angDeg) {
         return degToRad(acos(angDeg));
     }
 
@@ -1049,7 +1049,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angRad the angle in rads
      * @return the arccos of an angle in grads
      */
-    public static double acosRadToGrad(double angRad) {
+    public static Double acosRadToGrad(Double angRad) {
         return radToGrad(acos(angRad));
     }
 
@@ -1057,7 +1057,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angGrad the angle in rads
      * @return the arccos of an angle in rads
      */
-    public static double acosGradToRad(double angGrad) {
+    public static Double acosGradToRad(Double angGrad) {
         return gradToRad(acos(angGrad));
     }
 
@@ -1065,7 +1065,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angDeg the angle in rads
      * @return the arccos of an angle in grads
      */
-    public static double acosDegToGrad(double angDeg) {
+    public static Double acosDegToGrad(Double angDeg) {
         return (acosDegToGrad(angDeg));
     }
 
@@ -1073,7 +1073,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angGrad the angle in rads
      * @return the arccos of an angle in degrees
      */
-    public static double acosGradToDeg(double angGrad) {
+    public static Double acosGradToDeg(Double angGrad) {
         return gradToDeg(acos(angGrad));
     }
 
@@ -1082,7 +1082,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angDeg the angle in rads
      * @return the arctan of an angle in rads
      */
-    public static double atanDegToRad(double angDeg) {
+    public static Double atanDegToRad(Double angDeg) {
         return degToRad(atan(angDeg));
     }
 
@@ -1090,7 +1090,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angRad the angle in rads
      * @return the arctan of an angle in grads
      */
-    public static double atanRadToGrad(double angRad) {
+    public static Double atanRadToGrad(Double angRad) {
         return radToGrad(atan(angRad));
     }
 
@@ -1098,7 +1098,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angGrad the angle in rads
      * @return the arctan of an angle in rads
      */
-    public static double atanGradToRad(double angGrad) {
+    public static Double atanGradToRad(Double angGrad) {
         return gradToRad(atan(angGrad));
     }
 
@@ -1106,7 +1106,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angDeg the angle in rads
      * @return the arctan of an angle in grads
      */
-    public static double atanDegToGrad(double angDeg) {
+    public static Double atanDegToGrad(Double angDeg) {
         return (atanDegToGrad(angDeg));
     }
 
@@ -1114,7 +1114,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param angGrad the angle in rads
      * @return the arctan of an angle in degrees
      */
-    public static double atanGradToDeg(double angGrad) {
+    public static Double atanGradToDeg(Double angGrad) {
         return gradToDeg(atan(angGrad));
     }
 
@@ -1123,7 +1123,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param x The number.
      * @return the arc sinh of the number.
      */
-    public static double asinh(double x) {
+    public static Double asinh(Double x) {
         return Math.log(x + Math.sqrt(x * x + 1));
     }
 
@@ -1131,7 +1131,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param x The number.
      * @return the arc sinh of the number.
      */
-    public static double acosh(double x) {
+    public static Double acosh(Double x) {
         return Math.log(x + Math.sqrt(x * x - 1));
     }
 
@@ -1139,7 +1139,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param x The number.
      * @return the arc sinh of the number.
      */
-    public static double atanh(double x) {
+    public static Double atanh(Double x) {
         return 0.5 * Math.log((1 + x) / (1 - x));
     }
 
@@ -1148,7 +1148,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param x The number.
      * @return the arc csch of the number.
      */
-    public static double acsch(double x) {
+    public static Double acsch(Double x) {
         return asinh(1.0 / x);
     }
 
@@ -1156,7 +1156,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param x The number.
      * @return the arc csch of the number.
      */
-    public static double asech(double x) {
+    public static Double asech(Double x) {
         return acosh(1 / x);
     }
 
@@ -1164,7 +1164,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param x The number.
      * @return the arc coth of the number.
      */
-    public static double acoth(double x) {
+    public static Double acoth(Double x) {
         return atanh(1 / x);
     }
 
@@ -1173,7 +1173,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param exponent The power. May be integer or floating point.
      * @return The number parameter raised to the power of the exponent parameter.
      */
-    public static double power(double number, double exponent) {
+    public static Double power(Double number, Double exponent) {
 
         if (exponent == 0) {
             return 1.0;
@@ -1231,7 +1231,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param d The number
      * @return the cube root.
      */
-    public static double cbrt(double d) {
+    public static Double cbrt(Double d) {
 
         if (d > 0) {
             return power(d, (1 / 3.0));
@@ -1257,12 +1257,12 @@ public class Maths {                       //3.14159265358979323846;
      * @param exponent The power it is to be raised to.
      * @return the result of number raised to the power of exponent.
      */
-    public static double pow(double number, double exponent) {
+    public static Double pow(Double number, Double exponent) {
 
 
-        int pow = (int) exponent;
+        int pow = exponent.intValue();
 
-        double result = 1.0;
+        Double result = 1.0;
 
         int i = 0;
         while (i < pow) {
@@ -1300,20 +1300,20 @@ public class Maths {                       //3.14159265358979323846;
      * The log is then <code> m*N</code>
      */
 
-    public static double log(double x) {
+    public static Double log(Double x) {
         if (x <= 0) {
             return Double.NaN;
         } else {
-            double count = 1;
+            Double count = 1d;
             while (Math.abs(x - 1) >= 0.1) {
                 x = Math.sqrt(x);
                 count++;
             }//end while loop.
-            count = pow(2, count - 1);
-            double sum = 0.0;
-            double lastSum = 1.0E-11;
-            double i = 1.0;
-            double xCalc = (x - 1) / (x + 1);
+            count = pow(2d, count - 1);
+            Double sum = 0.0;
+            Double lastSum = 1.0E-11;
+            Double i = 1.0;
+            Double xCalc = (x - 1) / (x + 1);
             for (; Math.abs(sum - lastSum) > 0; i += 2.0) {
                 lastSum = sum;
                 sum += (pow(xCalc, i) / i);
@@ -1332,15 +1332,15 @@ public class Maths {                       //3.14159265358979323846;
      * @param x The number whose exponent is needed.
      * @return the exponent of the number.
      */
-    public static double exp(double x) {
+    public static Double exp(Double x) {
         boolean isPos = x >= 0;
         x = Math.abs(x);
 
         if (x <= 2) {
-            double sum = 0.0;
-            double fact = 1.0;
-            double lastSum = 1.0E-11;
-            double i = 0;
+            Double sum = 0.0;
+            Double fact = 1.0;
+            Double lastSum = 1.0E-11;
+            Double i = 0d;
 
             while (Math.abs(sum - lastSum) > 0) {
                 lastSum = sum;
@@ -1399,10 +1399,10 @@ public class Maths {                       //3.14159265358979323846;
      * @param q The number.
      * @return the arc sine of the number.
      */
-    public static double asin(double q) {
+    public static Double asin(Double q) {
 
         if (Math.abs(q) <= 1) {
-            double x = q / Math.sqrt(1 - (q * q));// Converting To Tangent Coords.
+            Double x = q / Math.sqrt(1 - (q * q));// Converting To Tangent Coords.
             return Maths.atan(x);
         }//end if
 
@@ -1438,9 +1438,9 @@ public class Maths {                       //3.14159265358979323846;
      * @param p The number.
      * @return the arc cosine of the number.
      */
-    public static double acos(double p) {
+    public static Double acos(Double p) {
         if (Math.abs(p) <= 1) {
-            double x = Math.sqrt(1 - (p * p)) / p;// Converting To Tangent Coords.
+            Double x = Math.sqrt(1 - (p * p)) / p;// Converting To Tangent Coords.
             return Maths.atan(x);
         }//end if
 
@@ -1458,7 +1458,7 @@ public class Maths {                       //3.14159265358979323846;
      * @param x
      * @return
      */
-    public static double atan(double x) {
+    public static Double atan(Double x) {
         boolean isPositive = true;
         if (x > 0) {
             isPositive = true;
@@ -1469,10 +1469,10 @@ public class Maths {                       //3.14159265358979323846;
 
 
         if (x > 1) {
-            double a = 0.0;//approx atan.
-            double x_inv = 1.0 / x;
-            double x_inv_squared = x_inv * x_inv;
-            double prod = 1.0;
+            Double a = 0.0;//approx atan.
+            Double x_inv = 1.0 / x;
+            Double x_inv_squared = x_inv * x_inv;
+            Double prod = 1.0;
             for (int i = 0; i < 10; i++) {
                 if (i == 0) {
                     prod = x_inv;
@@ -1487,12 +1487,12 @@ public class Maths {                       //3.14159265358979323846;
                 }
             }//end for loop
 
-            double x_n = a;
-            double x_n1 = 0;
+            Double x_n = a;
+            Double x_n1 = 0d;
 
             while (true) {
-                double sec_n = 1 / Math.cos(x_n);
-                double tan_n = Math.tan(x_n);
+                Double sec_n = 1 / Math.cos(x_n);
+                Double tan_n = Math.tan(x_n);
                 x_n1 = x_n - ((tan_n - x_inv) / (sec_n * sec_n));
                 if (Math.abs(x_n1 - x_n) <= 1.0E-14) {
                     break;
@@ -1509,9 +1509,9 @@ public class Maths {                       //3.14159265358979323846;
 
 
         else {
-            double a = 0.0;//approx atan.
-            double x_squared = x * x;
-            double prod = 1.0;
+            Double a = 0.0;//approx atan.
+            Double x_squared = x * x;
+            Double prod = 1.0;
             for (int i = 0; i < 10; i++) {
                 if (i == 0) {
                     prod = x;
@@ -1527,12 +1527,12 @@ public class Maths {                       //3.14159265358979323846;
             }//end for loop
 
 
-            double x_n = a;
-            double x_n1 = 0;
+            Double x_n = a;
+            Double x_n1 = 0d;
 
             while (true) {
-                double sec_n = 1 / Math.cos(x_n);
-                double tan_n = Math.tan(x_n);
+                Double sec_n = 1 / Math.cos(x_n);
+                Double tan_n = Math.tan(x_n);
 
                 x_n1 = x_n - ((tan_n - x) / (sec_n * sec_n));
 
@@ -1552,30 +1552,7 @@ public class Maths {                       //3.14159265358979323846;
 
     public static void main(String args[]) {
 
-        for (int i = 0; i < 1000; i++) {
-            Math.asin(0.3);
-            Maths.asin(0.3);
-        }
 
-        double x = 0.99;
-
-        double t1 = System.nanoTime();
-        double val = Math.asin(x);
-        double t2 = System.nanoTime();
-
-        System.out.println("ans = " + val);
-        System.out.println(" RUNTIME = " + ((t2 - t1) / 1.0E6) + " ms");
-
-
-        double t3 = System.nanoTime();
-        val = Maths.asin(x);
-        double t4 = System.nanoTime();
-
-        System.out.println("ans = " + val);
-        System.out.println(" RUNTIME = " + ((t4 - t3) / 1.0E6) + " ms");
-
-
-        System.out.println(" fact = " + fact("0.01"));
     }
     /*We use the principle:
      * pi=(magic_whole_no)*(SUM(i^-n))^(1/n) < where i goes from 1 to infinity during summation >

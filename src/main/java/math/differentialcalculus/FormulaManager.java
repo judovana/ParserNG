@@ -84,7 +84,7 @@ public Object[] comparisonData( List<String> data ){
          return info;
      }//end if
      else{
-         double factor = f.getFactor(fj);
+         Double factor = f.getFactor(fj);
          if(!Double.isNaN(factor)){
          info[0]=0;
          info[1]=i;

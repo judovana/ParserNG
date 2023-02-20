@@ -27,7 +27,7 @@ public class NumericalDerivative {
      * The x coordinate of the point on the function
      * where we need to find the derivative.
      */
-    private double xPoint;
+    private Double xPoint;
 
     public NumericalDerivative() {
     }
@@ -49,7 +49,7 @@ public class NumericalDerivative {
         new Parser(expression);
     }
 
-    public NumericalDerivative(Function function, double xPoint) {
+    public NumericalDerivative(Function function, Double xPoint) {
         this.function = function;
         this.xPoint = xPoint;
     }
@@ -69,11 +69,11 @@ public class NumericalDerivative {
 
 
 
-    public void setxPoint(double xPoint) {
+    public void setxPoint(Double xPoint) {
         this.xPoint = xPoint;
     }
 
-    public double getxPoint() {
+    public Double getxPoint() {
         return xPoint;
     }
 
@@ -99,7 +99,7 @@ public class NumericalDerivative {
      * @return the numerical value of the
      * derivative very near the given point.
      */
-    public String findDerivativeByLimit(double dx){
+    public String findDerivativeByLimit(Double dx){
         MathExpression func = function.getMathExpression();
         func.setValue(function.getIndependentVariables().get(0).getName(), String.valueOf(xPoint+dx));
         String upper = func.solve();
@@ -107,7 +107,7 @@ public class NumericalDerivative {
         func.setValue(function.getIndependentVariables().get(0).getName(), String.valueOf(xPoint-dx));
         String lower = func.solve();
 
-        double derived = ( Double.parseDouble(upper) -  Double.parseDouble(lower) )/(2.0*dx);
+        Double derived = ( Double.parseDouble(upper) -  Double.parseDouble(lower) )/(2.0*dx);
         return String.valueOf(derived);
     }//end method
 
@@ -120,7 +120,7 @@ public class NumericalDerivative {
      * diff(F,5.32) where F is a    function that has been defined before in the workspace.. and so on.
      *
      * @return an Object array containing at index 0, the function string,which may or may not be anonymous,
-     * and in index 1, the horizontal coordinate of type double where the derivative is needed.
+     * and in index 1, the horizontal coordinate of type Double where the derivative is needed.
      */
     public static Object[] extractFunctionStringFromExpression( String expression ){
 
@@ -130,7 +130,7 @@ public class NumericalDerivative {
                 expression = expression.substring(0,expression.length()-1);//remove the last bracket.
                 expression = expression.substring(expression.indexOf("(")+1);//remove the starting command and the first bracket.
 
-                double xPoint =  Double.parseDouble( new MathExpression(expression.substring(expression.lastIndexOf(",")+1).trim()).solve() ) ;
+                Double xPoint =  Double.parseDouble( new MathExpression(expression.substring(expression.lastIndexOf(",")+1).trim()).solve() ) ;
                 String func = expression.substring(0, expression.lastIndexOf(",")).trim();
 
                 try{
@@ -199,7 +199,7 @@ public class NumericalDerivative {
                     expression = expression.substring(0,expression.length()-1);//remove the last bracket.
                     expression = expression.substring(expression.indexOf("(")+1);//remove the starting command and the first bracket.
 
-                    double xPoint = Double.parseDouble( expression.substring(expression.lastIndexOf(",")+1).trim() );
+                    Double xPoint = Double.parseDouble( expression.substring(expression.lastIndexOf(",")+1).trim() );
                     String func = expression.substring(0, expression.lastIndexOf(",")).trim();
 
                     setxPoint(xPoint);
@@ -240,7 +240,7 @@ public class NumericalDerivative {
 
     }//end class Parser
     public static void main(String args[]){
-        double evalPoint = 3.2;
+        Double evalPoint = 3.2;
         FunctionManager.add("F=@(x)sin(x)/(x^3)*sin(x)");
         FunctionManager.add("P=@(x)ln(x)");
         //NumericalDerivative der = new NumericalDerivative("diff(P,5.134)" );

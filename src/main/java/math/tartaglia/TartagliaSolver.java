@@ -16,11 +16,11 @@ import static java.lang.Math.*;
  * @author JIBOYE OLuwagbemiro Olaoluwa
  */
 public class TartagliaSolver {
-    private double a;//coefficient of x.
-    private double b;//coefficient of the constant.
-    private double c;//coefficient of x^3.
+    private Double a;//coefficient of x.
+    private Double b;//coefficient of the constant.
+    private Double c;//coefficient of x^3.
 
-    public TartagliaSolver(double c, double a, double b) {
+    public TartagliaSolver(Double c, Double a, Double b) {
             this.a=a;
             this.b=b;
             this.c=c;
@@ -31,27 +31,27 @@ normalizeCofficients();
 
 
 
-    public double getA() {
+    public Double getA() {
         return a;
     }
 
-    public void setA(double a) {
+    public void setA(Double a) {
         this.a = a;
     }
 
-    public double getB() {
+    public Double getB() {
         return b;
     }
 
-    public void setB(double b) {
+    public void setB(Double b) {
         this.b = b;
     }
 
-    public double getC() {
+    public Double getC() {
         return c;
     }
 
-    public void setC(double c) {
+    public void setC(Double c) {
         this.c = c;
     }
 
@@ -85,8 +85,8 @@ String x1="0.0";
 if(a>0){
 
 try{
-   double lhs=(b/2.0);
-   double rhs= sqrt( ( pow(a,3)/27.0 ) +   ( pow(b,2)/4.0 ) );
+   Double lhs=(b/2.0);
+   Double rhs= sqrt( ( pow(a,3)/27.0 ) +   ( pow(b,2)/4.0 ) );
  x1=String.valueOf( cbrt( -lhs+rhs)+cbrt( -lhs-rhs) );
 
  QuadraticSolver solver = new QuadraticSolver(1.0,Double.valueOf(x1), a+ pow( Double.valueOf(x1),2) );

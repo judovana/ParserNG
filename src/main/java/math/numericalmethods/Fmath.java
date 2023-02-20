@@ -58,25 +58,25 @@ public class Fmath{
  
 // PHYSICAL CONSTANTS
  
-public static final double N_AVAGADRO = 6.0221419947e23;        /*      mol^-1          */
-public static final double K_BOLTZMANN = 1.380650324e-23;       /*      J K^-1          */
-public static final double H_PLANCK = 6.6260687652e-34;         /*      J s             */
-public static final double H_PLANCK_RED = H_PLANCK/(2*Math.PI); /*      J s             */
-public static final double C_LIGHT = 2.99792458e8;              /*      m s^-1          */
-public static final double R_GAS = 8.31447215;                  /*      J K^-1 mol^-1   */
-public static final double F_FARADAY = 9.6485341539e4;          /*      C mol^-1        */
-public static final double T_ABS = -273.15;                     /*      Celsius         */
-public static final double Q_ELECTRON = -1.60217646263e-19;     /*      C               */
-public static final double M_ELECTRON = 9.1093818872e-31;       /*      kg              */
-public static final double M_PROTON = 1.6726215813e-27;         /*      kg              */
-public static final double M_NEUTRON = 1.6749271613e-27;        /*      kg              */
-public static final double EPSILON_0 = 8.854187817e-12;         /*      F m^-1          */
-public static final double MU_0 = Math.PI*4e-7;                 /*      H m^-1 (N A^-2) */
+public static final Double N_AVAGADRO = 6.0221419947e23;        /*      mol^-1          */
+public static final Double K_BOLTZMANN = 1.380650324e-23;       /*      J K^-1          */
+public static final Double H_PLANCK = 6.6260687652e-34;         /*      J s             */
+public static final Double H_PLANCK_RED = H_PLANCK/(2*Math.PI); /*      J s             */
+public static final Double C_LIGHT = 2.99792458e8;              /*      m s^-1          */
+public static final Double R_GAS = 8.31447215;                  /*      J K^-1 mol^-1   */
+public static final Double F_FARADAY = 9.6485341539e4;          /*      C mol^-1        */
+public static final Double T_ABS = -273.15;                     /*      Celsius         */
+public static final Double Q_ELECTRON = -1.60217646263e-19;     /*      C               */
+public static final Double M_ELECTRON = 9.1093818872e-31;       /*      kg              */
+public static final Double M_PROTON = 1.6726215813e-27;         /*      kg              */
+public static final Double M_NEUTRON = 1.6749271613e-27;        /*      kg              */
+public static final Double EPSILON_0 = 8.854187817e-12;         /*      F m^-1          */
+public static final Double MU_0 = Math.PI*4e-7;                 /*      H m^-1 (N A^-2) */
  
 // MATHEMATICAL CONSTANTS
-public static final double EULER_CONSTANT_GAMMA = 0.5772156649015627;
-public static final double PI = Math.PI;                        /*  3.141592653589793D  */
-public static final double E = Math.E;                          /*  2.718281828459045D  */
+public static final Double EULER_CONSTANT_GAMMA = 0.5772156649015627;
+public static final Double PI = Math.PI;                        /*  3.141592653589793D  */
+public static final Double E = Math.E;                          /*  2.718281828459045D  */
  
 // HashMap for 'arithmetic integer' recognition nmethod
 private static final Map<Object,Object> integers = new HashMap<Object,Object>();
@@ -91,8 +91,8 @@ integers.put(BigInteger.class, BigDecimal.valueOf(-1));
 // METHODS
  
 // LOGARITHMS
-// Log to base 10 of a double number
-public static double log10(double a){
+// Log to base 10 of a Double number
+public static Double log10(Double a){
 return Math.log(a)/Math.log(10.0D);
 }
  
@@ -101,8 +101,8 @@ public static float log10(float a){
 return (float) (Math.log((double)a)/Math.log(10.0D));
 }
  
-// Base 10 antilog of a double
-public static double antilog10(double x){
+// Base 10 antilog of a Double
+public static Double antilog10(Double x){
 return Math.pow(10.0D, x);
 }
  
@@ -111,8 +111,8 @@ public static float antilog10(float x){
 return (float)Math.pow(10.0D, (double)x);
 }
  
-// Log to base e of a double number
-public static double log(double a){
+// Log to base e of a Double number
+public static Double log(Double a){
 return Math.log(a);
 }
  
@@ -121,8 +121,8 @@ public static float log(float a){
 return (float)Math.log((double)a);
 }
  
-// Base e antilog of a double
-public static double antilog(double x){
+// Base e antilog of a Double
+public static Double antilog(Double x){
 return Math.exp(x);
 }
  
@@ -131,8 +131,8 @@ public static float antilog(float x){
 return (float)Math.exp((double)x);
 }
  
-// Log to base 2 of a double number
-public static double log2(double a){
+// Log to base 2 of a Double number
+public static Double log2(Double a){
 return Math.log(a)/Math.log(2.0D);
 }
  
@@ -141,8 +141,8 @@ public static float log2(float a){
 return (float) (Math.log((double)a)/Math.log(2.0D));
 }
  
-// Base 2 antilog of a double
-public static double antilog2(double x){
+// Base 2 antilog of a Double
+public static Double antilog2(Double x){
 return Math.pow(2.0D, x);
 }
  
@@ -151,13 +151,13 @@ public static float antilog2(float x){
 return (float)Math.pow(2.0D, (double)x);
 }
  
-// Log to base b of a double number and double base
-public static double log10(double a, double b){
+// Log to base b of a Double number and Double base
+public static Double log10(Double a, Double b){
 return Math.log(a)/Math.log(b);
 }
  
-// Log to base b of a double number and int base
-public static double log10(double a, int b){
+// Log to base b of a Double number and int base
+public static Double log10(Double a, int b){
 return Math.log(a)/Math.log((double)b);
 }
  
@@ -172,8 +172,8 @@ return (float) (Math.log((double)a)/Math.log((double)b));
 }
  
 // SQUARES
-// Square of a double number
-public static double square(double a){
+// Square of a Double number
+public static Double square(double a){
 return a*a;
 }
  
@@ -205,10 +205,10 @@ return a.multiply(a);
 // FACTORIALS
 // factorial of n
 // argument and return are integer, therefore limited to 0<=n<=12
-// see below for long and double arguments
+// see below for long and Double arguments
 public static int factorial(int n){
 if(n<0)throw new IllegalArgumentException("n must be a positive integer");
-if(n>12)throw new IllegalArgumentException("n must less than 13 to avoid integer overflow\nTry long or double argument");
+if(n>12)throw new IllegalArgumentException("n must less than 13 to avoid integer overflow\nTry long or Double argument");
 int f = 1;
 for(int i=2; i<=n; i++)f*=i;
 return f;
@@ -216,10 +216,10 @@ return f;
  
 // factorial of n
 // argument and return are long, therefore limited to 0<=n<=20
-// see below for double argument
+// see below for Double argument
 public static long factorial(long n){
 if(n<0)throw new IllegalArgumentException("n must be a positive integer");
-if(n>20)throw new IllegalArgumentException("n must less than 21 to avoid long integer overflow\nTry double argument");
+if(n>20)throw new IllegalArgumentException("n must less than 21 to avoid long integer overflow\nTry Double argument");
 long f = 1;
 long iCount = 2L;
 while(iCount<=n){
@@ -246,13 +246,13 @@ return f;
 }
  
 // factorial of n
-// Argument is of type double but must be, numerically, an integer
-// factorial returned as double but is, numerically, should be an integer
+// Argument is of type Double but must be, numerically, an integer
+// factorial returned as Double but is, numerically, should be an integer
 // numerical rounding may makes this an approximation after n = 21
-public static double factorial(double n){
+public static Double factorial(Double n){
 if(n<0.0 || (n-Math.floor(n))!=0)throw new IllegalArgumentException("\nn must be a positive integer\nIs a Gamma funtion [Fmath.gamma(x)] more appropriate?");
-double f = 1.0D;
-double iCount = 2.0D;
+Double f = 1.0D;
+Double iCount = 2.0D;
 while(iCount<=n){
 f*=iCount;
 iCount += 1.0D;
@@ -279,22 +279,22 @@ return f;
  
  
 // log to base e of the factorial of n
-// log[e](factorial) returned as double
+// log[e](factorial) returned as Double
 // numerical rounding may makes this an approximation
-public static double logFactorial(int n){
+public static Double logFactorial(int n){
 if(n<0)throw new IllegalArgumentException("\nn must be a positive integer\nIs a Gamma funtion [Fmath.gamma(x)] more appropriate?");
-double f = 0.0D;
+Double f = 0.0D;
 for(int i=2; i<=n; i++)f+=Math.log(i);
 return f;
 }
  
 // log to base e of the factorial of n
-// Argument is of type double but must be, numerically, an integer
-// log[e](factorial) returned as double
+// Argument is of type Double but must be, numerically, an integer
+// log[e](factorial) returned as Double
 // numerical rounding may makes this an approximation
-public static double logFactorial(long n){
+public static Double logFactorial(long n){
 if(n<0L)throw new IllegalArgumentException("\nn must be a positive integer\nIs a Gamma funtion [Fmath.gamma(x)] more appropriate?");
-double f = 0.0D;
+Double f = 0.0D;
 long iCount = 2L;
 while(iCount<=n){
 f+=Math.log(iCount);
@@ -304,13 +304,13 @@ return f;
 }
  
 // log to base e of the factorial of n
-// Argument is of type double but must be, numerically, an integer
-// log[e](factorial) returned as double
+// Argument is of type Double but must be, numerically, an integer
+// log[e](factorial) returned as Double
 // numerical rounding may makes this an approximation
-public static double logFactorial(double n){
+public static Double logFactorial(Double n){
 if(n<0 || (n-Math.floor(n))!=0)throw new IllegalArgumentException("\nn must be a positive integer\nIs a Gamma funtion [Fmath.gamma(x)] more appropriate?");
-double f = 0.0D;
-double iCount = 2.0D;
+Double f = 0.0D;
+Double iCount = 2.0D;
 while(iCount<=n){
 f+=Math.log(iCount);
 iCount += 1.0D;
@@ -321,8 +321,8 @@ return f;
  
 // SIGN
 /*      returns -1 if x < 0 else returns 1   */
-//  double version
-public static double sign(double x){
+//  Double version
+public static Double sign(Double x){
 if (x<0.0){
 return -1.0;
 }
@@ -368,11 +368,11 @@ return 1;
  
 // Returns the length of the hypotenuse of a and b
 // i.e. sqrt(a*a+b*b) [without unecessary overflow or underflow]
-// double version
-public static double hypot(double aa, double bb){
-double amod=Math.abs(aa);
-double bmod=Math.abs(bb);
-double cc = 0.0D, ratio = 0.0D;
+// Double version
+public static Double hypot(Double aa, Double bb){
+Double amod=Math.abs(aa);
+Double bmod=Math.abs(bb);
+Double cc = 0.0D, ratio = 0.0D;
 if(amod==0.0){
 cc=bmod;
 }
@@ -398,191 +398,191 @@ return cc;
 // i.e. sqrt(a*a+b*b) [without unecessary overflow or underflow]
 // float version
 public static float hypot(float aa, float bb){
-return (float) hypot((double) aa, (double) bb);
+return hypot((double) aa, (double) bb).floatValue();
 }
  
 // Angle (in radians) subtended at coordinate C
 // given x, y coordinates of all apices, A, B and C, of a triangle
-public static double angle(double xAtA, double yAtA, double xAtB, double yAtB, double xAtC, double yAtC){
+public static Double angle(Double xAtA, Double yAtA, Double xAtB, Double yAtB, Double xAtC, Double yAtC){
  
-double ccos = Fmath.cos(xAtA, yAtA, xAtB, yAtB, xAtC, yAtC);
+Double ccos = Fmath.cos(xAtA, yAtA, xAtB, yAtB, xAtC, yAtC);
 return Math.acos(ccos);
 }
  
 // Angle (in radians) between sides sideA and sideB given all side lengths of a triangle
-public static double angle(double sideAC, double sideBC, double sideAB){
+public static Double angle(Double sideAC, Double sideBC, Double sideAB){
  
-double ccos = Fmath.cos(sideAC, sideBC, sideAB);
+Double ccos = Fmath.cos(sideAC, sideBC, sideAB);
 return Math.acos(ccos);
 }
  
 // Sine of angle subtended at coordinate C
 // given x, y coordinates of all apices, A, B and C, of a triangle
-public static double sin(double xAtA, double yAtA, double xAtB, double yAtB, double xAtC, double yAtC){
-double angle = Fmath.angle(xAtA, yAtA, xAtB, yAtB, xAtC, yAtC);
+public static Double sin(Double xAtA, Double yAtA, Double xAtB, Double yAtB, Double xAtC, Double yAtC){
+Double angle = Fmath.angle(xAtA, yAtA, xAtB, yAtB, xAtC, yAtC);
 return Math.sin(angle);
 }
  
 // Sine of angle between sides sideA and sideB given all side lengths of a triangle
-public static double sin(double sideAC, double sideBC, double sideAB){
-double angle = Fmath.angle(sideAC, sideBC, sideAB);
+public static Double sin(Double sideAC, Double sideBC, Double sideAB){
+Double angle = Fmath.angle(sideAC, sideBC, sideAB);
 return Math.sin(angle);
 }
  
 // Sine given angle in radians
 // for completion - returns Math.sin(arg)
-public static double sin(double arg){
+public static Double sin(Double arg){
 return Math.sin(arg);
 }
  
 // Inverse sine
 // Fmath.asin Checks limits - Java Math.asin returns NaN if without limits
-public static double asin(double a){
+public static Double asin(Double a){
 if(a<-1.0D && a>1.0D) throw new IllegalArgumentException("Fmath.asin argument (" + a + ") must be >= -1.0 and <= 1.0");
 return Math.asin(a);
 }
  
 // Cosine of angle subtended at coordinate C
 // given x, y coordinates of all apices, A, B and C, of a triangle
-public static double cos(double xAtA, double yAtA, double xAtB, double yAtB, double xAtC, double yAtC){
-double sideAC = Fmath.hypot(xAtA - xAtC, yAtA - yAtC);
-double sideBC = Fmath.hypot(xAtB - xAtC, yAtB - yAtC);
-double sideAB = Fmath.hypot(xAtA - xAtB, yAtA - yAtB);
+public static Double cos(Double xAtA, Double yAtA, Double xAtB, Double yAtB, Double xAtC, Double yAtC){
+Double sideAC = Fmath.hypot(xAtA - xAtC, yAtA - yAtC);
+Double sideBC = Fmath.hypot(xAtB - xAtC, yAtB - yAtC);
+Double sideAB = Fmath.hypot(xAtA - xAtB, yAtA - yAtB);
 return Fmath.cos(sideAC, sideBC, sideAB);
 }
  
 // Cosine of angle between sides sideA and sideB given all side lengths of a triangle
-public static double cos(double sideAC, double sideBC, double sideAB){
+public static Double cos(Double sideAC, Double sideBC, Double sideAB){
 return 0.5D*(sideAC/sideBC + sideBC/sideAC - (sideAB/sideAC)*(sideAB/sideBC));
 }
  
 // Cosine given angle in radians
 // for completion - returns Java Math.cos(arg)
-public static double cos(double arg){
+public static Double cos(Double arg){
 return Math.cos(arg);
 }
  
 // Inverse cosine
 // Fmath.asin Checks limits - Java Math.asin returns NaN if without limits
-public static double acos(double a){
+public static Double acos(Double a){
 if(a<-1.0D || a>1.0D) throw new IllegalArgumentException("Fmath.acos argument (" + a + ") must be >= -1.0 and <= 1.0");
 return Math.acos(a);
 }
  
 // Tangent of angle subtended at coordinate C
 // given x, y coordinates of all apices, A, B and C, of a triangle
-public static double tan(double xAtA, double yAtA, double xAtB, double yAtB, double xAtC, double yAtC){
-double angle = Fmath.angle(xAtA, yAtA, xAtB, yAtB, xAtC, yAtC);
+public static Double tan(Double xAtA, Double yAtA, Double xAtB, Double yAtB, Double xAtC, Double yAtC){
+Double angle = Fmath.angle(xAtA, yAtA, xAtB, yAtB, xAtC, yAtC);
 return Math.tan(angle);
 }
  
 // Tangent of angle between sides sideA and sideB given all side lengths of a triangle
-public static double tan(double sideAC, double sideBC, double sideAB){
-double angle = Fmath.angle(sideAC, sideBC, sideAB);
+public static Double tan(Double sideAC, Double sideBC, Double sideAB){
+Double angle = Fmath.angle(sideAC, sideBC, sideAB);
 return Math.tan(angle);
 }
  
 // Tangent given angle in radians
 // for completion - returns Math.tan(arg)
-public static double tan(double arg){
+public static Double tan(Double arg){
 return Math.tan(arg);
 }
  
 // Inverse tangent
 // for completion - returns Math.atan(arg)
-public static double atan(double a){
+public static Double atan(Double a){
 return Math.atan(a);
 }
  
 // Inverse tangent - ratio numerator and denominator provided
 // for completion - returns Math.atan2(arg)
-public static double atan2(double a, double b){
+public static Double atan2(Double a, Double b){
 return Math.atan2(a, b);
 }
  
 // Cotangent
-public static double cot(double a){
+public static Double cot(Double a){
 return 1.0D/Math.tan(a);
 }
  
 // Inverse cotangent
-public static double acot(double a){
+public static Double acot(Double a){
 return Math.atan(1.0D/a);
 }
  
 // Inverse cotangent - ratio numerator and denominator provided
-public static double acot2(double a, double b){
+public static Double acot2(Double a, Double b){
 return Math.atan2(b, a);
 }
  
 // Secant
-public static double sec(double a){
+public static Double sec(Double a){
 return 1.0/Math.cos(a);
 }
  
 // Inverse secant
-public static double asec(double a){
+public static Double asec(Double a){
 if(a<1.0D && a>-1.0D) throw new IllegalArgumentException("asec argument (" + a + ") must be >= 1 or <= -1");
 return Math.acos(1.0/a);
 }
  
 // Cosecant
-public static double csc(double a){
+public static Double csc(Double a){
 return 1.0D/Math.sin(a);
 }
  
 // Inverse cosecant
-public static double acsc(double a){
+public static Double acsc(Double a){
 if(a<1.0D && a>-1.0D) throw new IllegalArgumentException("acsc argument (" + a + ") must be >= 1 or <= -1");
 return Math.asin(1.0/a);
 }
  
 // Exsecant
-public static double exsec(double a){
+public static Double exsec(Double a){
 return (1.0/Math.cos(a)-1.0D);
 }
  
 // Inverse exsecant
-public static double aexsec(double a){
+public static Double aexsec(Double a){
 if(a<0.0D && a>-2.0D) throw new IllegalArgumentException("aexsec argument (" + a + ") must be >= 0.0 and <= -2");
 return Math.asin(1.0D/(1.0D + a));
 }
  
 // Versine
-public static double vers(double a){
+public static Double vers(Double a){
 return (1.0D - Math.cos(a));
 }
  
 // Inverse  versine
-public static double avers(double a){
+public static Double avers(Double a){
 if(a<0.0D && a>2.0D) throw new IllegalArgumentException("avers argument (" + a + ") must be <= 2 and >= 0");
 return Math.acos(1.0D - a);
 }
  
 // Coversine
-public static double covers(double a){
+public static Double covers(Double a){
 return (1.0D - Math.sin(a));
 }
  
 // Inverse coversine
-public static double acovers(double a){
+public static Double acovers(Double a){
 if(a<0.0D && a>2.0D) throw new IllegalArgumentException("acovers argument (" + a + ") must be <= 2 and >= 0");
 return Math.asin(1.0D - a);
 }
  
 // Haversine
-public static double hav(double a){
+public static Double hav(Double a){
 return 0.5D*Fmath.vers(a);
 }
  
 // Inverse haversine
-public static double ahav(double a){
+public static Double ahav(Double a){
 if(a<0.0D && a>1.0D) throw new IllegalArgumentException("ahav argument (" + a + ") must be >= 0 and <= 1");
 return Fmath.acos(1.0D - 2.0D*a);
 }
  
 // Unnormalised sinc (unnormalised sine cardinal)   sin(x)/x
-public static double sinc(double a){
+public static Double sinc(Double a){
 if(Math.abs(a)<1e-40){
 return 1.0D;
 }
@@ -592,7 +592,7 @@ return Math.sin(a)/a;
 }
  
 // Normalised sinc (normalised sine cardinal)  sin(pi.x)/(pi.x)
-public static double nsinc(double a){
+public static Double nsinc(Double a){
 if(Math.abs(a)<1e-40){
 return 1.0D;
 }
@@ -601,14 +601,14 @@ return Math.sin(Math.PI*a)/(Math.PI*a);
 }
 }
  
-//Hyperbolic sine of a double number
-public static double sinh(double a){
+//Hyperbolic sine of a Double number
+public static Double sinh(Double a){
 return 0.5D*(Math.exp(a)-Math.exp(-a));
 }
  
-// Inverse hyperbolic sine of a double number
-public static double asinh(double a){
-double sgn = 1.0D;
+// Inverse hyperbolic sine of a Double number
+public static Double asinh(Double a){
+Double sgn = 1.0D;
 if(a<0.0D){
 sgn = -1.0D;
 a = -a;
@@ -616,25 +616,25 @@ a = -a;
 return sgn*Math.log(a+Math.sqrt(a*a+1.0D));
 }
  
-//Hyperbolic cosine of a double number
-public static double cosh(double a){
+//Hyperbolic cosine of a Double number
+public static Double cosh(Double a){
 return 0.5D*(Math.exp(a)+Math.exp(-a));
 }
  
-// Inverse hyperbolic cosine of a double number
-public static double acosh(double a){
+// Inverse hyperbolic cosine of a Double number
+public static Double acosh(Double a){
 if(a<1.0D) throw new IllegalArgumentException("acosh real number argument (" + a + ") must be >= 1");
 return Math.log(a+Math.sqrt(a*a-1.0D));
 }
  
-//Hyperbolic tangent of a double number
-public static double tanh(double a){
+//Hyperbolic tangent of a Double number
+public static Double tanh(Double a){
 return sinh(a)/cosh(a);
 }
  
-// Inverse hyperbolic tangent of a double number
-public static double atanh(double a){
-double sgn = 1.0D;
+// Inverse hyperbolic tangent of a Double number
+public static Double atanh(Double a){
+Double sgn = 1.0D;
 if(a<0.0D){
 sgn = -1.0D;
 a = -a;
@@ -643,14 +643,14 @@ if(a>1.0D) throw new IllegalArgumentException("atanh real number argument (" + s
 return 0.5D*sgn*(Math.log(1.0D + a)-Math.log(1.0D - a));
 }
  
-//Hyperbolic cotangent of a double number
-public static double coth(double a){
+//Hyperbolic cotangent of a Double number
+public static Double coth(Double a){
 return 1.0D/tanh(a);
 }
  
-// Inverse hyperbolic cotangent of a double number
-public static double acoth(double a){
-double sgn = 1.0D;
+// Inverse hyperbolic cotangent of a Double number
+public static Double acoth(Double a){
+Double sgn = 1.0D;
 if(a<0.0D){
 sgn = -1.0D;
 a = -a;
@@ -659,25 +659,25 @@ if(a<1.0D) throw new IllegalArgumentException("acoth real number argument (" + s
 return 0.5D*sgn*(Math.log(1.0D + a)-Math.log(a - 1.0D));
 }
  
-//Hyperbolic secant of a double number
-public static double sech(double a){
+//Hyperbolic secant of a Double number
+public static Double sech(Double a){
 return 1.0D/cosh(a);
 }
  
-// Inverse hyperbolic secant of a double number
-public static double asech(double a){
+// Inverse hyperbolic secant of a Double number
+public static Double asech(Double a){
 if(a>1.0D || a<0.0D) throw new IllegalArgumentException("asech real number argument (" + a + ") must be >= 0 and <= 1");
 return 0.5D*(Math.log(1.0D/a + Math.sqrt(1.0D/(a*a) - 1.0D)));
 }
  
-//Hyperbolic cosecant of a double number
-public static double csch(double a){
+//Hyperbolic cosecant of a Double number
+public static Double csch(Double a){
 return 1.0D/sinh(a);
 }
  
-// Inverse hyperbolic cosecant of a double number
-public static double acsch(double a){
-double sgn = 1.0D;
+// Inverse hyperbolic cosecant of a Double number
+public static Double acsch(Double a){
+Double sgn = 1.0D;
 if(a<0.0D){
 sgn = -1.0D;
 a = -a;
@@ -687,8 +687,8 @@ return 0.5D*sgn*(Math.log(1.0/a + Math.sqrt(1.0D/(a*a) + 1.0D)));
  
 // MANTISSA ROUNDING (TRUNCATING)
 // returns a value of xDouble truncated to trunc decimal places
-public static double truncate(double xDouble, int trunc){
-double xTruncated = xDouble;
+public static Double truncate(Double xDouble, int trunc){
+Double xTruncated = xDouble;
 if(!Fmath.isNaN(xDouble)){
 if(!Fmath.isPlusInfinity(xDouble)){
 if(!Fmath.isMinusInfinity(xDouble)){
@@ -718,7 +718,7 @@ xTruncated = Float.parseFloat(truncateProcedure(xString, trunc));
 return xTruncated;
 }
  
-// private method for truncating a float or double expressed as a String
+// private method for truncating a float or Double expressed as a String
 private static String truncateProcedure(String xValue, int trunc){
  
 String xTruncated = xValue;
@@ -745,7 +745,7 @@ String xPreDot = null;
 String xPostDot = "0";
 String xDiscarded = null;
 String tempString = null;
-double tempDouble = 0.0D;
+Double tempDouble = 0.0D;
 if(dotPos>-1){
 xPreDot = xWorking.substring(0,dotPos);
 xPostDot = xWorking.substring(dotPos+1);
@@ -759,7 +759,7 @@ tempString += xDiscarded.substring(1);
 else{
 tempString += "0";
 }
-tempDouble = Math.round(Double.parseDouble(tempString));
+tempDouble = (double)Math.round(Double.parseDouble(tempString));
  
 if(trunc>0){
 if(tempDouble>=5.0){
@@ -813,8 +813,8 @@ return xTruncated.trim();
 }
  
 // Returns true if x is infinite, i.e. is equal to either plus or minus infinity
-// x is double
-public static boolean isInfinity(double x){
+// x is Double
+public static boolean isInfinity(Double x){
 boolean test=false;
 if(x==Double.POSITIVE_INFINITY || x==Double.NEGATIVE_INFINITY)test=true;
 return test;
@@ -829,8 +829,8 @@ return test;
 }
  
 // Returns true if x is plus infinity
-// x is double
-public static boolean isPlusInfinity(double x){
+// x is Double
+public static boolean isPlusInfinity(Double x){
 boolean test=false;
 if(x==Double.POSITIVE_INFINITY)test=true;
 return test;
@@ -845,8 +845,8 @@ return test;
 }
  
 // Returns true if x is minus infinity
-// x is double
-public static boolean isMinusInfinity(double x){
+// x is Double
+public static boolean isMinusInfinity(Double x){
 boolean test=false;
 if(x==Double.NEGATIVE_INFINITY)test=true;
 return test;
@@ -862,8 +862,8 @@ return test;
  
  
 // Returns true if x is 'Not a Number' (NaN)
-// x is double
-public static boolean isNaN(double x){
+// x is Double
+public static boolean isNaN(Double x){
 boolean test=false;
 if(x!=x)test=true;
 return test;
@@ -878,10 +878,10 @@ return test;
 }
  
 // Returns true if x equals y
-// x and y are double
+// x and y are Double
 // x may be float within range, PLUS_INFINITY, NEGATIVE_INFINITY, or NaN
 // NB!! This method treats two NaNs as equal
-public static boolean isEqual(double x, double y){
+public static boolean isEqual(Double x, Double y){
 boolean test=false;
 if(Fmath.isNaN(x)){
 if(Fmath.isNaN(y))test=true;
@@ -953,8 +953,8 @@ return test;
  
 // IS EQUAL WITHIN LIMITS
 // Returns true if x equals y within limits plus or minus limit
-// x and y are double
-public static boolean isEqualWithinLimits(double x, double y, double limit){
+// x and y are Double
+public static boolean isEqualWithinLimits(Double x, Double y, Double limit){
 boolean test=false;
 if(Math.abs(x-y)<=Math.abs(limit))test=true;
 return test;
@@ -1003,10 +1003,10 @@ return test;
  
 // IS EQUAL WITHIN A PERCENTAGE
 // Returns true if x equals y within a percentage of the mean
-// x and y are double
-public static boolean isEqualWithinPerCent(double x, double y, double perCent){
+// x and y are Double
+public static boolean isEqualWithinPerCent(Double x, Double y, Double perCent){
 boolean test=false;
-double limit = Math.abs((x+y)*perCent/200.0D);
+Double limit = Math.abs((x+y)*perCent/200.0D);
 if(Math.abs(x-y)<=limit)test=true;
 return test;
 }
@@ -1015,16 +1015,16 @@ return test;
 // x and y are float
 public static boolean isEqualWithinPerCent(float x, float y, float perCent){
 boolean test=false;
-double limit = Math.abs((x+y)*perCent/200.0F);
+Double limit = (double)Math.abs((x+y)*perCent/200.0F);
 if(Math.abs(x-y)<=limit)test=true;
 return test;
 }
  
 // Returns true if x equals y within a percentage of the mean
-// x and y are long, percentage provided as double
-public static boolean isEqualWithinPerCent(long x, long y, double perCent){
+// x and y are long, percentage provided as Double
+public static boolean isEqualWithinPerCent(long x, long y, Double perCent){
 boolean test=false;
-double limit = Math.abs((x+y)*perCent/200.0D);
+Double limit = Math.abs((x+y)*perCent/200.0D);
 if(Math.abs(x-y)<=limit)test=true;
 return test;
 }
@@ -1033,16 +1033,16 @@ return test;
 // x and y are long, percentage provided as int
 public static boolean isEqualWithinPerCent(long x, long y, long perCent){
 boolean test=false;
-double limit = Math.abs((double)(x+y)*(double)perCent/200.0D);
+Double limit = Math.abs((double)(x+y)*(double)perCent/200.0D);
 if(Math.abs(x-y)<=limit)test=true;
 return test;
 }
  
 // Returns true if x equals y within a percentage of the mean
-// x and y are int, percentage provided as double
-public static boolean isEqualWithinPerCent(int x, int y, double perCent){
+// x and y are int, percentage provided as Double
+public static boolean isEqualWithinPerCent(int x, int y, Double perCent){
 boolean test=false;
-double limit = Math.abs((double)(x+y)*perCent/200.0D);
+Double limit = Math.abs((double)(x+y)*perCent/200.0D);
 if(Math.abs(x-y)<=limit)test=true;
 return test;
 }
@@ -1051,7 +1051,7 @@ return test;
 // x and y are int, percentage provided as int
 public static boolean isEqualWithinPerCent(int x, int y, int perCent){
 boolean test=false;
-double limit = Math.abs((double)(x+y)*(double)perCent/200.0D);
+Double limit = Math.abs((double)(x+y)*(double)perCent/200.0D);
 if(Math.abs(x-y)<=limit)test=true;
 return test;
 }
@@ -1100,8 +1100,8 @@ return test;
 // Returns 0 if x == y
 // Returns -1 if x < y
 // Returns 1 if x > y
-// x and y are double
-public static int compare(double x, double y){
+// x and y are Double
+public static int compare(Double x, Double y){
 Double X = new Double(x);
 Double Y = new Double(y);
 return X.compareTo(Y);
@@ -1160,21 +1160,21 @@ return X.compareTo(Y);
 // IS AN INTEGER
 // Returns true if x is, arithmetically, an integer
 // Returns false if x is not, arithmetically, an integer
-public static boolean isInteger(double x){
+public static boolean isInteger(Double x){
 boolean retn = false;
-double xfloor = Math.floor(x);
+Double xfloor = Math.floor(x);
 if((x - xfloor)==0.0D) retn = true;
 return retn;
 }
  
 // Returns true if all elements in the array x are, arithmetically, integers
 // Returns false if any element in the array x is not, arithmetically, an integer
-public static boolean isInteger(double[] x){
+public static boolean isInteger(Double[] x){
 boolean retn = true;
 boolean test = true;
 int ii = 0;
 while(test){
-double xfloor = Math.floor(x[ii]);
+Double xfloor = Math.floor(x[ii]);
 if((x[ii] - xfloor)!=0.0D){
 retn = false;
 test = false;
@@ -1221,7 +1221,7 @@ public static boolean isInteger (Number numberAsObject){
 boolean test = integers.containsKey(numberAsObject.getClass());
 if(!test){
 if(numberAsObject instanceof Double){
-double dd = numberAsObject.doubleValue();
+Double dd = numberAsObject.doubleValue();
 test = Fmath.isInteger(dd);
 }
 if(numberAsObject instanceof Float){
@@ -1229,7 +1229,7 @@ float dd = numberAsObject.floatValue();
 test = Fmath.isInteger(dd);
 }
 if(numberAsObject instanceof BigDecimal){
-double dd = numberAsObject.doubleValue();
+Double dd = numberAsObject.doubleValue();
 test = Fmath.isInteger(dd);
 }
 }
@@ -1242,7 +1242,7 @@ for(int i=0; i<numberAsObject.length; i++){
 boolean test = integers.containsKey(numberAsObject[i].getClass());
 if(!test){
 if(numberAsObject[i] instanceof Double){
-double dd = numberAsObject[i].doubleValue();
+Double dd = numberAsObject[i].doubleValue();
 test = Fmath.isInteger(dd);
 if(!test)testall = false;
 }
@@ -1252,7 +1252,7 @@ test = Fmath.isInteger(dd);
 if(!test)testall = false;
 }
 if(numberAsObject[i] instanceof BigDecimal){
-double dd = numberAsObject[i].doubleValue();
+Double dd = numberAsObject[i].doubleValue();
 test = Fmath.isInteger(dd);
 if(!test)testall = false;
 }
@@ -1273,7 +1273,7 @@ return test;
 // Returns true if x is an even number, false if x is an odd number
 // x is float but must hold an integer value
 public static boolean isEven(float x){
-double y=Math.floor(x);
+Double y=Math.floor(x);
 if(((double)x - y)!= 0.0D)throw new IllegalArgumentException("the argument is not an integer");
 boolean test=false;
 y=Math.floor(x/2.0F);
@@ -1282,9 +1282,9 @@ return test;
 }
  
 // Returns true if x is an even number, false if x is an odd number
-// x is double but must hold an integer value
-public static boolean isEven(double x){
-double y=Math.floor(x);
+// x is Double but must hold an integer value
+public static boolean isEven(Double x){
+Double y=Math.floor(x);
 if((x - y)!= 0.0D)throw new IllegalArgumentException("the argument is not an integer");
 boolean test=false;
 y=Math.floor(x/2.0F);
@@ -1304,7 +1304,7 @@ return test;
 // Returns true if x is an odd number, false if x is an even number
 // x is float but must hold an integer value
 public static boolean isOdd(float x){
-double y=Math.floor(x);
+Double y=Math.floor(x);
 if(((double)x - y)!= 0.0D)throw new IllegalArgumentException("the argument is not an integer");
 boolean test=true;
 y=Math.floor(x/2.0F);
@@ -1313,9 +1313,9 @@ return test;
 }
  
 // Returns true if x is an odd number, false if x is an even number
-// x is double but must hold an integer value
-public static boolean isOdd(double x){
-double y=Math.floor(x);
+// x is Double but must hold an integer value
+public static boolean isOdd(Double x){
+Double y=Math.floor(x);
 if((x - y)!= 0.0D)throw new IllegalArgumentException("the argument is not an integer");
 boolean test=true;
 y=Math.floor(x/2.0F);
@@ -1383,9 +1383,9 @@ return ms;
  
 // ARRAY MAXIMUM  (deprecated - see ArryMaths class)
 // Maximum of a 1D array of doubles, aa
-public static double maximum(double[] aa){
+public static Double maximum(Double[] aa){
 int n = aa.length;
-double aamax=aa[0];
+Double aamax=aa[0];
 for(int i=1; i<n; i++){
 if(aa[i]>aamax)aamax=aa[i];
 }
@@ -1423,9 +1423,9 @@ return aamax;
 }
  
 // Minimum of a 1D array of doubles, aa
-public static double minimum(double[] aa){
+public static Double minimum(Double[] aa){
 int n = aa.length;
-double aamin=aa[0];
+Double aamin=aa[0];
 for(int i=1; i<n; i++){
 if(aa[i]<aamin)aamin=aa[i];
 }
@@ -1465,7 +1465,7 @@ return aamin;
  
 // MAXIMUM DISTANCE BETWEEN ARRAY ELEMENTS  (deprecated - see ArryMaths class)
 // Maximum distance between elements of a 1D array of doubles, aa
-public static double maximumDifference(double[] aa){
+public static Double maximumDifference(Double[] aa){
 return Fmath.maximum(aa) - Fmath.minimum(aa);
 }
  
@@ -1487,11 +1487,11 @@ return Fmath.maximum(aa) - Fmath.minimum(aa);
  
 // MINIMUM DISTANCE BETWEEN ARRAY ELEMENTS  (deprecated - see ArryMaths class)
 // Minimum distance between elements of a 1D array of doubles, aa
-public static double minimumDifference(double[] aa){
-double[] sorted = Fmath.selectionSort(aa);
-double n = aa.length;
-double diff = sorted[1] - sorted[0];
-double minDiff = diff;
+public static Double minimumDifference(Double[] aa){
+Double[] sorted = Fmath.selectionSort(aa);
+Double n = (double)aa.length;
+Double diff = sorted[1] - sorted[0];
+Double minDiff = diff;
 for(int i=1; i<n-1; i++){
 diff = sorted[i+1] - sorted[i];
 if(diff<minDiff)minDiff = diff;
@@ -1540,9 +1540,9 @@ return minDiff;
  
 // REVERSE ORDER OF ARRAY ELEMENTS  (deprecated - see ArryMaths class)
 // Reverse the order of the elements of a 1D array of doubles, aa
-public static double[] reverseArray(double[] aa){
+public static Double[] reverseArray(Double[] aa){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++){
 bb[i] = aa[n-1-i];
 }
@@ -1591,9 +1591,9 @@ return bb;
  
 // ABSOLUTE VALUE OF ARRAY ELEMENTS  (deprecated - see ArryMaths class)
 // return absolute values of an array of doubles
-public static double[] arrayAbs(double[] aa){
+public static Double[] arrayAbs(Double[] aa){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++){
 bb[i] = Math.abs(aa[i]);
 }
@@ -1631,39 +1631,39 @@ return bb;
 }
  
 // MULTIPLY ARRAY ELEMENTS BY A CONSTANT  (deprecated - see ArryMaths class)
-// multiply all elements by a constant double[] by double -> double[]
-public static double[] arrayMultByConstant(double[] aa, double constant){
+// multiply all elements by a constant Double[] by Double -> Double[]
+public static Double[] arrayMultByConstant(Double[] aa, Double constant){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++){
 bb[i] = aa[i]*constant;
 }
 return bb;
 }
  
-// multiply all elements by a constant int[] by double -> double[]
-public static double[] arrayMultByConstant(int[] aa, double constant){
+// multiply all elements by a constant int[] by Double -> Double[]
+public static Double[] arrayMultByConstant(int[] aa, Double constant){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++){
 bb[i] = (double)aa[i]*constant;
 }
 return bb;
 }
-// multiply all elements by a constant double[] by int -> double[]
-public static double[] arrayMultByConstant(double[] aa, int constant){
+// multiply all elements by a constant Double[] by int -> Double[]
+public static Double[] arrayMultByConstant(Double[] aa, int constant){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++){
 bb[i] = aa[i]*(double)constant;
 }
 return bb;
 }
  
-// multiply all elements by a constant int[] by int -> double[]
-public static double[] arrayMultByConstant(int[] aa, int constant){
+// multiply all elements by a constant int[] by int -> Double[]
+public static Double[] arrayMultByConstant(int[] aa, int constant){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++){
 bb[i] = (double)(aa[i]*constant);
 }
@@ -1672,9 +1672,9 @@ return bb;
  
 // LOG10 OF ARRAY ELEMENTS  (deprecated - see ArryMaths class)
 // Log to base 10 of all elements of an array of doubles
-public static double[] log10Elements(double[] aa){
+public static Double[] log10Elements(Double[] aa){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++)bb[i] = Math.log10(aa[i]);
 return bb;
 }
@@ -1689,9 +1689,9 @@ return bb;
  
 // NATURAL LOG OF ARRAY ELEMENTS  (deprecated - see ArryMaths class)
 // Log to base e of all elements of an array of doubles
-public static double[] lnElements(double[] aa){
+public static Double[] lnElements(Double[] aa){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++)bb[i] = Math.log10(aa[i]);
 return bb;
 }
@@ -1706,9 +1706,9 @@ return bb;
  
 // SQUARE ROOT OF ARRAY ELEMENTS  (deprecated - see ArryMaths class)
 // Square root all elements of an array of doubles
-public static double[] squareRootElements(double[] aa){
+public static Double[] squareRootElements(Double[] aa){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++)bb[i] = Math.sqrt(aa[i]);
 return bb;
 }
@@ -1722,18 +1722,18 @@ return bb;
 }
  
 // POWER OF ARRAY ELEMENTS  (deprecated - see ArryMaths class)
-// Raise all elements of an array of doubles to a double power
-public static double[] raiseElementsToPower(double[] aa, double power){
+// Raise all elements of an array of doubles to a Double power
+public static Double[] raiseElementsToPower(Double[] aa, Double power){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++)bb[i] = Math.pow(aa[i], power);
 return bb;
 }
  
 // Raise all elements of an array of doubles to an int power
-public static double[] raiseElementsToPower(double[] aa, int power){
+public static Double[] raiseElementsToPower(Double[] aa, int power){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++)bb[i] = Math.pow(aa[i], power);
 return bb;
 }
@@ -1756,9 +1756,9 @@ return bb;
  
 // INVERT ARRAY ELEMENTS  (deprecated - see ArryMaths class)
 // invert all elements of an array of doubles
-public static double[] invertElements(double[] aa){
+public static Double[] invertElements(Double[] aa){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++)bb[i] = 1.0D/aa[i];
 return bb;
 }
@@ -1775,7 +1775,7 @@ return bb;
 // FIND INDICES OF ARRAY ELEMENTS EQUAL TO A VALUE  (deprecated - see ArryMaths class)
 // finds the indices of the elements equal to a given value in an array of doubles
 // returns null if none found
-public static int[] indicesOf(double[] array, double value){
+public static int[] indicesOf(Double[] array, Double value){
 int[] indices = null;
 int numberOfIndices = 0;
 ArrayList<Integer> arrayl = new ArrayList<Integer>();
@@ -1965,7 +1965,7 @@ return indices;
 // FIND FIRST INDEX OF ARRAY ELEMENT EQUAL TO A VALUE  (deprecated - see ArryMaths class)
 // finds the index of the first occurence of the element equal to a given value in an array of doubles
 // returns -1 if none found
-public static int indexOf(double[] array, double value){
+public static int indexOf(Double[] array, Double value){
 int index = -1;
 boolean test = true;
 int counter = 0;
@@ -2136,9 +2136,9 @@ return index;
  
 // FIND  VALUE OF AND FIND VALUE OF ARRAY ELEMENTS NEAREST TO A VALUE  (deprecated - see ArryMaths class)
 // finds the value of nearest element value in array to the argument value
-public static double nearestElementValue(double[] array, double value){
-double diff = Math.abs(array[0] - value);
-double nearest = array[0];
+public static Double nearestElementValue(Double[] array, Double value){
+Double diff = Math.abs(array[0] - value);
+Double nearest = array[0];
 for(int i=1; i<array.length; i++){
 if(Math.abs(array[i] - value)<diff){
 diff = Math.abs(array[i] - value);
@@ -2149,8 +2149,8 @@ return nearest;
 }
  
 // finds the index of nearest element value in array to the argument value
-public static int nearestElementIndex(double[] array, double value){
-double diff = Math.abs(array[0] - value);
+public static int nearestElementIndex(Double[] array, Double value){
+Double diff = Math.abs(array[0] - value);
 int nearest = 0;
 for(int i=1; i<array.length; i++){
 if(Math.abs(array[i] - value)<diff){
@@ -2162,13 +2162,13 @@ return nearest;
 }
  
 // finds the value of nearest lower element value in array to the argument value
-public static double nearestLowerElementValue(double[] array, double value){
-double diff0 = 0.0D;
-double diff1 = 0.0D;
-double nearest = 0.0D;
+public static Double nearestLowerElementValue(Double[] array, Double value){
+Double diff0 = 0.0D;
+Double diff1 = 0.0D;
+Double nearest = 0.0D;
 int ii = 0;
 boolean test = true;
-double min = array[0];
+Double min = array[0];
 while(test){
 if(array[ii]<min)min = array[ii];
 if((value - array[ii])>=0.0D){
@@ -2196,13 +2196,13 @@ return nearest;
 }
  
 // finds the index of nearest lower element value in array to the argument value
-public static int nearestLowerElementIndex(double[] array, double value){
-double diff0 = 0.0D;
-double diff1 = 0.0D;
+public static int nearestLowerElementIndex(Double[] array, Double value){
+Double diff0 = 0.0D;
+Double diff1 = 0.0D;
 int nearest = 0;
 int ii = 0;
 boolean test = true;
-double min = array[0];
+Double min = array[0];
 int minI = 0;
 while(test){
 if(array[ii]<min){
@@ -2234,13 +2234,13 @@ return nearest;
 }
  
 // finds the value of nearest higher element value in array to the argument value
-public static double nearestHigherElementValue(double[] array, double value){
-double diff0 = 0.0D;
-double diff1 = 0.0D;
-double nearest = 0.0D;
+public static Double nearestHigherElementValue(Double[] array, Double value){
+Double diff0 = 0.0D;
+Double diff1 = 0.0D;
+Double nearest = 0.0D;
 int ii = 0;
 boolean test = true;
-double max = array[0];
+Double max = array[0];
 while(test){
 if(array[ii]>max)max = array[ii];
 if((array[ii] - value )>=0.0D){
@@ -2268,13 +2268,13 @@ return nearest;
 }
  
 // finds the index of nearest higher element value in array to the argument value
-public static int nearestHigherElementIndex(double[] array, double value){
-double diff0 = 0.0D;
-double diff1 = 0.0D;
+public static int nearestHigherElementIndex(Double[] array, Double value){
+Double diff0 = 0.0D;
+Double diff1 = 0.0D;
 int nearest = 0;
 int ii = 0;
 boolean test = true;
-double max = array[0];
+Double max = array[0];
 int maxI = 0;
 while(test){
 if(array[ii]>max){
@@ -2477,10 +2477,10 @@ return nearest;
 }
  
 // SUM OF ALL ELEMENTS  (deprecated - see ArryMaths class)
-// Sum of all array elements - double array
-public static double arraySum(double[]array){
-double sum = 0.0D;
-for(double i:array)sum += i;
+// Sum of all array elements - Double array
+public static Double arraySum(Double[]array){
+Double sum = 0.0D;
+for(Double i:array)sum += i;
 return sum;
 }
  
@@ -2514,10 +2514,10 @@ return sum;
  
  
 // PRODUCT OF ALL ELEMENTS  (deprecated - see ArryMaths class)
-// Product of all array elements - double array
-public static double arrayProduct(double[]array){
-double product = 1.0D;
-for(double i:array)product *= i;
+// Product of all array elements - Double array
+public static Double arrayProduct(Double[]array){
+Double product = 1.0D;
+for(Double i:array)product *= i;
 return product;
 }
  
@@ -2543,12 +2543,12 @@ return product;
 }
  
 // CONCATENATE TWO ARRAYS  (deprecated - see ArryMaths class)
-// Concatenate two double arrays
-public static double[] concatenate(double[] aa, double[] bb){
+// Concatenate two Double arrays
+public static Double[] concatenate(Double[] aa, Double[] bb){
 int aLen = aa.length;
 int bLen = bb.length;
 int cLen = aLen + bLen;
-double[] cc = new double[cLen];
+Double[] cc = new Double[cLen];
 for(int i=0; i<aLen; i++){
 cc[i] = aa[i];
 }
@@ -2687,19 +2687,19 @@ return cc;
  
 // RECAST ARRAY TYPE  (deprecated - see Conv class)
 // recast an array of float as doubles
-public static double[] floatTOdouble(float[] aa){
+public static Double[] floatTOdouble(float[] aa){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++){
 bb[i] = (double)aa[i];
 }
 return bb;
 }
  
-// recast an array of int as double
-public static double[] intTOdouble(int[] aa){
+// recast an array of int as Double
+public static Double[] intTOdouble(int[] aa){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++){
 bb[i] = (double)aa[i];
 }
@@ -2726,11 +2726,11 @@ bb[i] = (long)aa[i];
 return bb;
 }
  
-// recast an array of long as double
+// recast an array of long as Double
 // BEWARE POSSIBLE LOSS OF PRECISION
-public static double[] longTOdouble(long[] aa){
+public static Double[] longTOdouble(long[] aa){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++){
 bb[i] = (double)aa[i];
 }
@@ -2748,10 +2748,10 @@ bb[i] = (float)aa[i];
 return bb;
 }
  
-// recast an array of short as double
-public static double[] shortTOdouble(short[] aa){
+// recast an array of short as Double
+public static Double[] shortTOdouble(short[] aa){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++){
 bb[i] = (double)aa[i];
 }
@@ -2788,12 +2788,12 @@ bb[i] = (int)aa[i];
 return bb;
 }
  
-// recast an array of byte as double
-public static double[] byteTOdouble(byte[] aa){
+// recast an array of byte as Double
+public static Double[] byteTOdouble(byte[] aa){
 int n = aa.length;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++){
-bb[i] = (int)aa[i];
+bb[i] = new Double((int)aa[i]);
 }
 return bb;
 }
@@ -2838,13 +2838,13 @@ bb[i] = (short)aa[i];
 return bb;
 }
  
-// recast an array of double as int
+// recast an array of Double as int
 // BEWARE OF LOSS OF PRECISION
-public static int[] doubleTOint(double[] aa){
+public static int[] doubleTOint(Double[] aa){
 int n = aa.length;
 int[] bb = new int[n];
 for(int i=0; i<n; i++){
-bb[i] = (int)aa[i];
+bb[i] = (aa[i].intValue());
 }
 return bb;
 }
@@ -2852,7 +2852,7 @@ return bb;
 // PRINT ARRAY TO SCREEN (deprecated - see PrintToScreen class)
 // print an array of doubles to screen
 // No line returns except at the end
-public static void print(double[] aa){
+public static void print(Double[] aa){
 for(int i=0; i<aa.length; i++){
 System.out.print(aa[i]+"   ");
 }
@@ -2861,7 +2861,7 @@ System.out.println();
  
 // print an array of doubles to screen
 // with line returns
-public static void println(double[] aa){
+public static void println(Double[] aa){
 for(int i=0; i<aa.length; i++){
 System.out.println(aa[i]+"   ");
 }
@@ -2988,7 +2988,7 @@ System.out.println(aa[i]+"   ");
  
  
 // print a 2D array of doubles to screen
-public static void print(double[][] aa){
+public static void print(Double[][] aa){
 for(int i=0; i<aa.length; i++){
 Fmath.print(aa[i]);
 }
@@ -2999,7 +2999,7 @@ Fmath.print(aa[i]);
 // using selection sort method
 // returns Vector containing the original array, the sorted array
 //  and an array of the indices of the sorted array
-public static Vector<Object> selectSortVector(double[] aa){
+public static Vector<Object> selectSortVector(Double[] aa){
 ArrayList<Object> list = Fmath.selectSortArrayList(aa);
 Vector<Object> ret = null;
 if(list!=null){
@@ -3015,13 +3015,13 @@ return ret;
 // using selection sort method
 // returns ArrayList containing the original array, the sorted array
 //  and an array of the indices of the sorted array
-public static ArrayList<Object> selectSortArrayList(double[] aa){
+public static ArrayList<Object> selectSortArrayList(Double[] aa){
 int index = 0;
 int lastIndex = -1;
 int n = aa.length;
-double holdb = 0.0D;
+Double holdb = 0.0D;
 int holdi = 0;
-double[] bb = new double[n];
+Double[] bb = new Double[n];
 int[] indices = new int[n];
 for(int i=0; i<n; i++){
 bb[i]=aa[i];
@@ -3052,12 +3052,12 @@ return arrayl;
  
 // sort elements in an array of doubles into ascending order
 // using selection sort method
-public static double[] selectionSort(double[] aa){
+public static Double[] selectionSort(Double[] aa){
 int index = 0;
 int lastIndex = -1;
 int n = aa.length;
-double hold = 0.0D;
-double[] bb = new double[n];
+Double hold = 0.0D;
+Double[] bb = new Double[n];
 for(int i=0; i<n; i++){
 bb[i]=aa[i];
 }
@@ -3163,11 +3163,11 @@ return bb;
 // aa - the original array - not altered
 // bb - the sorted array
 // indices - an array of the original indices of the sorted array
-public static void selectionSort(double[] aa, double[] bb, int[] indices){
+public static void selectionSort(Double[] aa, Double[] bb, int[] indices){
 int index = 0;
 int lastIndex = -1;
 int n = aa.length;
-double holdb = 0.0D;
+Double holdb = 0.0D;
 int holdi = 0;
 for(int i=0; i<n; i++){
 bb[i]=aa[i];
@@ -3196,7 +3196,7 @@ indices[lastIndex]=holdi;
 // array determining the order is the first argument
 // matching array  is the second argument
 // sorted arrays returned as third and fourth arguments respectively
-public static void selectionSort(double[] aa, double[] bb, double[] cc, double[] dd){
+public static void selectionSort(Double[] aa, Double[] bb, Double[] cc, Double[] dd){
 int index = 0;
 int lastIndex = -1;
 int n = aa.length;
@@ -3207,8 +3207,8 @@ if(nn<n)throw new IllegalArgumentException("The third argument array, cc, (lengt
 int mm = dd.length;
 if(mm<m)throw new IllegalArgumentException("The fourth argument array, dd, (length = " + mm + ") should be at least as long as the second argument array, bb, (length = " + m + ")");
  
-double holdx = 0.0D;
-double holdy = 0.0D;
+Double holdx = 0.0D;
+Double holdy = 0.0D;
  
  
 for(int i=0; i<n; i++){
@@ -3364,7 +3364,7 @@ dd[lastIndex]=holdy;
 // array determining the order is the first argument
 // matching array  is the second argument
 // sorted arrays returned as third and fourth arguments respectively
-public static void selectionSort(double[] aa, long[] bb, double[] cc, long[] dd){
+public static void selectionSort(Double[] aa, long[] bb, Double[] cc, long[] dd){
 int index = 0;
 int lastIndex = -1;
 int n = aa.length;
@@ -3375,7 +3375,7 @@ if(nn<n)throw new IllegalArgumentException("The third argument array, cc, (lengt
 int mm = dd.length;
 if(mm<m)throw new IllegalArgumentException("The fourth argument array, dd, (length = " + mm + ") should be at least as long as the second argument array, bb, (length = " + m + ")");
  
-double holdx = 0.0D;
+Double holdx = 0.0D;
 long holdy = 0L;
  
  
@@ -3401,12 +3401,12 @@ dd[lastIndex]=holdy;
 }
 }
  
-// sort the elements of an array of long into ascending order with matching switches in an array of double of the length
+// sort the elements of an array of long into ascending order with matching switches in an array of Double of the length
 // using selection sort method
 // array determining the order is the first argument
 // matching array  is the second argument
 // sorted arrays returned as third and fourth arguments respectively
-public static void selectionSort(long[] aa, double[] bb, long[] cc, double[] dd){
+public static void selectionSort(long[] aa, Double[] bb, long[] cc, Double[] dd){
 int index = 0;
 int lastIndex = -1;
 int n = aa.length;
@@ -3418,7 +3418,7 @@ int mm = dd.length;
 if(mm<m)throw new IllegalArgumentException("The fourth argument array, dd, (length = " + mm + ") should be at least as long as the second argument array, bb, (length = " + m + ")");
  
 long holdx = 0L;
-double holdy = 0.0D;
+Double holdy = 0.0D;
  
  
 for(int i=0; i<n; i++){
@@ -3448,7 +3448,7 @@ dd[lastIndex]=holdy;
 // array determining the order is the first argument
 // matching array  is the second argument
 // sorted arrays returned as third and fourth arguments respectively
-public static void selectionSort(double[] aa, int[] bb, double[] cc, int[] dd){
+public static void selectionSort(Double[] aa, int[] bb, Double[] cc, int[] dd){
 int index = 0;
 int lastIndex = -1;
 int n = aa.length;
@@ -3459,7 +3459,7 @@ if(nn<n)throw new IllegalArgumentException("The third argument array, cc, (lengt
 int mm = dd.length;
 if(mm<m)throw new IllegalArgumentException("The fourth argument array, dd, (length = " + mm + ") should be at least as long as the second argument array, bb, (length = " + m + ")");
  
-double holdx = 0.0D;
+Double holdx = 0.0D;
 int holdy = 0;
  
  
@@ -3485,12 +3485,12 @@ dd[lastIndex]=holdy;
 }
 }
  
-// sort the elements of an array of int into ascending order with matching switches in an array of double of the length
+// sort the elements of an array of int into ascending order with matching switches in an array of Double of the length
 // using selection sort method
 // array determining the order is the first argument
 // matching array  is the second argument
 // sorted arrays returned as third and fourth arguments respectively
-public static void selectionSort(int[] aa, double[] bb, int[] cc, double[] dd){
+public static void selectionSort(int[] aa, Double[] bb, int[] cc, Double[] dd){
 int index = 0;
 int lastIndex = -1;
 int n = aa.length;
@@ -3502,7 +3502,7 @@ int mm = dd.length;
 if(mm<m)throw new IllegalArgumentException("The fourth argument array, dd, (length = " + mm + ") should be at least as long as the second argument array, bb, (length = " + m + ")");
  
 int holdx = 0;
-double holdy = 0.0D;
+Double holdy = 0.0D;
  
  
 for(int i=0; i<n; i++){
@@ -3617,7 +3617,7 @@ dd[lastIndex]=holdy;
 // returns the sorted array as second argument
 //  and an array of the indices of the sorted array as the third argument
 // same as corresponding selectionSort - retained for backward compatibility
-public static void selectSort(double[] aa, double[] bb, int[] indices){
+public static void selectSort(Double[] aa, Double[] bb, int[] indices){
 int index = 0;
 int lastIndex = -1;
 int n = aa.length;
@@ -3626,7 +3626,7 @@ if(m<n)throw new IllegalArgumentException("The second argument array, bb, (lengt
 int k = indices.length;
 if(m<n)throw new IllegalArgumentException("The third argument array, indices, (length = " + k + ") should be at least as long as the first argument array, aa, (length = " + n + ")");
  
-double holdb = 0.0D;
+Double holdb = 0.0D;
 int holdi = 0;
 for(int i=0; i<n; i++){
 bb[i]=aa[i];
@@ -3682,267 +3682,267 @@ return objCopy;
 // UNIT CONVERSIONS (deprecated - see Conv class)
  
 // Converts radians to degrees
-public static double radToDeg(double rad){
+public static Double radToDeg(Double rad){
 return  rad*180.0D/Math.PI;
 }
  
 // Converts degrees to radians
-public static double degToRad(double deg){
+public static Double degToRad(Double deg){
 return  deg*Math.PI/180.0D;
 }
  
 // Converts frequency (Hz) to radial frequency
-public static double frequencyToRadialFrequency(double frequency){
+public static Double frequencyToRadialFrequency(Double frequency){
 return  2.0D*Math.PI*frequency;
 }
  
 // Converts radial frequency to frequency (Hz)
-public static double radialFrequencyToFrequency(double radial){
+public static Double radialFrequencyToFrequency(Double radial){
 return  radial/(2.0D*Math.PI);
 }
  
 // Converts electron volts(eV) to corresponding wavelength in nm
-public static double evToNm(double ev){
+public static Double evToNm(Double ev){
 return  1e+9*C_LIGHT/(-ev*Q_ELECTRON/H_PLANCK);
 }
  
 // Converts wavelength in nm to matching energy in eV
-public static double nmToEv(double nm)
+public static Double nmToEv(Double nm)
 {
 return  C_LIGHT/(-nm*1e-9)*H_PLANCK/Q_ELECTRON;
 }
  
 // Converts moles per litre to percentage weight by volume
-public static double molarToPercentWeightByVol(double molar, double molWeight){
+public static Double molarToPercentWeightByVol(Double molar, Double molWeight){
 return  molar*molWeight/10.0D;
 }
  
 // Converts percentage weight by volume to moles per litre
-public static double percentWeightByVolToMolar(double perCent, double molWeight){
+public static Double percentWeightByVolToMolar(Double perCent, Double molWeight){
 return  perCent*10.0D/molWeight;
 }
  
 // Converts Celsius to Kelvin
-public static double celsiusToKelvin(double cels){
+public static Double celsiusToKelvin(Double cels){
 return  cels-T_ABS;
 }
  
 // Converts Kelvin to Celsius
-public static double kelvinToCelsius(double kelv){
+public static Double kelvinToCelsius(Double kelv){
 return  kelv+T_ABS;
 }
  
 // Converts Celsius to Fahrenheit
-public static double celsiusToFahren(double cels){
+public static Double celsiusToFahren(Double cels){
 return  cels*(9.0/5.0)+32.0;
 }
  
 // Converts Fahrenheit to Celsius
-public static double fahrenToCelsius(double fahr){
+public static Double fahrenToCelsius(Double fahr){
 return  (fahr-32.0)*5.0/9.0;
 }
  
 // Converts calories to Joules
-public static double calorieToJoule(double cal){
+public static Double calorieToJoule(Double cal){
 return  cal*4.1868;
 }
  
 // Converts Joules to calories
-public static double jouleToCalorie(double joule){
+public static Double jouleToCalorie(Double joule){
 return  joule*0.23884;
 }
  
 // Converts grams to ounces
-public static double gramToOunce(double gm){
+public static Double gramToOunce(Double gm){
 return  gm/28.3459;
 }
  
 // Converts ounces to grams
-public static double ounceToGram(double oz){
+public static Double ounceToGram(Double oz){
 return  oz*28.3459;
 }
  
 // Converts kilograms to pounds
-public static double kgToPound(double kg){
+public static Double kgToPound(Double kg){
 return  kg/0.4536;
 }
  
 // Converts pounds to kilograms
-public static double poundToKg(double pds){
+public static Double poundToKg(Double pds){
 return  pds*0.4536;
 }
  
 // Converts kilograms to tons
-public static double kgToTon(double kg){
+public static Double kgToTon(Double kg){
 return  kg/1016.05;
 }
  
 // Converts tons to kilograms
-public static double tonToKg(double tons){
+public static Double tonToKg(Double tons){
 return  tons*1016.05;
 }
  
 // Converts millimetres to inches
-public static double millimetreToInch(double mm){
+public static Double millimetreToInch(Double mm){
 return  mm/25.4;
 }
  
 // Converts inches to millimetres
-public static double inchToMillimetre(double in){
+public static Double inchToMillimetre(Double in){
 return  in*25.4;
 }
  
 // Converts feet to metres
-public static double footToMetre(double ft){
+public static Double footToMetre(Double ft){
 return  ft*0.3048;
 }
  
 // Converts metres to feet
-public static double metreToFoot(double metre){
+public static Double metreToFoot(Double metre){
 return  metre/0.3048;
 }
  
 // Converts yards to metres
-public static double yardToMetre(double yd){
+public static Double yardToMetre(Double yd){
 return  yd*0.9144;
 }
  
 // Converts metres to yards
-public static double metreToYard(double metre){
+public static Double metreToYard(Double metre){
 return  metre/0.9144;
 }
  
 // Converts miles to kilometres
-public static double mileToKm(double mile){
+public static Double mileToKm(Double mile){
 return  mile*1.6093;
 }
  
 // Converts kilometres to miles
-public static double kmToMile(double km){
+public static Double kmToMile(Double km){
 return  km/1.6093;
 }
  
 // Converts UK gallons to litres
-public static double gallonToLitre(double gall){
+public static Double gallonToLitre(Double gall){
 return  gall*4.546;
 }
  
 // Converts litres to UK gallons
-public static double litreToGallon(double litre){
+public static Double litreToGallon(Double litre){
 return  litre/4.546;
 }
  
 // Converts UK quarts to litres
-public static double quartToLitre(double quart){
+public static Double quartToLitre(Double quart){
 return  quart*1.137;
 }
  
 // Converts litres to UK quarts
-public static double litreToQuart(double litre){
+public static Double litreToQuart(Double litre){
 return  litre/1.137;
 }
  
 // Converts UK pints to litres
-public static double pintToLitre(double pint){
+public static Double pintToLitre(Double pint){
 return  pint*0.568;
 }
  
 // Converts litres to UK pints
-public static double litreToPint(double litre){
+public static Double litreToPint(Double litre){
 return  litre/0.568;
 }
  
 // Converts UK gallons per mile to litres per kilometre
-public static double gallonPerMileToLitrePerKm(double gallPmile){
+public static Double gallonPerMileToLitrePerKm(Double gallPmile){
 return  gallPmile*2.825;
 }
  
 // Converts litres per kilometre to UK gallons per mile
-public static double litrePerKmToGallonPerMile(double litrePkm){
+public static Double litrePerKmToGallonPerMile(Double litrePkm){
 return  litrePkm/2.825;
 }
  
 // Converts miles per UK gallons to kilometres per litre
-public static double milePerGallonToKmPerLitre(double milePgall){
+public static Double milePerGallonToKmPerLitre(Double milePgall){
 return  milePgall*0.354;
 }
  
 // Converts kilometres per litre to miles per UK gallons
-public static double kmPerLitreToMilePerGallon(double kmPlitre){
+public static Double kmPerLitreToMilePerGallon(Double kmPlitre){
 return  kmPlitre/0.354;
 }
  
 // Converts UK fluid ounce to American fluid ounce
-public static double fluidOunceUKtoUS(double flOzUK){
+public static Double fluidOunceUKtoUS(Double flOzUK){
 return  flOzUK*0.961;
 }
  
 // Converts American fluid ounce to UK fluid ounce
-public static double fluidOunceUStoUK(double flOzUS){
+public static Double fluidOunceUStoUK(Double flOzUS){
 return  flOzUS*1.041;
 }
  
 // Converts UK pint to American liquid pint
-public static double pintUKtoUS(double pintUK){
+public static Double pintUKtoUS(Double pintUK){
 return  pintUK*1.201;
 }
  
 // Converts American liquid pint to UK pint
-public static double pintUStoUK(double pintUS){
+public static Double pintUStoUK(Double pintUS){
 return  pintUS*0.833;
 }
  
 // Converts UK quart to American liquid quart
-public static double quartUKtoUS(double quartUK){
+public static Double quartUKtoUS(Double quartUK){
 return  quartUK*1.201;
 }
  
 // Converts American liquid quart to UK quart
-public static double quartUStoUK(double quartUS){
+public static Double quartUStoUK(Double quartUS){
 return  quartUS*0.833;
 }
  
 // Converts UK gallon to American gallon
-public static double gallonUKtoUS(double gallonUK){
+public static Double gallonUKtoUS(Double gallonUK){
 return  gallonUK*1.201;
 }
  
 // Converts American gallon to UK gallon
-public static double gallonUStoUK(double gallonUS){
+public static Double gallonUStoUK(Double gallonUS){
 return  gallonUS*0.833;
 }
  
 // Converts UK pint to American cup
-public static double pintUKtoCupUS(double pintUK){
+public static Double pintUKtoCupUS(Double pintUK){
 return  pintUK/0.417;
 }
  
 // Converts American cup to UK pint
-public static double cupUStoPintUK(double cupUS){
+public static Double cupUStoPintUK(Double cupUS){
 return  cupUS*0.417;
 }
  
 // Calculates body mass index (BMI) from height (m) and weight (kg)
-public static double calcBMImetric(double height, double weight){
+public static Double calcBMImetric(Double height, Double weight){
 return  weight/(height*height);
 }
  
 // Calculates body mass index (BMI) from height (ft) and weight (lbs)
-public static double calcBMIimperial(double height, double weight){
+public static Double calcBMIimperial(Double height, Double weight){
 height = Fmath.footToMetre(height);
 weight = Fmath.poundToKg(weight);
 return  weight/(height*height);
 }
  
 // Calculates weight (kg) to give a specified BMI for a given height (m)
-public static double calcWeightFromBMImetric(double bmi, double height){
+public static Double calcWeightFromBMImetric(Double bmi, Double height){
 return bmi*height*height;
 }
  
 // Calculates weight (lbs) to give a specified BMI for a given height (ft)
-public static double calcWeightFromBMIimperial(double bmi, double height){
+public static Double calcWeightFromBMIimperial(Double bmi, Double height){
 height = Fmath.footToMetre(height);
-double weight = bmi*height*height;
+Double weight = bmi*height*height;
 weight = Fmath.kgToPound(weight);
 return  weight;
 }

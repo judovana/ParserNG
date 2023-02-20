@@ -30,7 +30,7 @@ private List<String>data=new ArrayList<String>();
  *
  * @param data
  */
-public MSet(double...data){
+public MSet(Double...data){
 
     for(int i=0;i<data.length;i++){
     this.data.add(data[i]+"");
@@ -87,8 +87,8 @@ public int size(){
  *
  * @return the sum of all elements in the data set
  */
-public double sum(){
-double u=0;
+public Double sum(){
+Double u=0d;
 for(int i=0;i<data.size();i++){
    u+=Double.valueOf(data.get(i));
 }
@@ -100,8 +100,8 @@ for(int i=0;i<data.size();i++){
  *
  * @return the sum of squares of values in the data set.
  */
-public double sumOfSquares(){
-double u=0;
+public Double sumOfSquares(){
+Double u=0d;
 for(int i=0; i<data.size(); i++){
 u+=Math.pow(Double.valueOf( data.get(i) ), 2);
 }
@@ -112,8 +112,8 @@ u+=Math.pow(Double.valueOf( data.get(i) ), 2);
  * @return the product of all elements in the data set.
  */
 
-public double prod(){
-double u=1;
+public Double prod(){
+Double u=1d;
 for(int i=0;i<data.size();i++){
 u*=Double.valueOf(data.get(i));
 }
@@ -125,11 +125,11 @@ u*=Double.valueOf(data.get(i));
  * @return the least value in a set of numbers
  * @throws NumberFormatException
  */
-public double min(){
+public Double min(){
 //the maximum finder algorithm begins
-double minval = Double.valueOf( data.get(0) );
+Double minval = Double.valueOf( data.get(0) );
 for(int i=0;i<data.size();i++){
-double y=Double.valueOf( data.get(i) );
+Double y=Double.valueOf( data.get(i) );
 if(y<minval){minval=y;     }
 }
 
@@ -141,11 +141,11 @@ return  minval;
  *
  * @return the maximum value in the data set.
  */
-public double max(){
+public Double max(){
 //the maximum finder algorithm begins
-double maxval=Double.valueOf( data.get(0) );
+Double maxval=Double.valueOf( data.get(0) );
 for(int i=0;i<data.size();i++){
-double y=Double.valueOf( data.get(i) );
+Double y=Double.valueOf( data.get(i) );
 if(y>maxval){maxval=y; }
 }
 
@@ -158,14 +158,14 @@ return maxval;
  *
  * @return the meanor average value of a data set
  */
-public double avg(){
+public Double avg(){
     return  sum()/size();
     }//end avg
 /**
  *
  * @return the root mean squared value of the data set
  */
-public double rms(){
+public Double rms(){
     return Math.sqrt(  sumOfSquares() )/size() ;
     }//end rms
 
@@ -173,14 +173,14 @@ public double rms(){
  *
  * @return the range of the data set
  */
-public double rng(){
+public Double rng(){
     return  max()-min();
     }//end range
 /**
  *
  * @return the midrange of the data set
  */
-public double mrng(){
+public Double mrng(){
     return  0.5*(  max()+min()   ) ;
     }//end midrange
 
@@ -188,10 +188,10 @@ public double mrng(){
  *
  * @return the variance
  */
-public double var(){
-double u=0;double u1=0;
-double avrg = avg();
-double N = size();
+public Double var(){
+Double u=0d;Double u1=0d;
+Double avrg = avg();
+Double N = (double)size();
 for(int i=0;i<N;i++){
 u=(Double.valueOf(data.get(i))-avrg);
 u1+=Math.pow(u, 2);
@@ -202,14 +202,14 @@ return u1/N;
  *
  * @return the standard deviation
  */
-public double std_dev(){//Finds the variance
+public Double std_dev(){//Finds the variance
 return Math.sqrt( var() );
 }
 /**
  *
  * @return the standard error
  */
-public double std_err(){//Finds the variance
+public Double std_err(){//Finds the variance
 return ( std_dev()/Math.sqrt(size()) ) ;
 }
 /**
@@ -241,7 +241,7 @@ public String sort(){
     for(int j=0;j<size();j++){
     for(int i=0;i+1<size();i++){
         try{
-        double swapcontrol=0;
+        Double swapcontrol=0d;
           if(Double.valueOf( data.get(i) )>Double.valueOf( data.get(i+1) )){
               swapcontrol=Double.valueOf( data.get(i+1) );
               data.set( i+1,data.get(i) );
@@ -270,7 +270,7 @@ public List<String> sort1(){
     for(int j=0;j<size();j++){
     for(int i=0;i+1<size();i++){
         try{
-        double swapcontrol=0;
+        Double swapcontrol=0d;
           if(Double.valueOf( data.get(i) )>Double.valueOf( data.get(i+1) )){
               swapcontrol=Double.valueOf( data.get(i+1) );
               data.set( i+1,data.get(i) );
@@ -291,13 +291,13 @@ public List<String> sort1(){
  *
  * @return the median of the data set
  */
-public double median(){
-    double median = 0;
+public Double median(){
+    Double median = 0d;
     List<String>scan=new ArrayList<String>();
 scan=sort1();
     int g=size();
   if(STRING.isEven(g)){
-double med = ( Double.valueOf( scan.get( g/2 ) ) + Double.valueOf( scan.get( (g/2)-1  ) ) )/2 ;
+Double med = ( Double.valueOf( scan.get( g/2 ) ) + Double.valueOf( scan.get( (g/2)-1  ) ) )/2 ;
 median= med  ;
   }
   else if(!STRING.isEven(g)){
@@ -316,7 +316,7 @@ public String mode(){
     List<Double>freq=new ArrayList<Double>();
     sorter = sort1();
     int g = sorter.size();
-    double count = 0;
+    Double count = 0d;
 for(int j=0;j < g;j++){
 for(int i=0;i < g;i++){
     if( sorter.get(i).equals(sorter.get(j))){
@@ -324,10 +324,10 @@ for(int i=0;i < g;i++){
     }//end if
 }//end for
 freq.add(count);
-count=0;
+count=0d;
 }//end for
 //sorts records one occurence each of the entries
-double big=0;
+Double big=0d;
 int index = -1;
 for(int i = 0;i<freq.size();i++){
     if(big<freq.get(i)){
@@ -378,10 +378,10 @@ public List<String>random(){
     }
     //check if it came with 2 arguments
     else if(size()==2){
-        double val=   Double.valueOf( data.get(0) ) ;
-        double val1= Double.valueOf( data.get(1) );
-        data.set(0,String.valueOf((int)val));
-        data.set(1,String.valueOf((int)val1));
+        Double val=   Double.valueOf( data.get(0) ) ;
+        Double val1= Double.valueOf( data.get(1) );
+        data.set(0,String.valueOf(val));
+        data.set(1,String.valueOf(val1));
     }
 
 
@@ -417,8 +417,8 @@ public String permutation(){
 String n = data.get(0);
 String r = data.get(1);
 
-double n_Factorial = Double.parseDouble( Maths.fact(n) );
-double n_Minus_r_Factorial = Double.parseDouble( Maths.fact(  String.valueOf( Double.valueOf(n)-Double.valueOf(r) )   ) );
+Double n_Factorial = Double.parseDouble( Maths.fact(n) );
+Double n_Minus_r_Factorial = Double.parseDouble( Maths.fact(  String.valueOf( Double.valueOf(n)-Double.valueOf(r) )   ) );
 
 
 return String.valueOf(  n_Factorial/n_Minus_r_Factorial  );
@@ -431,9 +431,9 @@ public String combination(){
 String n = data.get(0);
 String r = data.get(1);
 
-double n_Factorial = Double.parseDouble( Maths.fact(n) );
-double n_Minus_r_Factorial = Double.parseDouble( Maths.fact(  String.valueOf( Double.valueOf(n)-Double.valueOf(r) )   ) );
-double r_Factorial = Double.parseDouble( Maths.fact(r) );
+Double n_Factorial = Double.parseDouble( Maths.fact(n) );
+Double n_Minus_r_Factorial = Double.parseDouble( Maths.fact(  String.valueOf( Double.valueOf(n)-Double.valueOf(r) )   ) );
+Double r_Factorial = Double.parseDouble( Maths.fact(r) );
 
 return String.valueOf(  n_Factorial/( n_Minus_r_Factorial * r_Factorial ) );
 }
@@ -444,8 +444,8 @@ return String.valueOf(  n_Factorial/( n_Minus_r_Factorial * r_Factorial ) );
  * in index 1.
  */
 public String power(){
-double n = Double.parseDouble( data.get(0) );
-double pow = Double.parseDouble( data.get(1) );
+Double n = Double.parseDouble( data.get(0) );
+Double pow = Double.parseDouble( data.get(1) );
 return String.valueOf(  Math.pow(n, pow));
 }
 
@@ -483,7 +483,7 @@ catch(Exception cnfe){
 
 public static void main( String args[] ){
 
-MSet set = new MSet(2,3000);
+MSet set = new MSet(2d,3000d);
 System.out.println( set.permutation() );
 System.out.println( set.combination() );
 System.out.println( set.random() );

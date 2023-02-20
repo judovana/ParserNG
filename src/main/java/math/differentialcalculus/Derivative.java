@@ -209,7 +209,7 @@ public class Derivative {
                 int orderOfDiff = p.getOrderOfDifferentiation();
 
                 if (p.isGradEval()) {
-                    double evalPoint = p.getEvalPoint();
+                    Double evalPoint = p.getEvalPoint();
 
                     for (int i = 1; i <= orderOfDiff; i++) {
                         Derivative derivative = new Derivative(expr);

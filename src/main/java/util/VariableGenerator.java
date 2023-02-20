@@ -66,13 +66,13 @@ public VariableGenerator(int n,boolean genValue){
      if(genValue){
          int sign=ran.nextInt(2);//randomly assign a sign to the number generated.
          if(sign==0){
-     double num=-1*ran.nextInt(2000000000);//generate a numerator randomly
-     double den=ran.nextInt(2000000000);//generate a denominator randomly
+     Double num=-1d*ran.nextInt(2000000000);//generate a numerator randomly
+     Double den=(double)ran.nextInt(2000000000);//generate a denominator randomly
        var.setValue(String.valueOf( num/den ));
          }
          else if(sign==1){
-     double num=ran.nextInt(2000000000);//generate a numerator randomly
-     double den=ran.nextInt(2000000000);//generate a denominator randomly
+     Double num=(double)ran.nextInt(2000000000);//generate a numerator randomly
+     Double den=(double)ran.nextInt(2000000000);//generate a denominator randomly
        var.setValue( (String.valueOf( num/den ))  );
          }
 
@@ -87,7 +87,7 @@ public VariableGenerator(int n,boolean genValue){
  * @param val client specified value for the new Variable
  * to have a randomly specified value too.
  */
-public VariableGenerator(int n,double val){
+public VariableGenerator(int n,Double val){
      this(n);
      genValue=false;
       var.setValue( (String.valueOf( val ))  );

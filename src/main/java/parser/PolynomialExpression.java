@@ -19,7 +19,7 @@ import static parser.Number.*;
 public class PolynomialExpression extends MathExpression {
 
     /**
-     * Solves the Polynomial with normal double precision....about 16d.p.
+     * Solves the Polynomial with normal Double precision....about 16d.p.
      */
     public static final int DOUBLE_PRECISION = 1;
     /**
@@ -81,13 +81,13 @@ public class PolynomialExpression extends MathExpression {
      *
      * @param list a list of scanner tokens of a maths expression
      * @return the solution to a SBP maths expression. The precision returned
-     * here is that of double numbers, namely about 16d.p
+     * here is that of Double numbers, namely about 16d.p
      */
     public List<String> doublePrecisionSolve(List<String> list) {
 
 //correct the anomaly: [ (,-,number....,)  ]
         //   turn it into: [ (,,-number........,)     ]
-        //The double commas show that there exists an empty location in between the 2 commas
+        //The Double commas show that there exists an empty location in between the 2 commas
         if (list.get(0).equals("(") && list.get(1).equals(Operator.MINUS) && isNumber(list.get(2))) {
             list.set(1, "");
 
@@ -321,7 +321,7 @@ This is important in distinguishing between functions such as sinAB and sinA*B.N
 
 //correct the anomaly: [ (,-,number....,)  ]
         //   turn it into: [ (,,-number........,)     ]
-        //The double commas show that there exists an empty location in between the 2 commas
+        //The Double commas show that there exists an empty location in between the 2 commas
         if (list.get(0).equals("(") && list.get(1).equals(Operator.MINUS) && isNumber(list.get(2))) {
             list.set(1, "");
 

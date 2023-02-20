@@ -13,36 +13,36 @@ import static java.lang.Math.*;
  * @author GBEMIRO
  */
 public class Point {
-public double x;
-public double y;
-public double z;
+public Double x;
+public Double y;
+public Double z;
 /**
  * ICreates a Point object at the origin of
  * 3D space.
  */
 public Point(){
-    this.x=0;
-    this.y=0;
-    this.z=0;
+    this.x=0d;
+    this.y=0d;
+    this.z=0d;
 }
 /**
  * Initializes a 1D Point object
  * @param x the x coordinate of the Point object
  */
-public Point(double x){
+public Point(Double x){
     this.x=x;
-    this.y=0;
-    this.z=0;
+    this.y=0d;
+    this.z=0d;
 }
 /**
  * Initializes a 2D Point object
  * @param x the x coordinate of the Point object
  * @param y the y coordinate of the Point object
  */
-public Point(double x,double y){
+public Point(Double x,Double y){
     this.x=x;
     this.y=y;
-    this.z=0;
+    this.z=0d;
 }
 
 
@@ -53,7 +53,7 @@ public Point(double x,double y){
  * @param z the z coordinate of the Point object
  */
 
-    public Point(double x, double y, double z) {
+    public Point(Double x, Double y, Double z) {
         this.x = x;
         this.y = y;
         this.z = z;
@@ -76,42 +76,42 @@ public Point(double x,double y){
  *
  * @param x sets x the x coordinate of the Point object
  */
-    public void setX(double x) {
+    public void setX(Double x) {
         this.x = x;
     }
 /**
  *
  * @return x the x coordinate of the Point object
  */
-    public double getX() {
+    public Double getX() {
         return x;
     }
 /**
  *
  * @param y x the y coordinate of the Point object
  */
-    public void setY(double y) {
+    public void setY(Double y) {
         this.y = y;
     }
 /**
  *
  * @return x the y coordinate of the Point object
  */
-    public double getY() {
+    public Double getY() {
         return y;
     }
 /**
  *
  * @param z sets the z coordinate of the Point object
  */
-    public void setZ(double z) {
+    public void setZ(Double z) {
         this.z = z;
     }
 /**
  *
  * @return the z coordinate of the Point object
  */
-    public double getZ() {
+    public Double getZ() {
         return z;
     }
 /***
@@ -120,7 +120,7 @@ public Point(double x,double y){
  * @return the distance between this Point object and Point pt
  */
 
-public double calcDistanceTo(Point pt){
+public Double calcDistanceTo(Point pt){
     return sqrt(  pow( (x-pt.x),2)+pow( (y-pt.y),2)+pow( (z-pt.z),2) );
 }
 
@@ -130,7 +130,7 @@ public double calcDistanceTo(Point pt){
  * @return the gradient of the projection of the line joining
  * these points on the XY plane
  */
-public double findXYGrad(Point pt){
+public Double findXYGrad(Point pt){
     return (y-pt.y)/(x-pt.x);
 }
 
@@ -140,7 +140,7 @@ public double findXYGrad(Point pt){
  * @return the gradient of the projection of the line joining
  * these points on the XZ plane
  */
-public double findXZGrad(Point pt){
+public Double findXZGrad(Point pt){
     return (z-pt.z)/(x-pt.x);
 }
 
@@ -150,7 +150,7 @@ public double findXZGrad(Point pt){
  * @return the gradient of the projection of the line joining
  * these points on the YZ plane
  */
-public double findYZGrad(Point pt){
+public Double findYZGrad(Point pt){
     return (z-pt.z)/(y-pt.y);
 }
 
@@ -163,7 +163,7 @@ public double findYZGrad(Point pt){
  * this Point object
  */
 public SimplePoint getUtilPoint(){
-    return new SimplePoint(  (int)this.x,(int)this.y  );
+    return new SimplePoint(  (int)this.x.intValue(),(int)this.y.intValue()  );
 }
 /**
  * Converts objects of this class to
@@ -173,7 +173,7 @@ public SimplePoint getUtilPoint(){
  * an object of this class.
  */
 public static SimplePoint getUtilPoint(Point point){
-    return new SimplePoint(  (int)point.x,(int)point.y  );
+    return new SimplePoint(  (int)point.x.intValue(),(int)point.y.intValue()  );
 }
 
 
@@ -232,9 +232,9 @@ public String toString(){
 
 
 public static void main(String args[]){
-    Point p1= new Point(1,5);
-    Point p2=new Point(2,8);
-    Point p3=new Point(10,32);
+    Point p1= new Point(1d,5d);
+    Point p2=new Point(2d,8d);
+    Point p3=new Point(10d,32d);
     System.out.println(p1.liesBetween(p2, p3));
 
 }

@@ -115,9 +115,9 @@ public class RootFinder {
     private Function function;
 
 
-    private double x1;
+    private Double x1;
 
-    private double x2;
+    private Double x2;
     /**
      *
      * @param expression An input expression containing information
@@ -140,7 +140,7 @@ public class RootFinder {
      *
      *
      */
-    public RootFinder(String function, double x1) {
+    public RootFinder(String function, Double x1) {
         try {
             this.function = new Function(function);
             this.x1 = x1;
@@ -161,7 +161,7 @@ public class RootFinder {
      *
      *
      */
-    public RootFinder(Function function, double x1) {
+    public RootFinder(Function function, Double x1) {
         try {
             this.function = function;
             this.x1 = x1;
@@ -171,19 +171,19 @@ public class RootFinder {
         }
     }//end constructor
 
-    public void setX1(double x1) {
+    public void setX1(Double x1) {
         this.x1 = x1;
     }
 
-    public double getX1() {
+    public Double getX1() {
         return x1;
     }
 
-    public void setX2(double x2) {
+    public void setX2(Double x2) {
         this.x2 = x2;
     }
 
-    public double getX2() {
+    public Double getX2() {
         return x2;
     }
 
@@ -241,7 +241,7 @@ public class RootFinder {
         if(expression.startsWith("root(") && expression.endsWith(")")){
             expression=expression.substring(expression.indexOf("(")+1);
             expression =expression.substring(0,expression.length()-1);//remove the last bracket
-            double args[] = new double[2];
+            Double args[] = new Double[2];
 //The expression should look like...function,x1,x2,iterations(optional)
             int lastCommaIndex=expression.lastIndexOf(",");
             try{
@@ -408,7 +408,7 @@ public class RootFinder {
 
         String ans = new Newtonian().findRoot();
 
-        double val = Double.valueOf( function.evalArgs(function.getDependentVariable().getName()+"("+ans+")") );
+        Double val = Double.valueOf( function.evalArgs(function.getDependentVariable().getName()+"("+ans+")") );
         System.err.println("Using Newton's Method: f("+ans+") = "+val);
 
         if( approxEqualsZero(val) || lenientApproxEqualsZero(val)  ){
@@ -434,15 +434,15 @@ public class RootFinder {
         private String findRoot(){
 
             String variable = getVariable();
-            double f1 = 0.0;
-            double f2 = 0.001;
-            double f_middle = 0.0;
+            Double f1 = 0.0;
+            Double f2 = 0.001;
+            Double f_middle = 0.0;
 
             int count = 0;
-            double xOne =x1;
-            double xTwo =x2;
+            Double xOne =x1;
+            Double xTwo =x2;
 
-            double x_middle=0;
+            Double x_middle=0d;
 
 
 
@@ -519,7 +519,7 @@ public class RootFinder {
 
         public String findRoot(){
             //find the root nearest to x1.
-            double xOne = x1;//save the value of x1 in this variable.
+            Double xOne = x1;//save the value of x1 in this variable.
 
             String variable = getVariable();
 
@@ -531,17 +531,17 @@ public class RootFinder {
             //System.err.println("gradient function is "+gradFunc.expressionForm());
 
             function.getMathExpression().setValue(variable, String.valueOf(xOne));
-            double f_x = Double.parseDouble(  function.eval() );
+            Double f_x = Double.parseDouble(  function.eval() );
 
             gradFunc.getMathExpression().setValue(variable, String.valueOf(xOne));
-            double df_x = Double.parseDouble(  gradFunc.eval() );
+            Double df_x = Double.parseDouble(  gradFunc.eval() );
 
-            double x = xOne;
+            Double x = xOne;
             int count = 0;
 
 
             boolean iterationfailed = false;
-            double ratio = 0;
+            Double ratio = 0d;
             //iterate
             while( ( !approxEqualsZero(abs(ratio = f_x/df_x)) && count < 2000 ) ){
 
@@ -589,19 +589,19 @@ public class RootFinder {
 
         public String findRoot(){
             //find the root nearest to x1.
-            double xOne = x1;//save the value of x1 in this variable.
-            double xTwo = x2;//save the value of x1 in this variable.
+            Double xOne = x1;//save the value of x1 in this variable.
+            Double xTwo = x2;//save the value of x1 in this variable.
 
             String variable = getVariable();
 
             function.getMathExpression().setValue(variable, String.valueOf(xOne));
             System.err.println("xOne = "+xOne+", expression: "+function.getMathExpression().getExpression());
-            double f1 = Double.parseDouble(  function.eval() );
+            Double f1 = Double.parseDouble(  function.eval() );
 
             function.getMathExpression().setValue(variable, String.valueOf(xTwo));
-            double f2 = Double.parseDouble(  function.eval() );
+            Double f2 = Double.parseDouble(  function.eval() );
 
-            double x = 0.5*(xOne+xTwo);
+            Double x = 0.5*(xOne+xTwo);
             int count = 0;
 
 
@@ -655,12 +655,12 @@ public class RootFinder {
          */
         public String findRoot(){
 
-            double x1backup = x1;//save the value of x1 in this variable.
+            Double x1backup = x1;//save the value of x1 in this variable.
 
 
             String variable = getVariable();
             function.getMathExpression().setValue(variable, String.valueOf(x1));
-            double f1 = Double.parseDouble(  function.getMathExpression().solve() );
+            Double f1 = Double.parseDouble(  function.getMathExpression().solve() );
 
             int count = 0;
             while( abs(f1) >= 5.0E-16 &&count < 2000 ){
@@ -702,10 +702,10 @@ public class RootFinder {
     }// end class
 
 
-    public boolean approxEqualsZero( double number ){
+    public boolean approxEqualsZero( Double number ){
         return abs(number)<=5.0e-16;
     }
-    public boolean lenientApproxEqualsZero( double number ){
+    public boolean lenientApproxEqualsZero( Double number ){
         return abs(number)<=5.0e-11;
     }
 
