@@ -207,11 +207,11 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         }
     }
 
-    /** 
+    /**
      * @return the value of the function with these variables set.
      */
     public double calc() {
-          return mathExpression.solveGeneric().scalar; 
+        return mathExpression.solveGeneric().scalar;
     }
 
     /**
@@ -514,6 +514,13 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
     public void setMathExpression(MathExpression mathExpression) {
         this.mathExpression = mathExpression;
+    }
+
+    public void setMatrix(Matrix m) {
+        if (this.type == TYPE.MATRIX) {
+            this.matrix = m;
+            this.matrix.setName(this.getName());
+        }
     }
 
     public MathExpression getMathExpression() {
@@ -1194,7 +1201,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
         Function func = new Function("p=@(x)sin(x)+x+x^2");
         FunctionManager.add(func);
-        
+
         func.updateArgs(4);
         System.out.println(func.calc());
 

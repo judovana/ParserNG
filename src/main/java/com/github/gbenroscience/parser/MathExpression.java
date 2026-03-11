@@ -39,6 +39,10 @@ import com.github.gbenroscience.parser.benchmarks.GG;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.parser.turbo.FastExpression;
 import com.github.gbenroscience.parser.turbo.TurboCompiler;
+import com.github.gbenroscience.parser.turbo.tools.FastCompositeExpression;
+import com.github.gbenroscience.parser.turbo.tools.FlatMatrixTurboCompiler;
+import com.github.gbenroscience.parser.turbo.tools.ScalarTurboCompiler;
+import com.github.gbenroscience.parser.turbo.tools.TurboExpressionCompiler;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -105,7 +109,7 @@ public class MathExpression implements Savable, Solvable {
 
     private ExpressionSolver expressionSolver;
 
-    private FastExpression compiledTurbo = null;
+    private FastCompositeExpression compiledTurbo = null;
     private boolean turboCompiled = false;
 
     /**
@@ -450,13 +454,13 @@ public class MathExpression implements Savable, Solvable {
     private void refixCommas() {
         scanner.replaceAll((String t) -> this.commaAlias.equals(t) ? "," : t);
     }
-
+ 
     /**
      * Compile expression to native bytecode using MethodHandles +
      * LambdaMetafactory. First call takes ~5-10ms, subsequent calls return
      * cached version. Runtime performance: ~10-20 ns/op (vs 55 ns/op
      * interpreted).
-     */
+     
     public FastExpression compileTurbo() {
         if (turboCompiled) {
             return compiledTurbo;
@@ -473,7 +477,7 @@ public class MathExpression implements Savable, Solvable {
         } catch (Throwable e) {
             throw new RuntimeException("Failed to compile expression to turbo mode: " + e.getMessage(), e);
         }
-    }
+    }  */
 
     /**
      * Check if turbo mode is available.
@@ -491,6 +495,79 @@ public class MathExpression implements Savable, Solvable {
     }
 
     /**
+     * Compile to Turbo mode using adaptive compiler selection. Auto-selects
+     * scalar or matrix compiler based on expression analysis.
+     *
+     * Performance: - Pure scalar: ~5-10 ns - Matrix ops: ~50-1000 ns (vs 5-100
+     * μs interpreted) - First call: ~5-10 ms (compilation), cached thereafter
+     *
+     * @return FastCompositeExpression ready for high-speed evaluation
+     * @throws IllegalStateException if expression not properly compiled
+     * @throws Throwable if turbo compilation fails
+     */
+    public FastCompositeExpression compileTurbo() throws Throwable {
+        if (turboCompiled && compiledTurbo != null) {
+            return compiledTurbo;
+        }
+
+        if (!isScannedAndOptimized() || cachedPostfix == null) {
+            throw new IllegalStateException(
+                    "Expression not properly compiled. Call solve() first.");
+        }
+
+        try {
+            // Analyze expression to determine best compiler
+            boolean hasMatrixOps = hasMatrixOperations(cachedPostfix);
+
+            TurboExpressionCompiler compiler;
+            if (!hasMatrixOps) {
+                // Pure scalar expressions: use ultra-fast scalar compiler (~5ns)
+                compiler = new ScalarTurboCompiler();
+            } else {
+                // Any matrix operations: use flat-array optimized compiler (~50-1000ns)
+                compiler = new FlatMatrixTurboCompiler();
+            }
+
+            compiledTurbo = compiler.compile(cachedPostfix, registry);
+            turboCompiled = true;
+            return compiledTurbo;
+
+        } catch (Throwable e) {
+            throw new RuntimeException(
+                    "Failed to compile expression to turbo: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Detect if postfix contains matrix operations. Used to select appropriate
+     * turbo compiler.
+     */
+    private boolean hasMatrixOperations(Token[] postfix) {
+        for (Token t : postfix) {
+            if (t.kind == Token.FUNCTION || t.kind == Token.METHOD) {
+                String name = t.name.toLowerCase();
+                // Check for explicit matrix function names
+                if (name.contains("matrix")
+                        || name.equals("det")
+                        || name.equals("invert")
+                        || name.equals("inverse")
+                        || name.equals("transpose")
+                        || name.equals("tri_mat")
+                        || name.equals("echelon")
+                        || name.equals("eigvals")
+                        || name.equals("eigvec")
+                        || name.equals("eigpoly")
+                        || name.equals("linear_sys")
+                        || name.equals("cofactor")
+                        || name.equals("adjoint")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      *
      * @return the DRG value:0 for degrees, 1 for rads, 2 for grads
      */
@@ -499,7 +576,7 @@ public class MathExpression implements Savable, Solvable {
     }
 
     public void setDRG(DRG_MODE DRG) {
-        if (DRG != this.DRG) {  
+        if (DRG != this.DRG) {
             invalidateTurbo();  // Clear turbo cache when mode changes
             this.DRG = DRG;
             this.cachedPostfix = null;  // Invalidate cache

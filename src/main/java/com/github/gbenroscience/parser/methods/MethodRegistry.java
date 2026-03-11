@@ -322,8 +322,20 @@ public class MethodRegistry {
         registerMethod(Declarations.LG, (ctx, arity, args) -> ctx.wrap(Math.log10(args[0].scalar)));
         registerMethod(Declarations.LG_INV, (ctx, arity, args) -> ctx.wrap(Math.pow(10, args[0].scalar)));
         registerMethod(Declarations.LG_INV_ALT, (ctx, arity, args) -> ctx.wrap(Math.pow(10, args[0].scalar)));
-        registerMethod(Declarations.LOG, (ctx, arity, args) -> ctx.wrap(Maths.logToAnyBase(args[0].scalar, args[1].scalar)));
-        registerMethod(Declarations.LOG_INV, (ctx, arity, args) -> ctx.wrap(Maths.antiLogToAnyBase(args[0].scalar, args[1].scalar)));
+        registerMethod(Declarations.LOG, (ctx, arity, args) -> {
+            if(arity == 1){
+               return ctx.wrap(Maths.logToAnyBase(args[0].scalar, 10));
+            }else{
+               return ctx.wrap(Maths.logToAnyBase(args[0].scalar, args[1].scalar));
+            }
+        });
+        registerMethod(Declarations.LOG_INV, (ctx, arity, args) -> {
+          if(arity == 1){
+             return ctx.wrap(Maths.antiLogToAnyBase(args[0].scalar, 10));
+          }else{
+              return ctx.wrap(Maths.antiLogToAnyBase(args[0].scalar, args[1].scalar));
+          }
+        });
         registerMethod(Declarations.LOG_INV_ALT, (ctx, arity, args) -> ctx.wrap(Maths.antiLogToAnyBase(args[0].scalar, args[1].scalar)));
 
         registerMethod(Declarations.LN, (ctx, arity, args) -> ctx.wrap(Math.log(args[0].scalar)));
