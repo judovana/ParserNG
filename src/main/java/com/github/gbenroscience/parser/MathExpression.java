@@ -37,6 +37,8 @@ import static com.github.gbenroscience.parser.TYPE.LIST;
 import static com.github.gbenroscience.parser.TYPE.MATRIX;
 import com.github.gbenroscience.parser.benchmarks.GG;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
+import com.github.gbenroscience.parser.turbo.FastExpression;
+import com.github.gbenroscience.parser.turbo.TurboCompiler;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -103,6 +105,9 @@ public class MathExpression implements Savable, Solvable {
 
     private ExpressionSolver expressionSolver;
 
+    private FastExpression compiledTurbo = null;
+    private boolean turboCompiled = false;
+
     /**
      * If set to true, MathExpression objects will automatically initialize
      * undeclared variables to zero and store them.
@@ -143,7 +148,7 @@ public class MathExpression implements Savable, Solvable {
     private static final int PREC_MULDIV = 3;   // *, /, %, Р, Č
     private static final int PREC_ADDSUB = 2;   // +, -
     private static final int PREC_UNARY = 100;  // Unary minus
-    private Token[] cachedPostfix = null;  // Cache the compiled postfix
+    public Token[] cachedPostfix = null;  // Cache the compiled postfix
 
     private double[] executionFrame;
     VariableRegistry registry = new VariableRegistry();
@@ -160,7 +165,7 @@ public class MathExpression implements Savable, Solvable {
     public static final String SYNTAX_ERROR = "SYNTAX ERROR";
 
     // Updated Token class (from your provided)
-    static class Token {
+    public static final class Token {
 
         public static final int NUMBER = 0, OPERATOR = 1, FUNCTION = 2, METHOD = 3, LPAREN = 5, RPAREN = 6, COMMA = 7;
         public int kind;
@@ -374,6 +379,7 @@ public class MathExpression implements Savable, Solvable {
      */
     public final void setExpression(String expression) {
         if (!expression.equals(this.expression)) {
+            invalidateTurbo();  // Clear turbo cache
             scanner.clear();
             this.cachedPostfix = null;  // Force recompile
             this.poolPointer = 0;
@@ -446,6 +452,45 @@ public class MathExpression implements Savable, Solvable {
     }
 
     /**
+     * Compile expression to native bytecode using MethodHandles +
+     * LambdaMetafactory. First call takes ~5-10ms, subsequent calls return
+     * cached version. Runtime performance: ~10-20 ns/op (vs 55 ns/op
+     * interpreted).
+     */
+    public FastExpression compileTurbo() {
+        if (turboCompiled) {
+            return compiledTurbo;
+        }
+
+        if (!isScannedAndOptimized() || cachedPostfix == null) {
+            throw new IllegalStateException("Expression not properly compiled. Call solve() first.");
+        }
+
+        try {
+            compiledTurbo = TurboCompiler.compile(cachedPostfix, registry);
+            turboCompiled = true;
+            return compiledTurbo;
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to compile expression to turbo mode: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Check if turbo mode is available.
+     */
+    public boolean isTurboCompiled() {
+        return turboCompiled && compiledTurbo != null;
+    }
+
+    /**
+     * Invalidate turbo compilation when expression changes.
+     */
+    private void invalidateTurbo() {
+        compiledTurbo = null;
+        turboCompiled = false;
+    }
+
+    /**
      *
      * @return the DRG value:0 for degrees, 1 for rads, 2 for grads
      */
@@ -454,7 +499,8 @@ public class MathExpression implements Savable, Solvable {
     }
 
     public void setDRG(DRG_MODE DRG) {
-        if (DRG != this.DRG) {
+        if (DRG != this.DRG) {  
+            invalidateTurbo();  // Clear turbo cache when mode changes
             this.DRG = DRG;
             this.cachedPostfix = null;  // Invalidate cache
             this.poolPointer = 0;
