@@ -267,7 +267,10 @@ public class Declarations {
     public static String[] getInbuiltMethods() {
         return createInBuiltMethods();
     }
-
+/**
+ * 
+ * @return an array containing all builtin methods, basic numeral methods, but not user defined functions
+ */
     public static String[] createInBuiltMethods() {
         List<String> stats = Arrays.asList(getStatsMethods());
  

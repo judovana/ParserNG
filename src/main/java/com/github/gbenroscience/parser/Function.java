@@ -760,6 +760,11 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         FunctionManager.add(f);
         return name;
     }
+    
+    
+    public boolean isMatrix(){
+        return this.type == TYPE.MATRIX && matrix != null;
+    }
 
     /**
      * @param args

@@ -437,6 +437,7 @@ public class MathExpression implements Savable, Solvable {
             functionComponentsAssociation();
             compileToPostfix();  // Compile once if not already done
         }//end if
+      
     }//end method initializing(args)
 
     public void setWillFoldConstants(boolean willFoldConstants) {
@@ -454,31 +455,25 @@ public class MathExpression implements Savable, Solvable {
     private void refixCommas() {
         scanner.replaceAll((String t) -> this.commaAlias.equals(t) ? "," : t);
     }
- 
+
     /**
      * Compile expression to native bytecode using MethodHandles +
      * LambdaMetafactory. First call takes ~5-10ms, subsequent calls return
      * cached version. Runtime performance: ~10-20 ns/op (vs 55 ns/op
      * interpreted).
-     
-    public FastExpression compileTurbo() {
-        if (turboCompiled) {
-            return compiledTurbo;
-        }
-
-        if (!isScannedAndOptimized() || cachedPostfix == null) {
-            throw new IllegalStateException("Expression not properly compiled. Call solve() first.");
-        }
-
-        try {
-            compiledTurbo = TurboCompiler.compile(cachedPostfix, registry);
-            turboCompiled = true;
-            return compiledTurbo;
-        } catch (Throwable e) {
-            throw new RuntimeException("Failed to compile expression to turbo mode: " + e.getMessage(), e);
-        }
-    }  */
-
+     *
+     * public FastExpression compileTurbo() { if (turboCompiled) { return
+     * compiledTurbo; }
+     *
+     * if (!isScannedAndOptimized() || cachedPostfix == null) { throw new
+     * IllegalStateException("Expression not properly compiled. Call solve()
+     * first."); }
+     *
+     * try { compiledTurbo = TurboCompiler.compile(cachedPostfix, registry);
+     * turboCompiled = true; return compiledTurbo; } catch (Throwable e) { throw
+     * new RuntimeException("Failed to compile expression to turbo mode: " +
+     * e.getMessage(), e); } }
+     */
     /**
      * Check if turbo mode is available.
      */
@@ -527,7 +522,6 @@ public class MathExpression implements Savable, Solvable {
                 // Any matrix operations: use flat-array optimized compiler (~50-1000ns)
                 compiler = new FlatMatrixTurboCompiler();
             }
-
             compiledTurbo = compiler.compile(cachedPostfix, registry);
             turboCompiled = true;
             return compiledTurbo;
@@ -544,22 +538,26 @@ public class MathExpression implements Savable, Solvable {
      */
     private boolean hasMatrixOperations(Token[] postfix) {
         for (Token t : postfix) {
+            // 1. Check for explicit matrix functions (Your existing logic)
             if (t.kind == Token.FUNCTION || t.kind == Token.METHOD) {
                 String name = t.name.toLowerCase();
-                // Check for explicit matrix function names
-                if (name.contains("matrix")
-                        || name.equals("det")
-                        || name.equals("invert")
-                        || name.equals("inverse")
-                        || name.equals("transpose")
-                        || name.equals("tri_mat")
-                        || name.equals("echelon")
-                        || name.equals("eigvals")
-                        || name.equals("eigvec")
-                        || name.equals("eigpoly")
-                        || name.equals("linear_sys")
-                        || name.equals("cofactor")
-                        || name.equals("adjoint")) {
+                if (name.contains("matrix") || name.equals("det") || name.equals("invert")
+                        || name.equals("inverse") || name.equals("transpose")) {
+                    return true;
+                }
+            }
+
+            
+            
+            Function func = FunctionManager.lookUp(t.name);
+            // 2. Check for Matrix Literals (@ notation)
+            if (func != null && func.getType() == TYPE.MATRIX) {
+                return true;
+            }
+
+            // 3. THE CRITICAL FIX: Check if a named variable is actually a Matrix
+            if (t.name != null && !t.name.isEmpty()) { 
+                if (func != null && func.getType() == TYPE.MATRIX) {
                     return true;
                 }
             }
@@ -723,7 +721,7 @@ public class MathExpression implements Savable, Solvable {
     }
 
     public boolean hasVariable(String var) {
-        return registry.hasVariable(var);
+        return registry.hasVariable(var); 
     }
 
     /**
@@ -906,23 +904,25 @@ public class MathExpression implements Savable, Solvable {
      */
     private void codeModifier() {
 
-        if (correctFunction) {
+        if (correctFunction) {  
             StringBuilder utility = new StringBuilder();
 
             /**
              * This stage serves for negative number detection. Prior to this
              * stage, all numbers are seen as positive ones. For example: turns
-             * [12,/,-,5] to [12,/,-5].
+             * [12,/,-,5] to [12,/,-5]. [2,*,M,-,3,*,M] should not become [2,*,M,-3,*,M]
              *
              * It also counts the number of list-returning operators in the
              * system.
              */
             for (int i = 0; i < scanner.size(); i++) {
                 try {
-                    if ((isBinaryOperator(scanner.get(i)) || Method.isUnaryPreOperatorORDefinedMethod(scanner.get(i))
-                            || isOpeningBracket(scanner.get(i))
-                            || isLogicOperator(scanner.get(i)) || isAssignmentOperator(scanner.get(i))
-                            || isComma(scanner.get(i)) || Method.isStatsMethod(scanner.get(i)))
+                    String tkn = scanner.get(i);
+                    Function f = FunctionManager.lookUp(tkn);
+                    if ((isBinaryOperator(tkn) || isUnaryPreOperator(tkn)
+                            || isOpeningBracket(tkn)
+                            || isLogicOperator(tkn) || isAssignmentOperator(tkn)
+                            || isComma(tkn) || (Method.isStatsMethod(tkn ) && f!=null && !f.isMatrix() )  )
                             && Operator.isPlusOrMinus(scanner.get(i + 1)) && isNumber(scanner.get(i + 2))) {
                         utility.append(scanner.get(i + 1));
                         utility.append(scanner.get(i + 2));
@@ -936,7 +936,7 @@ public class MathExpression implements Savable, Solvable {
                 }//end catch
 
             }//end for
-
+   
             scanner.removeAll(whitespaceremover);
 
         } else if (!correctFunction) {

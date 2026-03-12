@@ -16,7 +16,9 @@
 package com.github.gbenroscience.parser.turbo.tools;
 
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
+import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
+import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.util.FunctionManager;
 /**
  *
@@ -85,11 +87,12 @@ public class FlatMatrixTurboBench {
         for (int i = 0; i < data50.length; i++) {
             data50[i] = Math.random();
         }
-
+       
         Matrix m = new Matrix(data50, 50, 50);
-        MathExpression expr = new MathExpression("2*M - 3*M");
+        MathExpression expr = new MathExpression("2*M-3*M");
         FunctionManager.lookUp("M").setMatrix(m);
-        
+
+        System.out.println("scanner: "+expr.getScanner());        
         FastCompositeExpression turbo = expr.compileTurbo();
         double[] vars = {};
 
@@ -115,8 +118,11 @@ public class FlatMatrixTurboBench {
             b10[i] = Math.random();
         }
 
-        Matrix ma = new Matrix(a10, 10, 10);
-        Matrix mb = new Matrix(b10, 10, 10);
+        Matrix ma = new Matrix(a10, 10, 10);ma.setName("A");
+        Matrix mb = new Matrix(b10, 10, 10);mb.setName("B");
+        FunctionManager.add(new Function(ma));
+        FunctionManager.add(new Function(mb));
+        
 
         MathExpression expr = new MathExpression("matrix_mul(A,B)");
         FunctionManager.lookUp("A").setMatrix(ma);

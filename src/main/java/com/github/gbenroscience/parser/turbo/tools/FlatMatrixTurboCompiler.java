@@ -1,72 +1,83 @@
-/*
- * Copyright 2026 GBEMIRO.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.github.gbenroscience.parser.turbo.tools;
 
-/**
- *
- * @author GBEMIRO
- */
-  
 import com.github.gbenroscience.math.Maths;
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
+import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
+import com.github.gbenroscience.parser.MathExpression.EvalResult;
+import com.github.gbenroscience.parser.TYPE;
+import com.github.gbenroscience.util.FunctionManager;
 import java.lang.invoke.*;
 import java.util.*;
 
 /**
  * Turbo compiler optimized for ParserNG's flat-array Matrix implementation.
- * 
- * Key optimizations:
- * - Inlines row/col access calculations (row * cols + col) into bytecode
- * - Uses MethodHandles for zero-copy matrix operations
- * - Leverages flat array's cache-friendly memory layout
- * - Generates specialized code paths for common operations
- * 
- * Performance targets:
- * - Scalar: ~5-10ns (unchanged)
- * - Small matrices (2x2 to 4x4): ~50-100ns
- * - Large matrices (100x100): ~1-2 μs (10-50x vs interpreted)
- * 
- * @author GBEMIRO
+ *
+ * * @author GBEMIRO
+ */
+/**
+ * Allocation-free Turbo compiler optimized for ParserNG's flat-array Matrix
+ * implementation. Uses compile-time bound ResultCaches to eliminate object and
+ * array allocations during execution.
  */
 public class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
 
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
-    // MethodType constants
-    private static final MethodType MT_MATRIX_ACCESS = 
-        MethodType.methodType(double.class, double[].class, int.class, int.class, int.class);
-    private static final MethodType MT_MATRIX_SET = 
-        MethodType.methodType(void.class, double[].class, int.class, int.class, int.class, double.class);
-    private static final MethodType MT_MATRIX_MULTIPLY = 
-        MethodType.methodType(Matrix.class, Matrix.class, Matrix.class);
-    private static final MethodType MT_MATRIX_ADD = 
-        MethodType.methodType(Matrix.class, Matrix.class, Matrix.class);
+    // ========== THE RESULT CACHE ==========
+    /**
+     * Holds the mutable state for a single node in the execution tree. Bound
+     * into the MethodHandle chain at compile-time.
+     */
+    public static class ResultCache {
 
+        public final EvalResult result = new EvalResult();
+        public double[] matrixData;
+        public Matrix matrix;
+
+        // Secondary buffer for re-entrant operations like Matrix Power
+        private double[] matrixData2;
+        private Matrix matrix2;
+
+        public Matrix getMatrixBuffer(int rows, int cols) {
+            int size = rows * cols;
+            if (matrixData == null || matrixData.length != size) {
+                matrixData = new double[size];
+                matrix = new Matrix(matrixData, rows, cols);
+            } else if (matrix.getRows() != rows || matrix.getCols() != cols) {
+                matrix = new Matrix(matrixData, rows, cols);
+            }
+            return matrix;
+        }
+
+        /**
+         * Provides a secondary buffer to avoid overwriting primary data during
+         * complex loops like power functions.
+         */
+        public Matrix getSecondaryBuffer(int rows, int cols) {
+            int size = rows * cols;
+            if (matrixData2 == null || matrixData2.length != size) {
+                matrixData2 = new double[size];
+                matrix2 = new Matrix(matrixData2, rows, cols);
+            } else if (matrix2.getRows() != rows || matrix2.getCols() != cols) {
+                matrix2 = new Matrix(matrixData2, rows, cols);
+            }
+            return matrix2;
+        }
+    }
+
+    // ========== COMPILER CORE ==========
     @Override
     public FastCompositeExpression compile(
             MathExpression.Token[] postfix,
             MathExpression.VariableRegistry registry) throws Throwable {
 
         Stack<MethodHandle> stack = new Stack<>();
-        
+
         for (MathExpression.Token t : postfix) {
             switch (t.kind) {
                 case MathExpression.Token.NUMBER:
-                    stack.push(compileNumberAsEvalResult(t));
+                    stack.push(compileTokenAsEvalResult(t));
                     break;
 
                 case MathExpression.Token.OPERATOR:
@@ -92,18 +103,16 @@ public class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
         }
 
         if (stack.size() != 1) {
-            throw new IllegalArgumentException("Invalid postfix: stack size = " + stack.size());
+            throw new IllegalArgumentException("Invalid postfix stack state.");
         }
 
         MethodHandle resultHandle = stack.pop();
-        final MethodType returnType = 
-            MethodType.methodType(MathExpression.EvalResult.class, double[].class);
-        
-        final MethodHandle finalHandle = resultHandle.asType(returnType);
+        final MethodHandle finalHandle = resultHandle.asType(
+                MethodType.methodType(EvalResult.class, double[].class));
 
         return (double[] variables) -> {
             try {
-                return (MathExpression.EvalResult) finalHandle.invokeExact(variables);
+                return (EvalResult) finalHandle.invokeExact(variables);
             } catch (Throwable e) {
                 throw new RuntimeException("Turbo matrix execution failed", e);
             }
@@ -111,619 +120,335 @@ public class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
     }
 
     // ========== COMPILATION PRIMITIVES ==========
+    private MethodHandle compileTokenAsEvalResult(MathExpression.Token t) throws Throwable {
 
-    /**
-     * Compile a NUMBER token as an EvalResult.
-     * For constants: returns constant EvalResult
-     * For variables: looks up from execution frame
-     */
-    private MethodHandle compileNumberAsEvalResult(MathExpression.Token t) throws Throwable {
+        // Check if it's a named entity (Variable, Constant, or Function Pointer)
         if (t.name != null && !t.name.isEmpty()) {
-            // Variable lookup
-            int frameIndex = t.frameIndex;
-            
-            MethodHandle loadScalar = MethodHandles.arrayElementGetter(double[].class);
-            loadScalar = MethodHandles.insertArguments(loadScalar, 1, frameIndex);
-            
-            // Wrap in EvalResult
-            MethodHandle wrapScalar = LOOKUP.findVirtual(
-                MathExpression.EvalResult.class,
-                "wrap",
-                MethodType.methodType(MathExpression.EvalResult.class, double.class)
-            );
-            
-            // Create a new EvalResult for each access
-            MethodHandle newEvalResult = LOOKUP.findConstructor(
-                MathExpression.EvalResult.class,
-                MethodType.methodType(void.class)
-            );
-            
-            // Chain: new EvalResult -> wrap(scalar from frame)
-            return MethodHandles.foldArguments(
-                wrapScalar,
-                MethodHandles.filterArguments(loadScalar, 0)
-            );
-        } else {
-            // Constant
-            MathExpression.EvalResult constant = new MathExpression.EvalResult().wrap(t.value);
-            MethodHandle constantHandle = MethodHandles.constant(MathExpression.EvalResult.class, constant);
-            return MethodHandles.dropArguments(constantHandle, 0, double[].class);
-        }
-    }
 
-    // ========== BINARY OPERATIONS ==========
+            // PATH 1: Standard Variable (From translate -> Fallback: Treat as Variable/Constant)
+            // It has a slot in the execution frame.
+            if (t.frameIndex >= 0) {
+                MethodHandle loadScalar = MethodHandles.arrayElementGetter(double[].class);
+                loadScalar = MethodHandles.insertArguments(loadScalar, 1, t.frameIndex);
 
-    /**
-     * Compile binary operations that work on EvalResult objects.
-     * Dispatches based on type (scalar vs matrix).
-     */
-    private MethodHandle compileBinaryOpOnEvalResult(
-            char op, MethodHandle left, MethodHandle right) throws Throwable {
+                // Zero-allocation wrap
+                ResultCache cache = new ResultCache();
+                MethodHandle wrap = LOOKUP.findVirtual(EvalResult.class, "wrap",
+                        MethodType.methodType(EvalResult.class, double.class));
+                MethodHandle boundWrap = wrap.bindTo(cache.result);
 
-        // Create a dispatcher that calls the appropriate operation
-        MethodHandle dispatcher = LOOKUP.findStatic(
-            FlatMatrixTurboCompiler.class,
-            "dispatchBinaryOp",
-            MethodType.methodType(
-                MathExpression.EvalResult.class,
-                MathExpression.EvalResult.class,
-                MathExpression.EvalResult.class,
-                char.class
-            )
-        );
-
-        // Bind the operator
-        dispatcher = MethodHandles.insertArguments(dispatcher, 2, op);
-
-        // Filter arguments: (double[]) -> EvalResult for both left and right
-        dispatcher = MethodHandles.filterArguments(dispatcher, 0, left, right);
-
-        // Permute to collapse back: (double[]) -> EvalResult
-        return MethodHandles.permuteArguments(
-            dispatcher,
-            MethodType.methodType(MathExpression.EvalResult.class, double[].class),
-            0, 0
-        );
-    }
-
-    /**
-     * Dispatcher for binary operations.
-     * Called from compiled code via MethodHandle.
-     */
-    public static MathExpression.EvalResult dispatchBinaryOp(
-            MathExpression.EvalResult left,
-            MathExpression.EvalResult right,
-            char op) {
-
-        // Both scalars: fast path
-        if (left.type == MathExpression.EvalResult.TYPE_SCALAR &&
-            right.type == MathExpression.EvalResult.TYPE_SCALAR) {
-            return binaryOpScalar(op, left.scalar, right.scalar);
-        }
-
-        // Both matrices
-        if (left.type == MathExpression.EvalResult.TYPE_MATRIX &&
-            right.type == MathExpression.EvalResult.TYPE_MATRIX) {
-            return binaryOpMatrix(op, left.matrix, right.matrix);
-        }
-
-        // Scalar-matrix broadcast
-        if (left.type == MathExpression.EvalResult.TYPE_SCALAR &&
-            right.type == MathExpression.EvalResult.TYPE_MATRIX) {
-            return binaryOpScalarBroadcast(op, left.scalar, right.matrix);
-        }
-
-        if (left.type == MathExpression.EvalResult.TYPE_MATRIX &&
-            right.type == MathExpression.EvalResult.TYPE_SCALAR) {
-            return binaryOpMatrixScalar(op, left.matrix, right.scalar);
-        }
-
-        throw new RuntimeException("Type mismatch for operator: " + op);
-    }
-
-    /**
-     * Scalar-scalar binary operations (unchanged from ScalarTurboCompiler)
-     */
-    private static MathExpression.EvalResult binaryOpScalar(char op, double a, double b) {
-        MathExpression.EvalResult res = new MathExpression.EvalResult();
-        switch (op) {
-            case '+': res.wrap(a + b); break;
-            case '-': res.wrap(a - b); break;
-            case '*': res.wrap(a * b); break;
-            case '/': 
-                if (b == 0) throw new ArithmeticException("Division by zero");
-                res.wrap(a / b);
-                break;
-            case '%': res.wrap(a % b); break;
-            case '^': res.wrap(Math.pow(a, b)); break;
-            default: throw new UnsupportedOperationException("Op: " + op);
-        }
-        return res;
-    }
-
-    /**
-     * Matrix-matrix binary operations.
-     * Optimized for flat array layout.
-     */
-    private static MathExpression.EvalResult binaryOpMatrix(char op, Matrix left, Matrix right) {
-        MathExpression.EvalResult res = new MathExpression.EvalResult();
-
-        switch (op) {
-            case '+':
-                res.wrap(flatMatrixAdd(left, right));
-                break;
-
-            case '-':
-                res.wrap(flatMatrixSubtract(left, right));
-                break;
-
-            case '*':
-                // Matrix multiplication - uses flat array for efficiency
-                res.wrap(flatMatrixMultiply(left, right));
-                break;
-
-            case '^':
-                // Matrix power
-                int power = (int) Math.round(right.getElem(0, 0));
-                res.wrap(flatMatrixPower(left, power));
-                break;
-
-            default:
-                throw new UnsupportedOperationException("Matrix op: " + op);
-        }
-        return res;
-    }
-
-    /**
-     * Scalar-matrix broadcast: scalar OP matrix
-     */
-    private static MathExpression.EvalResult binaryOpScalarBroadcast(char op, double scalar, Matrix matrix) {
-        MathExpression.EvalResult res = new MathExpression.EvalResult();
-        
-        double[] flatData = matrix.getFlatArray();
-        double[] result = new double[flatData.length];
-        
-        switch (op) {
-            case '+':
-                for (int i = 0; i < flatData.length; i++) {
-                    result[i] = scalar + flatData[i];
-                }
-                break;
-            case '-':
-                for (int i = 0; i < flatData.length; i++) {
-                    result[i] = scalar - flatData[i];
-                }
-                break;
-            case '*':
-                for (int i = 0; i < flatData.length; i++) {
-                    result[i] = scalar * flatData[i];
-                }
-                break;
-            case '/':
-                if (Math.abs(scalar) < 1e-10) throw new ArithmeticException("Division by zero");
-                for (int i = 0; i < flatData.length; i++) {
-                    result[i] = scalar / flatData[i];
-                }
-                break;
-            default:
-                throw new UnsupportedOperationException("Scalar-broadcast op: " + op);
-        }
-        
-        res.wrap(new Matrix(result, matrix.getRows(), matrix.getCols()));
-        return res;
-    }
-
-    /**
-     * Matrix-scalar binary operations: matrix OP scalar
-     */
-    private static MathExpression.EvalResult binaryOpMatrixScalar(char op, Matrix matrix, double scalar) {
-        MathExpression.EvalResult res = new MathExpression.EvalResult();
-        
-        double[] flatData = matrix.getFlatArray();
-        double[] result = new double[flatData.length];
-        
-        switch (op) {
-            case '+':
-                for (int i = 0; i < flatData.length; i++) {
-                    result[i] = flatData[i] + scalar;
-                }
-                break;
-            case '-':
-                for (int i = 0; i < flatData.length; i++) {
-                    result[i] = flatData[i] - scalar;
-                }
-                break;
-            case '*':
-                for (int i = 0; i < flatData.length; i++) {
-                    result[i] = flatData[i] * scalar;
-                }
-                break;
-            case '/':
-                if (Math.abs(scalar) < 1e-10) throw new ArithmeticException("Division by zero");
-                for (int i = 0; i < flatData.length; i++) {
-                    result[i] = flatData[i] / scalar;
-                }
-                break;
-            case '^':
-                for (int i = 0; i < flatData.length; i++) {
-                    result[i] = Math.pow(flatData[i], scalar);
-                }
-                break;
-            default:
-                throw new UnsupportedOperationException("Matrix-scalar op: " + op);
-        }
-        
-        res.wrap(new Matrix(result, matrix.getRows(), matrix.getCols()));
-        return res;
-    }
-
-    // ========== FLAT ARRAY MATRIX OPERATIONS ==========
-
-    /**
-     * Optimized flat-array matrix addition.
-     * Leverage flat array's sequential memory access for cache efficiency.
-     */
-    private static Matrix flatMatrixAdd(Matrix a, Matrix b) {
-        if (a.getRows() != b.getRows() || a.getCols() != b.getCols()) {
-            throw new IllegalArgumentException("Dimension mismatch for addition");
-        }
-
-        double[] aFlat = a.getFlatArray();
-        double[] bFlat = b.getFlatArray();
-        double[] result = new double[aFlat.length];
-
-        // Single loop over flat array - excellent cache locality
-        for (int i = 0; i < aFlat.length; i++) {
-            result[i] = aFlat[i] + bFlat[i];
-        }
-
-        return new Matrix(result, a.getRows(), a.getCols());
-    }
-
-    /**
-     * Optimized flat-array matrix subtraction.
-     */
-    private static Matrix flatMatrixSubtract(Matrix a, Matrix b) {
-        if (a.getRows() != b.getRows() || a.getCols() != b.getCols()) {
-            throw new IllegalArgumentException("Dimension mismatch for subtraction");
-        }
-
-        double[] aFlat = a.getFlatArray();
-        double[] bFlat = b.getFlatArray();
-        double[] result = new double[aFlat.length];
-
-        for (int i = 0; i < aFlat.length; i++) {
-            result[i] = aFlat[i] - bFlat[i];
-        }
-
-        return new Matrix(result, a.getRows(), a.getCols());
-    }
-
-    /**
-     * Optimized flat-array matrix multiplication.
-     * 
-     * Standard algorithm: C[i,j] = sum(A[i,k] * B[k,j]) for all k
-     * 
-     * Optimizations:
-     * - Flat array access: A[i][k] -> aFlat[i*aCols + k]
-     * - Single-pass calculation using flat indices
-     * - Minimal intermediate allocations
-     * 
-     * Complexity: O(n^3) but with excellent cache utilization
-     */
-    private static Matrix flatMatrixMultiply(Matrix a, Matrix b) {
-        if (a.getCols() != b.getRows()) {
-            throw new IllegalArgumentException(
-                "Incompatible dimensions: " + a.getRows() + "x" + a.getCols() +
-                " * " + b.getRows() + "x" + b.getCols()
-            );
-        }
-
-        int aRows = a.getRows();
-        int aCols = a.getCols();
-        int bCols = b.getCols();
-
-        double[] aFlat = a.getFlatArray();
-        double[] bFlat = b.getFlatArray();
-        double[] resultFlat = new double[aRows * bCols];
-
-        // i = row of result
-        for (int i = 0; i < aRows; i++) {
-            // j = column of result
-            for (int j = 0; j < bCols; j++) {
-                double sum = 0.0;
-                
-                // k = inner dimension
-                for (int k = 0; k < aCols; k++) {
-                    // Access: A[i][k] = aFlat[i*aCols + k]
-                    // Access: B[k][j] = bFlat[k*bCols + j]
-                    sum += aFlat[i * aCols + k] * bFlat[k * bCols + j];
-                }
-                
-                // Result[i][j] = resultFlat[i*bCols + j]
-                resultFlat[i * bCols + j] = sum;
+                return MethodHandles.collectArguments(boundWrap, 0, loadScalar);
             }
+
+            // PATH 2: Function Reference / Matrix Literal / Global Constant
+            // (From translate -> Identify Functions/Anonymous Functions NOT followed by '(')
+            EvalResult constant = new EvalResult();
+            Function func = FunctionManager.lookUp(t.name);
+
+            if (func != null) {
+                if (func.getType() == TYPE.MATRIX) {
+                    constant.wrap(func.getMatrix());
+                } else if (func.getType() == TYPE.ALGEBRAIC_EXPRESSION) {
+                    // If it's a pointer to an equation, wrap the string/AST reference
+                    constant.wrap(func.getMathExpression().getExpression());
+                } else {
+                    // Evaluates to a scalar
+                    constant.wrap(func.calc());
+                }
+            } else {
+                constant.wrap(t.value);
+                // It might be a matrix literal directly assigned (t.matrixValue)
+                /* if (t.matrixValue != null) {
+                    constant.wrap(t.matrixValue);
+                } else {
+                    constant.wrap(t.value);
+                }*/
+            }
+
+            // Bake the resolved entity into the MethodHandle as a constant
+            return MethodHandles.dropArguments(
+                    MethodHandles.constant(EvalResult.class, constant), 0, double[].class);
         }
 
-        return new Matrix(resultFlat, aRows, bCols);
+        // PATH 3: Pure Number Literal (From translate -> Identify Numbers)
+        // t.name is null, it's just raw math like "5.0"
+        EvalResult constant = new EvalResult().wrap(t.value);
+        return MethodHandles.dropArguments(
+                MethodHandles.constant(EvalResult.class, constant), 0, double[].class);
     }
 
-    /**
-     * Matrix exponentiation: A^n using repeated multiplication.
-     * Optimized for small n.
-     */
-    private static Matrix flatMatrixPower(Matrix m, int n) {
-        if (n < 0) {
-            throw new UnsupportedOperationException("Negative matrix powers not yet supported");
-        }
+    private MethodHandle compileBinaryOpOnEvalResult(char op, MethodHandle left, MethodHandle right) throws Throwable {
+        // 1. Match the exact signature: (char, EvalResult, EvalResult, ResultCache)
+        MethodHandle dispatcher = LOOKUP.findStatic(FlatMatrixTurboCompiler.class, "dispatchBinaryOp",
+                MethodType.methodType(EvalResult.class, char.class, EvalResult.class, EvalResult.class, ResultCache.class));
 
-        if (n == 0) {
-            // Return identity matrix
-            int size = m.getRows();
-            if (m.getRows() != m.getCols()) {
-                throw new IllegalArgumentException("Identity requires square matrix");
-            }
-            double[] identity = new double[size * size];
-            for (int i = 0; i < size; i++) {
-                identity[i * size + i] = 1.0;
-            }
-            return new Matrix(identity, size, size);
-        }
+        // 2. Create the unique cache for this node
+        ResultCache nodeCache = new ResultCache();
 
-        if (n == 1) {
-            return new Matrix(m);
-        }
+        // 3. Bind 'op' to index 0 and 'nodeCache' to index 3
+        // After these insertions, the MethodHandle expects only (EvalResult left, EvalResult right)
+        dispatcher = MethodHandles.insertArguments(dispatcher, 3, nodeCache); // Bind tail first to avoid index shifting
+        dispatcher = MethodHandles.insertArguments(dispatcher, 0, op);        // Bind head
 
-        // Use binary exponentiation for large n
-        if (n > 10) {
-            return matrixPowerBinary(m, n);
-        }
+        // 4. Combine with the recursive handles for left and right operands
+        // This feeds the output of 'left' into the first EvalResult slot and 'right' into the second
+        dispatcher = MethodHandles.collectArguments(dispatcher, 0, left);
+        dispatcher = MethodHandles.collectArguments(dispatcher, 1, right);
 
-        // Direct multiplication for small n
-        Matrix result = new Matrix(m);
-        for (int i = 1; i < n; i++) {
-            result = flatMatrixMultiply(result, m);
-        }
-        return result;
+        // 5. Final type alignment to accept the double[] variables array
+        return MethodHandles.permuteArguments(dispatcher,
+                MethodType.methodType(EvalResult.class, double[].class), 0, 0);
     }
 
-    /**
-     * Fast matrix exponentiation using binary method: O(log n) multiplications.
-     */
-    private static Matrix matrixPowerBinary(Matrix base, int exp) {
-        if (exp == 1) return new Matrix(base);
-
-        int size = base.getRows();
-        if (base.getRows() != base.getCols()) {
-            throw new IllegalArgumentException("Power requires square matrix");
-        }
-
-        // Identity matrix
-        double[] identityFlat = new double[size * size];
-        for (int i = 0; i < size; i++) {
-            identityFlat[i * size + i] = 1.0;
-        }
-        Matrix result = new Matrix(identityFlat, size, size);
-
-        Matrix current = new Matrix(base);
-        while (exp > 0) {
-            if ((exp & 1) == 1) {
-                result = flatMatrixMultiply(result, current);
-            }
-            current = flatMatrixMultiply(current, current);
-            exp >>= 1;
-        }
-
-        return result;
-    }
-
-    // ========== UNARY OPERATIONS ==========
-
-    /**
-     * Compile unary operations on EvalResult.
-     */
     private MethodHandle compileUnaryOpOnEvalResult(char op, MethodHandle operand) throws Throwable {
-        MethodHandle dispatcher = LOOKUP.findStatic(
-            FlatMatrixTurboCompiler.class,
-            "dispatchUnaryOp",
-            MethodType.methodType(
-                MathExpression.EvalResult.class,
-                MathExpression.EvalResult.class,
-                char.class
-            )
-        );
+        MethodHandle dispatcher = LOOKUP.findStatic(FlatMatrixTurboCompiler.class, "dispatchUnaryOp",
+                MethodType.methodType(EvalResult.class, EvalResult.class, char.class, ResultCache.class));
 
-        dispatcher = MethodHandles.insertArguments(dispatcher, 1, op);
+        ResultCache nodeCache = new ResultCache();
+        dispatcher = MethodHandles.insertArguments(dispatcher, 1, op, nodeCache);
         return MethodHandles.filterArguments(dispatcher, 0, operand);
     }
 
-    /**
-     * Dispatcher for unary operations.
-     */
-    public static MathExpression.EvalResult dispatchUnaryOp(
-            MathExpression.EvalResult operand,
-            char op) {
-
-        if (operand.type == MathExpression.EvalResult.TYPE_SCALAR) {
-            return unaryOpScalar(op, operand.scalar);
-        }
-
-        if (operand.type == MathExpression.EvalResult.TYPE_MATRIX) {
-            return unaryOpMatrix(op, operand.matrix);
-        }
-
-        throw new RuntimeException("Unsupported unary op on type: " + operand.getTypeName());
-    }
-
-    /**
-     * Scalar unary operations.
-     */
-    private static MathExpression.EvalResult unaryOpScalar(char op, double val) {
-        MathExpression.EvalResult res = new MathExpression.EvalResult();
-        switch (op) {
-            case '√': res.wrap(Math.sqrt(val)); break;
-            case 'R': res.wrap(Math.cbrt(val)); break;
-            case '!': res.wrap(Maths.fact(val)); break;
-            case '²': res.wrap(val * val); break;
-            case '³': res.wrap(val * val * val); break;
-            default: throw new UnsupportedOperationException("Unary op: " + op);
-        }
-        return res;
-    }
-
-    /**
-     * Matrix unary operations.
-     */
-    private static MathExpression.EvalResult unaryOpMatrix(char op, Matrix m) {
-        MathExpression.EvalResult res = new MathExpression.EvalResult();
-        switch (op) {
-            case '²':
-                res.wrap(flatMatrixMultiply(m, m));
-                break;
-            case '³': {
-                Matrix m2 = flatMatrixMultiply(m, m);
-                res.wrap(flatMatrixMultiply(m2, m));
-                break;
-            }
-            default:
-                throw new UnsupportedOperationException("Matrix unary op: " + op);
-        }
-        return res;
-    }
-
-    // ========== MATRIX FUNCTIONS ==========
-
-    /**
-     * Compile matrix functions: det, inverse, transpose, etc.
-     */
-    private MethodHandle compileMatrixFunction(
-            MathExpression.Token t,
-            MethodHandle[] args) throws Throwable {
-
+    private MethodHandle compileMatrixFunction(MathExpression.Token t, MethodHandle[] args) throws Throwable {
         String funcName = t.name.toLowerCase();
 
-        MethodHandle dispatcher = LOOKUP.findStatic(
-            FlatMatrixTurboCompiler.class,
-            "dispatchMatrixFunction",
-            MethodType.methodType(
-                MathExpression.EvalResult.class,
-                MathExpression.EvalResult[].class,
-                String.class
-            )
-        );
+        MethodHandle dispatcher = LOOKUP.findStatic(FlatMatrixTurboCompiler.class, "dispatchMatrixFunction",
+                MethodType.methodType(EvalResult.class, EvalResult[].class, String.class, ResultCache.class));
 
-        dispatcher = MethodHandles.insertArguments(dispatcher, 1, funcName);
+        ResultCache nodeCache = new ResultCache();
+        dispatcher = MethodHandles.insertArguments(dispatcher, 1, funcName, nodeCache);
 
-        // Collect arguments into array
-        // This is where we'd handle variable arities
-        // For now, simplified - you can extend this
+        MethodHandle collector = LOOKUP.findStatic(FlatMatrixTurboCompiler.class, "collectArgsArray",
+                MethodType.methodType(EvalResult[].class, EvalResult[].class)).asVarargsCollector(EvalResult[].class);
+        collector = collector.asType(MethodType.methodType(EvalResult[].class,
+                Collections.nCopies(t.arity, EvalResult.class).toArray(new Class[0])));
 
-        return dispatcher;
+        MethodHandle finalFunc = MethodHandles.collectArguments(dispatcher, 0, collector);
+
+        for (int i = 0; i < args.length; i++) {
+            finalFunc = MethodHandles.collectArguments(finalFunc, i, args[i]);
+        }
+
+        int[] reorder = new int[args.length];
+        return MethodHandles.permuteArguments(finalFunc,
+                MethodType.methodType(EvalResult.class, double[].class), reorder);
     }
 
-    /**
-     * Dispatcher for matrix functions.
-     * @param args
-     * @param funcName
-     * @return 
-     */
-    public static MathExpression.EvalResult dispatchMatrixFunction(
-            MathExpression.EvalResult[] args,
-            String funcName) {
+    public static EvalResult[] collectArgsArray(EvalResult... args) {
+        return args;
+    }
 
-        MathExpression.EvalResult res = new MathExpression.EvalResult();
+    // ========== RUNTIME DISPATCHERS ==========
+    private static EvalResult dispatchBinaryOp(char op, EvalResult left, EvalResult right, ResultCache cache) {
+        int leftType = left.type;
+        int rightType = right.type;
 
-        switch (funcName) {
-            case "det":
-                if (args[0].type != MathExpression.EvalResult.TYPE_MATRIX) {
-                    throw new RuntimeException("det() requires matrix argument");
+        switch (op) {
+            case '+':
+                if (leftType == EvalResult.TYPE_SCALAR && rightType == EvalResult.TYPE_SCALAR) {
+                    cache.result.wrap(left.scalar + right.scalar);
+                } else if (leftType == EvalResult.TYPE_MATRIX && rightType == EvalResult.TYPE_MATRIX) {
+                    cache.result.wrap(flatMatrixAdd(left.matrix, right.matrix, cache));
+                } else {
+                    throw new UnsupportedOperationException("Addition mismatch: " + leftType + " and " + rightType);
                 }
-                res.wrap(flatMatrixDeterminant(args[0].matrix));
                 break;
 
-            case "invert":
-            case "inverse":
-                if (args[0].type != MathExpression.EvalResult.TYPE_MATRIX) {
-                    throw new RuntimeException("inverse() requires matrix argument");
+            case '-':
+                if (leftType == EvalResult.TYPE_SCALAR && rightType == EvalResult.TYPE_SCALAR) {
+                    cache.result.wrap(left.scalar - right.scalar);
+                } else if (leftType == EvalResult.TYPE_MATRIX && rightType == EvalResult.TYPE_MATRIX) {
+                    cache.result.wrap(flatMatrixSubtract(left.matrix, right.matrix, cache));
+                } else {
+                    throw new UnsupportedOperationException("Subtraction mismatch");
                 }
-                res.wrap(flatMatrixInverse(args[0].matrix));
                 break;
 
-            case "transpose":
-                if (args[0].type != MathExpression.EvalResult.TYPE_MATRIX) {
-                    throw new RuntimeException("transpose() requires matrix argument");
+            case '*':
+                if (leftType == EvalResult.TYPE_SCALAR && rightType == EvalResult.TYPE_SCALAR) {
+                    cache.result.wrap(left.scalar * right.scalar);
+                } else if (leftType == EvalResult.TYPE_SCALAR && rightType == EvalResult.TYPE_MATRIX) {
+                    // SCALAR * MATRIX
+                    cache.result.wrap(flatMatrixScalarMultiply(left.scalar, right.matrix, cache));
+                } else if (leftType == EvalResult.TYPE_MATRIX && rightType == EvalResult.TYPE_SCALAR) {
+                    // MATRIX * SCALAR
+                    cache.result.wrap(flatMatrixScalarMultiply(right.scalar, left.matrix, cache));
+                } else if (leftType == EvalResult.TYPE_MATRIX && rightType == EvalResult.TYPE_MATRIX) {
+                    // MATRIX * MATRIX
+                    cache.result.wrap(flatMatrixMultiply(left.matrix, right.matrix, cache));
                 }
-                res.wrap(flatMatrixTranspose(args[0].matrix));
                 break;
-
-            case "tri_mat":
-                if (args[0].type != MathExpression.EvalResult.TYPE_MATRIX) {
-                    throw new RuntimeException("tri_mat() requires matrix argument");
+            case '^':
+                if (leftType == EvalResult.TYPE_SCALAR && rightType == EvalResult.TYPE_SCALAR) {
+                    cache.result.wrap(Math.pow(left.scalar, right.scalar));
+                } else if (leftType == EvalResult.TYPE_MATRIX && rightType == EvalResult.TYPE_SCALAR) {
+                    // MATRIX ^ SCALAR (Matrix Power)
+                    cache.result.wrap(flatMatrixPower(left.matrix, right.scalar, cache));
+                } else {
+                    throw new UnsupportedOperationException("Power mismatch: Cannot raise " + leftType + " to " + rightType);
                 }
-                res.wrap(flatMatrixTriangular(args[0].matrix));
                 break;
 
             default:
-                throw new UnsupportedOperationException("Function not supported: " + funcName);
+                throw new UnsupportedOperationException("Operator not implemented: " + op);
+        }
+        return cache.result;
+    }
+
+// Add this helper if you don't have it yet for Scalar * Matrix
+    private static Matrix flatMatrixScalarMultiply(double scalar, Matrix m, ResultCache cache) {
+        double[] mF = m.getFlatArray();
+        Matrix out = cache.getMatrixBuffer(m.getRows(), m.getCols());
+        double[] resF = out.getFlatArray();
+        for (int i = 0; i < mF.length; i++) {
+            resF[i] = scalar * mF[i];
+        }
+        return out;
+    }
+
+    public static EvalResult dispatchMatrixFunction(EvalResult[] args, String funcName, ResultCache cache) {
+        switch (funcName) {
+            case "matrix_add":
+                return cache.result.wrap(flatMatrixAdd(args[0].matrix, args[1].matrix, cache));
+            case "matrix_sub":
+                return cache.result.wrap(flatMatrixSubtract(args[0].matrix, args[1].matrix, cache));
+            case "matrix_mul":
+            case "matrix_multiply":
+                return cache.result.wrap(flatMatrixMultiply(args[0].matrix, args[1].matrix, cache));
+            case "det":
+                return cache.result.wrap(args[0].matrix.determinant());
+            case "inverse":
+            case "invert":
+                return cache.result.wrap(args[0].matrix.inverse());
+            case "transpose":
+                return cache.result.wrap(args[0].matrix.transpose());
+            default:
+                throw new UnsupportedOperationException("Function: " + funcName);
+        }
+    }
+
+    public static EvalResult dispatchUnaryOp(EvalResult operand, char op, ResultCache cache) {
+        if (op == '²') {
+            if (operand.type == EvalResult.TYPE_SCALAR) {
+                return cache.result.wrap(operand.scalar * operand.scalar);
+            } else {
+                return cache.result.wrap(flatMatrixMultiply(operand.matrix, operand.matrix, cache));
+            }
+        }
+        throw new UnsupportedOperationException("Unary op: " + op);
+    }
+
+    // ========== MATH KERNELS (ZERO ALLOCATION) ==========
+    private static EvalResult binaryOpScalar(char op, double a, double b, ResultCache cache) {
+        switch (op) {
+            case '+':
+                return cache.result.wrap(a + b);
+            case '-':
+                return cache.result.wrap(a - b);
+            case '*':
+                return cache.result.wrap(a * b);
+            case '/':
+                return cache.result.wrap(a / b);
+            default:
+                throw new UnsupportedOperationException();
+        }
+    }
+
+    private static EvalResult binaryOpMatrix(char op, Matrix left, Matrix right, ResultCache cache) {
+        switch (op) {
+            case '+':
+                return cache.result.wrap(flatMatrixAdd(left, right, cache));
+            case '-':
+                return cache.result.wrap(flatMatrixSubtract(left, right, cache));
+            case '*':
+                return cache.result.wrap(flatMatrixMultiply(left, right, cache));
+            default:
+                throw new UnsupportedOperationException();
+        }
+    }
+
+    private static Matrix flatMatrixAdd(Matrix a, Matrix b, ResultCache cache) {
+        double[] aF = a.getFlatArray(), bF = b.getFlatArray();
+        Matrix out = cache.getMatrixBuffer(a.getRows(), a.getCols());
+        double[] resF = out.getFlatArray();
+        for (int i = 0; i < aF.length; i++) {
+            resF[i] = aF[i] + bF[i];
+        }
+        return out;
+    }
+
+    private static Matrix flatMatrixSubtract(Matrix a, Matrix b, ResultCache cache) {
+        double[] aF = a.getFlatArray(), bF = b.getFlatArray();
+        Matrix out = cache.getMatrixBuffer(a.getRows(), a.getCols());
+        double[] resF = out.getFlatArray();
+        for (int i = 0; i < aF.length; i++) {
+            resF[i] = aF[i] - bF[i];
+        }
+        return out;
+    }
+
+    private static Matrix flatMatrixMultiply(Matrix a, Matrix b, ResultCache cache) {
+        int aR = a.getRows(), aC = a.getCols(), bC = b.getCols();
+        Matrix out = cache.getMatrixBuffer(aR, bC);
+        double[] aF = a.getFlatArray(), bF = b.getFlatArray(), resF = out.getFlatArray();
+
+        for (int i = 0; i < aR; i++) {
+            int iRow = i * aC;
+            int outRow = i * bC;
+            for (int j = 0; j < bC; j++) {
+                double s = 0;
+                for (int k = 0; k < aC; k++) {
+                    s += aF[iRow + k] * bF[k * bC + j];
+                }
+                resF[outRow + j] = s;
+            }
+        }
+        return out;
+    }
+
+    private static Matrix flatMatrixPower(Matrix m, double exponent, ResultCache cache) {
+        int p = (int) exponent;
+        if (p < 0) {
+            throw new UnsupportedOperationException("Negative matrix power not supported.");
+        }
+        if (p == 0) {
+            return identity(m.getRows(), cache);
         }
 
+        // Initial state
+        Matrix base = m;
+        Matrix res = null;
+
+        while (p > 0) {
+            if ((p & 1) == 1) {
+                if (res == null) {
+                    res = copyToCache(base, cache);
+                } else {
+                    // Use a temporary allocation-free multiply
+                    res = flatMatrixMultiply(res, base, cache);
+                }
+            }
+            if (p > 1) {
+                base = flatMatrixMultiply(base, base, cache);
+            }
+            p >>= 1;
+        }
         return res;
     }
 
-    /**
-     * Determinant calculation using LU decomposition.
-     * Optimized for flat arrays.
-     */
-    private static double flatMatrixDeterminant(Matrix m) {
-        if (m.getRows() != m.getCols()) {
-            throw new IllegalArgumentException("Determinant requires square matrix");
-        }
-
-        // Delegate to existing Matrix.determinant() for now
-        // (you could optimize this further with flat-array LU)
-        return m.determinant();
+    private static Matrix copyToCache(Matrix source, ResultCache cache) {
+        Matrix target = cache.getSecondaryBuffer(source.getRows(), source.getCols());
+        System.arraycopy(source.getFlatArray(), 0, target.getFlatArray(), 0, source.getFlatArray().length);
+        return target;
     }
 
-    /**
-     * Matrix inverse using Gaussian elimination.
-     */
-    private static Matrix flatMatrixInverse(Matrix m) {
-        if (m.getRows() != m.getCols()) {
-            throw new IllegalArgumentException("Inverse requires square matrix");
+    private static Matrix identity(int dim, ResultCache cache) {
+        Matrix id = cache.getMatrixBuffer(dim, dim);
+        double[] data = id.getFlatArray();
+        java.util.Arrays.fill(data, 0.0);
+        for (int i = 0; i < dim; i++) {
+            data[i * dim + i] = 1.0;
         }
-
-        // Delegate to existing implementation
-        return m.inverse();
-    }
-
-    /**
-     * Matrix transpose.
-     * Optimized for flat arrays.
-     */
-    private static Matrix flatMatrixTranspose(Matrix m) {
-        int rows = m.getRows();
-        int cols = m.getCols();
-        
-        double[] original = m.getFlatArray();
-        double[] transposed = new double[original.length];
-
-        // A[i][j] in original = original[i*cols + j]
-        // A^T[j][i] in transposed = transposed[j*rows + i]
-
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                transposed[j * rows + i] = original[i * cols + j];
-            }
-        }
-
-        return new Matrix(transposed, cols, rows);
-    }
-
-    /**
-     * Triangular matrix reduction.
-     */
-    private static Matrix flatMatrixTriangular(Matrix m) {
-        // Delegate to existing implementation
-        return m.reduceToTriangularMatrix();
+        return id;
     }
 }

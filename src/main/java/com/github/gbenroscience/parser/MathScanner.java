@@ -1680,8 +1680,13 @@ public class MathScanner {
  
         //String s5 = "sum(sin(3),cos(3),ln(345),sort(3,-4,5,-6,13,2,4,5,sum(3,4,5,6,9,12,23), sum(3,4,8,9,2000)),12000, mode(3,2,2,1), mode(1,5,7,7,1,1,7))";
 
-        MathScanner sc = new MathScanner(s5);
+        
+        String s6 = "2a-3b";
+        String s7 = "2*M-3*M";
+        MathScanner sc = new MathScanner(s6);
         System.out.println(sc.scanner(new VariableManager()));
+        MathScanner sc1 = new MathScanner(s7);
+        System.out.println(sc1.scanner(new VariableManager()));
  
         System.out.println(FunctionManager.FUNCTIONS);
  

@@ -5,6 +5,7 @@
 package com.github.gbenroscience.util;
 
 import com.github.gbenroscience.parser.Function;
+import com.github.gbenroscience.parser.TYPE;
 import com.github.gbenroscience.parser.Variable;
 
 import java.util.ArrayList;
@@ -40,7 +41,8 @@ public class FunctionManager {
      * @return true if a Function exists by the name supplied.
      */
     public static boolean contains(String fName) {
-        return lookUp(fName) != null;
+        Function f = lookUp(fName);
+        return f != null && f.getType() != TYPE.MATRIX;
     }//end method
 
     /**

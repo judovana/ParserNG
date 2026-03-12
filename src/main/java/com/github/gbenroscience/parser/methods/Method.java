@@ -361,7 +361,7 @@ public class Method {
     }
 
     /**
-     *
+     * @param op 
      * @return true if the Function name has been defined by the user in the
      * user's workspace.
      */
