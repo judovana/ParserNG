@@ -6,6 +6,7 @@ import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.MathExpression.EvalResult;
 import com.github.gbenroscience.parser.TYPE;
+import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.util.FunctionManager;
 import java.lang.invoke.*;
 import java.util.*;

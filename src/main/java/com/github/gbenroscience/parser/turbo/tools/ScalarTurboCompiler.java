@@ -15,35 +15,29 @@
  */
 package com.github.gbenroscience.parser.turbo.tools;
 
-
-
 import com.github.gbenroscience.math.Maths;
 import com.github.gbenroscience.parser.MathExpression;
+import com.github.gbenroscience.parser.methods.MethodRegistry;
 import java.lang.invoke.*;
 import java.util.*;
 
 /**
  * Turbo compiler optimized for PURE SCALAR expressions.
- * 
- * Compiles mathematical expressions to native bytecode using MethodHandles
- * and LambdaMetafactory. First call takes ~5-10ms, subsequent calls return
- * cached version. Runtime performance: ~5-10 ns/op (vs 55+ ns/op interpreted).
- * 
- * This is the refactored version of TurboCompiler that returns FastCompositeExpression
- * for compatibility with the matrix turbo compiler.
- * 
- * Key optimizations:
- * - MethodHandle call chains for zero-copy execution
- * - Constant folding at compile time
- * - Direct array access for variables
- * - Inlined arithmetic operations
- * - Degree/Radian conversion at compile time
- * 
- * Performance targets:
- * - First compilation: ~5-10 ms
- * - Per-evaluation (cached): ~5-10 ns
- * - Scalar vs Interpreted: ~5-10x faster
- * 
+ *
+ * Compiles mathematical expressions to native bytecode using MethodHandles and
+ * LambdaMetafactory. First call takes ~5-10ms, subsequent calls return cached
+ * version. Runtime performance: ~5-10 ns/op (vs 55+ ns/op interpreted).
+ *
+ * This is the refactored version of TurboCompiler that returns
+ * FastCompositeExpression for compatibility with the matrix turbo compiler.
+ *
+ * Key optimizations: - MethodHandle call chains for zero-copy execution -
+ * Constant folding at compile time - Direct array access for variables -
+ * Inlined arithmetic operations - Degree/Radian conversion at compile time
+ *
+ * Performance targets: - First compilation: ~5-10 ms - Per-evaluation (cached):
+ * ~5-10 ns - Scalar vs Interpreted: ~5-10x faster
+ *
  * @author GBEMIRO
  */
 public class ScalarTurboCompiler implements TurboExpressionCompiler {
@@ -57,13 +51,11 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
 
     /**
      * Compile scalar expression to EvalResult-wrapped bytecode.
-     * 
-     * The compilation process:
-     * 1. Build MethodHandle chain from postfix tokens
-     * 2. Each handle transforms (double[]) -> double
-     * 3. Binary ops: combine left & right, permute args
-     * 4. Wrap result in EvalResult.wrap(scalar)
-     * 
+     *
+     * The compilation process: 1. Build MethodHandle chain from postfix tokens
+     * 2. Each handle transforms (double[]) -> double 3. Binary ops: combine
+     * left & right, permute args 4. Wrap result in EvalResult.wrap(scalar)
+     *
      * @param postfix The compiled postfix (RPN) token array
      * @param registry The variable registry for frame slot management
      * @return A FastCompositeExpression that returns wrapped scalar
@@ -124,11 +116,15 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
 
                 case MathExpression.Token.FUNCTION:
                 case MathExpression.Token.METHOD:
-                    MethodHandle[] args = new MethodHandle[t.arity];
-                    for (int i = t.arity - 1; i >= 0; i--) {
-                        args[i] = stack.pop();
+                    // Extract the exact number of arguments required by this function
+                    int arity = t.arity;
+                    List<MethodHandle> args = new ArrayList<>(arity);
+                    for (int i = 0; i < arity; i++) {
+                        // Since it's a stack (LIFO), we add to index 0 to maintain correct 1st, 2nd, 3rd arg order
+                        args.add(0, stack.pop());
                     }
-                    stack.push(applyFunction(t, args));
+                    // Compile this specific function call and push the resulting handle back to the stack
+                    stack.push(compileFunction(t, args));
                     break;
             }
         }
@@ -143,14 +139,35 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
         return resultHandle.asType(MT_SAFE_WRAP);
     }
 
+    private static MethodHandle compileFunction(MathExpression.Token t, List<MethodHandle> argumentHandles) throws Throwable {
+        // 1. Get the unique ID from MethodRegistry
+        int methodId = MethodRegistry.getMethodID(t.name);
+
+        // 2. Setup the bridge handle: (int methodId, double[] args) -> double
+        MethodHandle bridge = LOOKUP.findStatic(ScalarTurboCompiler.class, "invokeRegistryMethod",
+                MethodType.methodType(double.class, int.class, double[].class));
+
+        // 3. Bind the methodId so the resulting handle only needs the double[]
+        MethodHandle boundBridge = MethodHandles.insertArguments(bridge, 0, methodId);
+
+        // 4. Transform the handle to accept N individual double arguments instead of one double[]
+        // Signature changes from (double[]) -> double   TO   (double, double, ...) -> double
+        MethodHandle collector = boundBridge.asCollector(double[].class, argumentHandles.size());
+
+        // 5. Pipe the results of the sub-expression handles into the collector's arguments
+        // We use collectArguments to "pre-fill" the collector with the outputs of our argument tree
+        for (int i = 0; i < argumentHandles.size(); i++) {
+            collector = MethodHandles.collectArguments(collector, i, argumentHandles.get(i));
+        }
+
+        return collector;
+    }
+
     // ========== BINARY OPERATORS ==========
-    
     /**
      * Apply binary operator by combining left and right operands.
-     * 
-     * Transforms:
-     * - left: (double[]) -> double
-     * - right: (double[]) -> double
+     *
+     * Transforms: - left: (double[]) -> double - right: (double[]) -> double
      * Result: (double[]) -> double
      */
     private static MethodHandle applyBinaryOp(char op, MethodHandle left, MethodHandle right) throws Throwable {
@@ -191,13 +208,10 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
     }
 
     // ========== UNARY OPERATORS ==========
-    
     /**
      * Apply unary operator by filtering the operand.
-     * 
-     * Transforms:
-     * - operand: (double[]) -> double
-     * - unaryOp: (double) -> double
+     *
+     * Transforms: - operand: (double[]) -> double - unaryOp: (double) -> double
      * Result: (double[]) -> double
      */
     private static MethodHandle applyUnaryOp(char op, MethodHandle operand) throws Throwable {
@@ -233,14 +247,11 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
     }
 
     // ========== FUNCTIONS ==========
-    
     /**
      * Apply a function (method or user-defined) with given arity.
-     * 
-     * Supports:
-     * - Arity 1: single input function
-     * - Arity 2: binary input function
-     * - Higher arities: delegates to method registry
+     *
+     * Supports: - Arity 1: single input function - Arity 2: binary input
+     * function - Higher arities: delegates to method registry
      */
     private static MethodHandle applyFunction(MathExpression.Token t, MethodHandle[] args) throws Throwable {
         String name = t.name.toLowerCase();
@@ -262,14 +273,36 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
     }
 
     /**
+     * Bridge method to execute any function from MethodRegistry within the
+     * Scalar Turbo chain. This must be public and static for MethodHandles to
+     * resolve it.
+     */
+    public static double invokeRegistryMethod(int methodId, double[] argsValues) {
+        // 1. Convert primitive array to EvalResult array for the existing MethodRegistry
+        com.github.gbenroscience.parser.MathExpression.EvalResult[] wrappedArgs
+                = new com.github.gbenroscience.parser.MathExpression.EvalResult[argsValues.length];
+
+        for (int i = 0; i < argsValues.length; i++) {
+            wrappedArgs[i] = new com.github.gbenroscience.parser.MathExpression.EvalResult();
+            wrappedArgs[i].wrap(argsValues[i]);
+        }
+
+        // 2. Reuse a local EvalResult for the calculation result
+        com.github.gbenroscience.parser.MathExpression.EvalResult cache
+                = new com.github.gbenroscience.parser.MathExpression.EvalResult();
+
+        // 3. Execute using the existing MethodRegistry action
+        return com.github.gbenroscience.parser.methods.MethodRegistry
+                .getAction(methodId)
+                .calc(cache, wrappedArgs.length, wrappedArgs).scalar;
+    }
+
+    /**
      * Get unary function handle (arity 1).
-     * 
-     * Supports:
-     * - Trigonometric: sin, cos, tan, asin, acos, atan (with DRG variants)
-     * - Logarithmic: log, ln, log10
-     * - Power/Root: sqrt, cbrt
-     * - Rounding: floor, ceil, abs
-     * - Other: exp, fact
+     *
+     * Supports: - Trigonometric: sin, cos, tan, asin, acos, atan (with DRG
+     * variants) - Logarithmic: log, ln, log10 - Power/Root: sqrt, cbrt -
+     * Rounding: floor, ceil, abs - Other: exp, fact
      */
     private static MethodHandle getUnaryFunctionHandle(String name) throws Throwable {
         switch (name) {
@@ -333,9 +366,9 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
     }
 
     /**
-     * Chain Math.toRadians into a trigonometric function.
-     * This keeps the conversion in the compiled bytecode.
-     * 
+     * Chain Math.toRadians into a trigonometric function. This keeps the
+     * conversion in the compiled bytecode.
+     *
      * Pattern: trigOp(toRadians(x)) is compiled as a single chain.
      */
     private static MethodHandle chainToRadians(MethodHandle trigOp) throws Throwable {
@@ -345,11 +378,9 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
 
     /**
      * Get binary function handle (arity 2).
-     * 
-     * Supports:
-     * - Power operations: pow
-     * - Trigonometric: atan2
-     * - Comparison: min, max
+     *
+     * Supports: - Power operations: pow - Trigonometric: atan2 - Comparison:
+     * min, max
      */
     private static MethodHandle getBinaryFunctionHandle(String name) throws Throwable {
         switch (name) {
@@ -367,7 +398,6 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
     }
 
     // ========== INLINE ARITHMETIC HELPERS ==========
-    
     /**
      * Inlined addition: a + b
      */

@@ -17,8 +17,7 @@ package com.github.gbenroscience.parser.turbo.tools;
 
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.parser.Function;
-import com.github.gbenroscience.parser.MathExpression;
-import com.github.gbenroscience.parser.methods.Method;
+import com.github.gbenroscience.parser.MathExpression; 
 import com.github.gbenroscience.util.FunctionManager;
 /**
  *
