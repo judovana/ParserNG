@@ -201,7 +201,8 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                         this.matrix.setName(name);
 
                     } else {
-                        throw new InputMismatchException("Invalid number of entries found in Matrix Data---for input: " + input);
+                        throw new InputMismatchException("Invalid number of entries found in Matrix Data---for input: " +
+                                input+"Found [rows,cols]=["+rows+","+cols+"],items found in matrix = "+matrixData.size());
                     }
 
                 }//end else if params-list  size == 2

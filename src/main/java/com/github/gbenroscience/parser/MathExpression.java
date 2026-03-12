@@ -2218,14 +2218,9 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
         }
 
 // In EvalResult class:
-        public void reset() {
-            this.scalar = 0.0;
-            this.vector = null;
-            this.matrix = null;
-            this.textRes = null;
-            this.boolVal = false;
-            this.error = null;
+        public void reset() { 
             this.type = TYPE_SCALAR;
+            this.error = null; 
         }
 
         @Override

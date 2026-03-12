@@ -167,7 +167,7 @@ class MathExpressionTest {
                 + "    0.0  ,    3.0  ,    4.0            \n"
                 + "    4.0  ,    0.0  ,  -11.0            \n", FunctionManager.lookUp(ls).getMatrix().toString());
 
-        MathExpression expr = new MathExpression("tri_mat(M)");
+        MathExpression expr = new MathExpression("tri_mat(M)");System.out.println("tri_mat(M)"+expr.solve());
         Matrix m = FunctionManager.lookUp(expr.solve()).getMatrix();
         System.out.println(m.toString());
         if (print) {

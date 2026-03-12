@@ -584,21 +584,23 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
             case Declarations.MATRIX_TRANSPOSE:
                 return cache.result.wrap(args[0].matrix.transpose());
             case Declarations.MATRIX_EIGENVALUES:
-                // 1. Compute natively
-                double[] evals = args[0].matrix.computeEigenValues();
-                // 2. Buffer into a 1xN result matrix to avoid 'new' matrix object creation
-                Matrix evMatrix = cache.getMatrixBuffer(1, evals.length);
-                System.arraycopy(evals, 0, evMatrix.getFlatArray(), 0, evals.length);
-                return cache.result.wrap(evMatrix);
-       
+                // 1. Get raw data and dimensions
+                double[] inputData = args[0].matrix.getFlatArray();
+                int rows = args[0].matrix.getRows();
+
+                // 2. Compute using the static provider (ThreadLocal internally)
+                // This returns a raw flat array: [Re, Im, Re, Im...]
+                Matrix evals = EigenProvider.getEigenvalues(rows, inputData); 
+                return cache.result.wrap(evals);
 
             case Declarations.MATRIX_EIGENVEC:
-                // For eigenvectors, we return the N x N Modal Matrix
-                // The Matrix class computeEigenVector logic stays as is, 
-                // but we use cache.getMatrixBuffer to store the result columns.
+                // 1. Get raw data and dimensions
+                double[] inputDataVec = args[0].matrix.getFlatArray();
                 int n = args[0].matrix.getRows();
-                Matrix modalMatrix = cache.getMatrixBuffer(n, n);
-                fillEigenVectorMatrix(args[0].matrix, modalMatrix);
+
+                // 2. Compute the Modal Matrix (N x N)
+                // EigenEngineTurbo handles the Householder/QR/Back-substitution
+                Matrix modalMatrix = EigenProvider.getEigenvectors(n, inputDataVec); 
                 return cache.result.wrap(modalMatrix);
             case Declarations.LINEAR_SYSTEM:
                 Matrix input;
@@ -607,7 +609,7 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
                     input = args[0].matrix;
                 } else {
                     // Case: linear_sys(1, 2, 3...) inline coefficients
-                    int rows = (int) ((-1 + Math.sqrt(1 + 4 * args.length)) / 2.0);
+                    rows = (int) ((-1 + Math.sqrt(1 + 4 * args.length)) / 2.0);
                     int cols = rows + 1;
                     // Optimization: Instead of 'new Matrix', pull a buffer from the cache
                     input = cache.getMatrixBuffer(rows, cols);
@@ -729,7 +731,7 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
                 int col = (int) args[2].scalar;
                 double newVal = args[3].scalar;
 
-                int rows = target.getRows();
+                rows = target.getRows();
                 int cols = target.getCols();
 
                 // Copy target to our result buffer
@@ -860,4 +862,50 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
         }
         return id;
     }
+
+  public static final class EigenProvider {
+
+    /**
+     * An internal engine instance that handles the high-performance 
+     * numerical algorithms.
+     */
+    private static final EigenEngineTurbo ENGINE = new EigenEngineTurbo();
+
+    /**
+     * Returns the eigenvalues of a matrix.
+     * * Since eigenvalues can be complex, this returns an n x 2 Matrix 
+     * where Column 0 is the Real part and Column 1 is the Imaginary part.
+     * * @param n          The dimension of the square matrix (n x n).
+     * @param matrixData The flat 1D array of the matrix data.
+     * @return A Matrix object of size n x 2.
+     */
+    public static Matrix getEigenvalues(int n, double[] matrixData) {
+        // ENGINE returns [r1, i1, r2, i2, ... rN, iN] (length 2n)
+        double[] evals = ENGINE.getEigenvalues(n, matrixData);
+        
+        // Wrap the 2n array into an n-row, 2-column Matrix
+        return new Matrix(evals, n, 2);
+    }
+
+    /**
+     * Returns the eigenvectors of a matrix as a square Matrix.
+     * * This method is "Turbo" optimized because it computes eigenvalues once 
+     * and passes them directly to the vector solver, avoiding the expensive 
+     * QR algorithm repetition.
+     * * @param n          The dimension of the square matrix (n x n).
+     * @param matrixData The flat 1D array of the matrix data.
+     * @return A Matrix object of size n x n where columns are eigenvectors.
+     */
+    public static Matrix getEigenvectors(int n, double[] matrixData) {
+        // Instantiate a temporary Matrix object to access the optimized 
+        // compute/get methods logic.
+        Matrix m = new Matrix(matrixData, n, n);
+        
+        // 1. Calculate eigenvalues required for the vector shift
+        double[] evals = m.computeEigenValues();
+        
+        // 2. Generate the n x n eigenvector matrix using the values above
+        return m.getEigenVectorMatrix(evals);
+    }
+}
 }

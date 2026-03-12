@@ -328,6 +328,14 @@ public class RootFinder {
         //[root, (, F, ,, 2, )]
         //[root, (, F, ,, 2, ,, 3, )]
         //[root, (, F, ,, 2, ,, 3, ,, 10000, )]
+        /**
+         * root(@(x)sin(x)+cos(x),2,3)
+         * root(anon1,2,3)
+         * root(@(x)sin(x)+cos(x),sin(12), exp(3^0.15))
+         * root(anon2,sin(12), exp(3^0.15))
+         * 
+         * 
+         */
 
         String methodName = list.get(0);
         String args1, args2, args3;

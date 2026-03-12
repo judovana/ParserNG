@@ -620,7 +620,7 @@ public class MathScanner {
             }
 
         }//end if
-
+System.out.println("scanner1: "+scanner+"-----MathScanner:"+this);
         removeExcessBrackets(scanner);
         recognizeAnonymousFunctions(scanner);
         for (int i = 0; i < scanner.size(); i++) {
@@ -645,7 +645,7 @@ public class MathScanner {
 
                 int close = Bracket.getComplementIndex(true, i + 1, scanner);
                 List<String> list = scanner.subList(i, close + 1);
-                NumericalIntegral.extractFunctionStringFromExpression(list);
+                //IF THINGS GO BAD, UNCOMMENT HERE---1 NumericalIntegral.extractFunctionStringFromExpression(list);
                 if (list.isEmpty()) {
                     parser_Result = ParserResult.INCOMPLETE_PARAMS;
                     setRunnable(false);
@@ -655,8 +655,8 @@ public class MathScanner {
             else if (Method.isMatrixMethod(token) && nextToken.equals("(")) {
 // matrix_mul,(,@,(x),log(x,2),4,8)
                 int close = Bracket.getComplementIndex(true, i + 1, scanner);
-                List<String> list = scanner.subList(i, close + 1);
-                extractFunctionStringFromExpressionForMatrixMethods(list);
+                List<String> list = scanner.subList(i, close + 1); System.out.println("list: "+list);
+               //IF THINGS GO BAD, UNCOMMENT HERE---2 extractFunctionStringFromExpressionForMatrixMethods(list);
                 if (list.isEmpty()) {
                     parser_Result = ParserResult.INCOMPLETE_PARAMS;
                     setRunnable(false);
@@ -668,7 +668,7 @@ public class MathScanner {
                 int close = Bracket.getComplementIndex(true, i + 1, scanner);
                 List<String> list = scanner.subList(i, close + 1);
                 // System.out.println("list: " + list);
-                RootFinder.extractFunctionStringFromExpression(list);
+               //IF THINGS GO BAD, UNCOMMENT HERE---3  RootFinder.extractFunctionStringFromExpression(list);
 
                 if (list.isEmpty()) {
                     parser_Result = ParserResult.INCOMPLETE_PARAMS;
@@ -1443,7 +1443,6 @@ public class MathScanner {
             }
         } else {
             for (int i = 0; i < list.size(); i++) {
-
                 if (isClosingBracket(list.get(i))) {
                     int open = Bracket.getComplementIndex(false, i, list);
                     if (open > 0) {
@@ -1683,12 +1682,18 @@ public class MathScanner {
         String s6 = "2a-3b";
         String s7 = "2*M-3*M";
         String s8 = "linear_sys(M)";
-        MathScanner sc = new MathScanner(s6);
-        System.out.println(sc.scanner(new VariableManager()));
-        MathScanner sc1 = new MathScanner(s7);
-        System.out.println(sc1.scanner(new VariableManager()));
-        MathScanner sc2 = new MathScanner(s8);
-        System.out.println(sc2.scanner(new VariableManager()));
+        String s9 = "linear_sys(@(4,5)(3,1,2,4,5,9,2,3,12,7,12,8,7,-2,3,15,4,-5,3,8))";
+        String s10 = "diff(@(x)sin(x),2,3)";
+        String s11 = "root(@(x)sin(x),2,3)";
+        String s12= "root(@(x)sin(x),sin(2)-cos(1),13*(2+3))";
+        MathScanner sc = new MathScanner(s9);
+        System.out.println("*************************"+sc.scanner(new VariableManager()));
+        MathScanner sc1 = new MathScanner(s10);
+        System.out.println("*************************"+sc1.scanner(new VariableManager()));
+        MathScanner sc2 = new MathScanner(s11);
+        System.out.println("*************************"+sc2.scanner(new VariableManager()));
+        MathScanner sc3 = new MathScanner(s12);
+        System.out.println("*************************"+sc3.scanner(new VariableManager()));
 
         System.out.println(FunctionManager.FUNCTIONS);
 
