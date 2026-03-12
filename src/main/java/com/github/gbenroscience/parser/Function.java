@@ -13,6 +13,10 @@ import java.util.List;
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.util.FunctionManager;
+import static com.github.gbenroscience.util.FunctionManager.ANON_CURSOR;
+import static com.github.gbenroscience.util.FunctionManager.ANON_PREFIX;
+import static com.github.gbenroscience.util.FunctionManager.FUNCTIONS;
+import static com.github.gbenroscience.util.FunctionManager.update;
 import com.github.gbenroscience.util.Serializer;
 import com.github.gbenroscience.util.VariableManager;
 
@@ -52,8 +56,30 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      */
     public Function(Matrix matrix) {
         this.matrix = matrix;
-        this.type = TYPE.MATRIX;
-        FunctionManager.add(this);
+        this.type = TYPE.MATRIX;  
+        
+        String fName = this.matrix.getName();
+
+        Function oldFunc = FUNCTIONS.get(fName);
+
+        if (oldFunc == null) {//function does not exist in registry
+            Variable v = VariableManager.lookUp(fName);//check if a Variable has this name in the Variables registry
+            if (v != null) {
+                VariableManager.delete(fName);//if so delete it.
+            }//end if
+            FUNCTIONS.put(fName, this);
+            if(fName.startsWith(ANON_PREFIX)){
+                ANON_CURSOR.incrementAndGet();
+            }
+        } else {
+            FunctionManager.update(toString());
+        }
+        FunctionManager.update();
+        
+        
+        
+        
+        
     }
 
     /**
@@ -119,7 +145,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             }
 
             if (!Variable.isVariableString(name)) {
-                throw new InputMismatchException("Bad name for Function.");
+                throw new InputMismatchException("Bad name for Function---name="+name);
             }
 
             String paramsList = input.substring(openIndex + 1, close);

@@ -151,9 +151,9 @@ public class Matrix {
     }//end method
 
     public final void setArray(double[] flatArray, int rows, int columns) {
- 
+
         if (rows * columns == flatArray.length) {
- 
+
             this.array = flatArray;
             this.rows = rows;
             this.cols = columns;
@@ -213,7 +213,7 @@ public class Matrix {
      * </b>
      *
      */
-    public void swapRow(int row1, int row2) {
+    private void swapRowOld(int row1, int row2) {
         for (int column = 0; column < cols; column++) {
             double v1 = array[row1 * cols + column];
             double v2 = array[row2 * cols + column];
@@ -222,6 +222,26 @@ public class Matrix {
             array[row2 * cols + column] = v3;
         }//end for
     }//end method.
+
+    public void swapRow(int row1, int row2) {
+        if (row1 == row2) {
+            return;
+        }
+
+        int row1Offset = row1 * cols;
+        int row2Offset = row2 * cols;
+
+        // Use a temporary array for the swap
+        // For Turbo, you could pull this from a small pre-allocated pool in ResultCache
+        double[] temp = new double[cols];
+
+        // 1. Copy row1 to temp
+        System.arraycopy(array, row1Offset, temp, 0, cols);
+        // 2. Copy row2 to row1
+        System.arraycopy(array, row2Offset, array, row1Offset, cols);
+        // 3. Copy temp to row2
+        System.arraycopy(temp, 0, array, row2Offset, cols);
+    }
 
     /**
      *
@@ -510,19 +530,20 @@ public class Matrix {
 
     /**
      * Convert a vector to a Matrix
+     *
      * @param vector
-     * @return 
+     * @return
      */
-    public static final Matrix vectorToMatrix(double[]vector){
-                // Create a 1xN matrix
-                Matrix result = new Matrix(1, vector.length);
-                // Directly copy the array into the matrix's internal storage
-                double array[] = new double[vector.length];
-                System.arraycopy(vector, 0, array, 0, vector.length);
-                result.setArray(array, 1, vector.length);
-                return result;
+    public static final Matrix vectorToMatrix(double[] vector) {
+        // Create a 1xN matrix
+        Matrix result = new Matrix(1, vector.length);
+        // Directly copy the array into the matrix's internal storage
+        double array[] = new double[vector.length];
+        System.arraycopy(vector, 0, array, 0, vector.length);
+        result.setArray(array, 1, vector.length);
+        return result;
     }
-    
+
     /**
      *
      * @param value The value to insert
@@ -742,6 +763,52 @@ public class Matrix {
                     + "RANGE FROM ZERO TO (AND INCLUDING) THE NUMBER OF ROWS IN THIS MATRIX.");
         }
     }//end method rowDeleteFromStart
+
+    /**
+     * Reduces the matrix to upper triangular form in-place. Implements Partial
+     * Pivoting for numerical stability.
+     */
+    public void reduceToTriangularMatrixInPlace() {
+        int n = this.rows;
+        int m = this.cols;
+        double[] data = this.array;
+
+        for (int k = 0; k < n; k++) {
+            // 1. Partial Pivoting: Find the largest element in the current column
+            int pivot = k;
+            double maxVal = Math.abs(data[k * m + k]);
+
+            for (int i = k + 1; i < n; i++) {
+                double currentVal = Math.abs(data[i * m + k]);
+                if (currentVal > maxVal) {
+                    maxVal = currentVal;
+                    pivot = i;
+                }
+            }
+
+            // 2. Swap if necessary
+            if (pivot != k) {
+                swapRow(k, pivot);
+            }
+
+            // 3. Singularity Check
+            double diagVal = data[k * m + k];
+            if (Math.abs(diagVal) < 1e-18) { // Precision threshold
+                throw new ArithmeticException("Matrix is singular or nearly singular.");
+            }
+
+            // 4. Elimination
+            for (int i = k + 1; i < n; i++) {
+                double factor = data[i * m + k] / diagVal;
+
+                // We only need to process from col k onwards because 
+                // the values to the left are already zeroed.
+                for (int j = k; j < m; j++) {
+                    data[i * m + j] -= factor * data[k * m + j];
+                }
+            }
+        }
+    }
 
     /**
      *
@@ -1155,7 +1222,6 @@ public class Matrix {
 
         return isValid;
     }
- 
 
     /**
      * @param mat The string matrix
@@ -1616,8 +1682,53 @@ public class Matrix {
             }
         }
     }
+    
+    /**
+ * Calculates the Wilkinson Shift for the bottom-right 2x2 block of a Hessenberg matrix.
+ * The shift is the eigenvalue of the 2x2 block that is closer to the last diagonal element.
+ * * @param H The matrix in Hessenberg form
+ * @param m The current active size of the submatrix (m x m)
+ * @return The calculated real shift mu
+ */
+private double calculateWilkinsonShift(double[][] H, int m) {
+    // Indices for the bottom 2x2 submatrix:
+    // [ a  b ]
+    // [ c  d ]
+    double a = H[m - 2][m - 2];
+    double b = H[m - 2][m - 1];
+    double c = H[m - 1][m - 2];
+    double d = H[m - 1][m - 1];
 
-    private double calculateWilkinsonShift(double[][] H, int m) {
+    // Delta is half the difference of the diagonal elements
+    double delta = (a - d) / 2.0;
+
+    // Numerical Guard: Calculate the discriminant (delta^2 + b*c)
+    // In non-symmetric matrices, b*c can be negative.
+    double discriminant = delta * delta + b * c;
+
+    // If the discriminant is negative, the 2x2 block has complex conjugate eigenvalues.
+    // Since we are currently in a Real-QR domain, we fall back to the 
+    // Rayleigh Quotient Shift (the last diagonal element 'd').
+    if (discriminant < 0) {
+        return d;
+    }
+
+    // sign of delta to ensure we choose the eigenvalue closer to d
+    double signDelta = (delta >= 0) ? 1.0 : -1.0;
+
+    // Calculate the denominator: |delta| + sqrt(delta^2 + b*c)
+    double denom = Math.abs(delta) + Math.sqrt(discriminant);
+
+    // Final Safety: if denom is practically zero, return d to avoid division by zero
+    if (denom < 1e-18) {
+        return d;
+    }
+
+    // Wilkinson formula: mu = d - (sign(delta) * b * c) / (|delta| + sqrt(delta^2 + b*c))
+    return d - (signDelta * b * c) / denom;
+}
+
+    private double calculateWilkinsonShiftOld(double[][] H, int m) {
         // Indices for the bottom 2x2 submatrix
         double a = H[m - 2][m - 2];
         double b = H[m - 2][m - 1];
@@ -1633,7 +1744,10 @@ public class Matrix {
 
         // Calculate the shift: mu = d - (sign(delta) * b * c) / (|delta| + sqrt(delta^2 + b*c))
         // This is a numerically stable version of the quadratic formula
-        double denom = Math.abs(delta) + Math.sqrt(delta * delta + b * c);
+        //double denom = Math.abs(delta) + Math.sqrt(delta * delta + b * c);
+
+        double discriminant = delta * delta + b * c;
+        double denom = Math.abs(delta) + Math.sqrt(Math.max(0, discriminant)); // Clamp to 0
 
         if (denom == 0) {
             return d; // Fallback to the last diagonal element
@@ -2096,7 +2210,6 @@ public class Matrix {
         return true;
     }
 
-    
     /**
      *
      * @return a string representation of the matrix in rows and columns.
@@ -2123,7 +2236,7 @@ public class Matrix {
 
         return output;
     }//end method toString
-    
+
     /**
      * (2-x)(3-x)(1-x)=(6-5x+x^2)(1-x)=6-11x+6x^2-x^3 {1, 2, 3, 4, 5} {6, 7, 8,
      * 9, 0} {1, 2, 3, 4, 5} {6, 7, 8, 9, 0} {1, 2, 3, 4, 5}

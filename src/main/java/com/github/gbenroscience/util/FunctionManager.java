@@ -179,6 +179,10 @@ public class FunctionManager {
             FUNCTIONS.keySet().removeAll(anonKeys);
         }
     }
+    
+    public static final void clear(){
+        FUNCTIONS.clear();
+    }
 
     /**
      *

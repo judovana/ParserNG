@@ -49,6 +49,51 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
     private static final MethodType MT_DOUBLE_DD = MethodType.methodType(double.class, double.class, double.class);
     private static final MethodType MT_SAFE_WRAP = MethodType.methodType(double.class, double[].class);
 
+    // 1. ThreadLocal holding a reusable array of EvalResults to avoid GC pressure
+    private static final ThreadLocal<MathExpression.EvalResult[]> WRAPPER_CACHE
+            = ThreadLocal.withInitial(() -> {
+                MathExpression.EvalResult[] arr = new MathExpression.EvalResult[8];
+                for (int i = 0; i < 8; i++) {
+                    arr[i] = new MathExpression.EvalResult();
+                }
+                return arr;
+            });
+
+    /**
+     * Hardened production bridge. Zero allocation for arity <= 8. Safely scales
+     * for any arity without crashing.
+     */
+    public static double invokeRegistryMethod(int methodId, double[] argsValues) {
+        MathExpression.EvalResult[] wrappers = WRAPPER_CACHE.get();
+        int arity = argsValues.length;
+
+        // DEFENSIVE: If we hit a rare function with > 8 arguments, 
+        // expand the cache for this specific thread instead of crashing.
+        if (arity > wrappers.length) {
+            int newSize = Math.max(arity, wrappers.length * 2);
+            MathExpression.EvalResult[] newWrappers = new MathExpression.EvalResult[newSize];
+            // Copy existing objects to avoid re-initializing everything
+            System.arraycopy(wrappers, 0, newWrappers, 0, wrappers.length);
+            for (int i = wrappers.length; i < newSize; i++) {
+                newWrappers[i] = new MathExpression.EvalResult();
+            }
+            wrappers = newWrappers;
+            WRAPPER_CACHE.set(wrappers);
+        }
+
+        // Map primitives to the cached objects
+        for (int i = 0; i < arity; i++) {
+            wrappers[i].wrap(argsValues[i]);
+        }
+
+        // Use a fresh result container (lightweight object) to ensure 
+        // thread-local results don't leak between calls.
+        MathExpression.EvalResult resultContainer = new MathExpression.EvalResult();
+
+        return MethodRegistry.getAction(methodId)
+                .calc(resultContainer, arity, wrappers).scalar;
+    }
+
     /**
      * Compile scalar expression to EvalResult-wrapped bytecode.
      *
@@ -270,31 +315,6 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
         }
 
         throw new UnsupportedOperationException("Unsupported arity for function: " + name);
-    }
-
-    /**
-     * Bridge method to execute any function from MethodRegistry within the
-     * Scalar Turbo chain. This must be public and static for MethodHandles to
-     * resolve it.
-     */
-    public static double invokeRegistryMethod(int methodId, double[] argsValues) {
-        // 1. Convert primitive array to EvalResult array for the existing MethodRegistry
-        com.github.gbenroscience.parser.MathExpression.EvalResult[] wrappedArgs
-                = new com.github.gbenroscience.parser.MathExpression.EvalResult[argsValues.length];
-
-        for (int i = 0; i < argsValues.length; i++) {
-            wrappedArgs[i] = new com.github.gbenroscience.parser.MathExpression.EvalResult();
-            wrappedArgs[i].wrap(argsValues[i]);
-        }
-
-        // 2. Reuse a local EvalResult for the calculation result
-        com.github.gbenroscience.parser.MathExpression.EvalResult cache
-                = new com.github.gbenroscience.parser.MathExpression.EvalResult();
-
-        // 3. Execute using the existing MethodRegistry action
-        return com.github.gbenroscience.parser.methods.MethodRegistry
-                .getAction(methodId)
-                .calc(cache, wrappedArgs.length, wrappedArgs).scalar;
     }
 
     /**

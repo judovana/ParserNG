@@ -152,7 +152,7 @@ public class MathExpression implements Savable, Solvable {
     private static final int PREC_MULDIV = 3;   // *, /, %, Р, Č
     private static final int PREC_ADDSUB = 2;   // +, -
     private static final int PREC_UNARY = 100;  // Unary minus
-    public Token[] cachedPostfix = null;  // Cache the compiled postfix
+    private Token[] cachedPostfix = null;  // Cache the compiled postfix
 
     private double[] executionFrame;
     VariableRegistry registry = new VariableRegistry();
@@ -374,6 +374,10 @@ public class MathExpression implements Savable, Solvable {
 
     }
 
+    public static final VariableRegistry createNewVariableRegistry() {
+        return new VariableRegistry();
+    }
+
     public String getExpression() {
         return expression;
     }
@@ -419,12 +423,13 @@ public class MathExpression implements Savable, Solvable {
         setNoOfListReturningOperators(0);
         whitespaceremover.add("");
         //Scanner operation
-
+ 
         MathScanner opScanner = new MathScanner(expression);
         opScanner.scanner(variableManager);
         this.commaAlias = opScanner.commaAlias;
 
         scanner = opScanner.getScanner();
+   
 
         correctFunction = opScanner.isRunnable();
 
@@ -437,7 +442,7 @@ public class MathExpression implements Savable, Solvable {
             functionComponentsAssociation();
             compileToPostfix();  // Compile once if not already done
         }//end if
-      
+
     }//end method initializing(args)
 
     public void setWillFoldConstants(boolean willFoldConstants) {
@@ -516,9 +521,11 @@ public class MathExpression implements Savable, Solvable {
 
             TurboExpressionCompiler compiler;
             if (!hasMatrixOps) {
+                System.out.println("SELECTED ScalarTurboCompiler");
                 // Pure scalar expressions: use ultra-fast scalar compiler (~5ns)
                 compiler = new ScalarTurboCompiler();
             } else {
+                System.out.println("SELECTED FlatMatrixTurboCompiler");
                 // Any matrix operations: use flat-array optimized compiler (~50-1000ns)
                 compiler = new FlatMatrixTurboCompiler();
             }
@@ -547,8 +554,6 @@ public class MathExpression implements Savable, Solvable {
                 }
             }
 
-            
-            
             Function func = FunctionManager.lookUp(t.name);
             // 2. Check for Matrix Literals (@ notation)
             if (func != null && func.getType() == TYPE.MATRIX) {
@@ -556,7 +561,7 @@ public class MathExpression implements Savable, Solvable {
             }
 
             // 3. THE CRITICAL FIX: Check if a named variable is actually a Matrix
-            if (t.name != null && !t.name.isEmpty()) { 
+            if (t.name != null && !t.name.isEmpty()) {
                 if (func != null && func.getType() == TYPE.MATRIX) {
                     return true;
                 }
@@ -721,7 +726,7 @@ public class MathExpression implements Savable, Solvable {
     }
 
     public boolean hasVariable(String var) {
-        return registry.hasVariable(var); 
+        return registry.hasVariable(var);
     }
 
     /**
@@ -904,13 +909,14 @@ public class MathExpression implements Savable, Solvable {
      */
     private void codeModifier() {
 
-        if (correctFunction) {  
+        if (correctFunction) {
             StringBuilder utility = new StringBuilder();
 
             /**
              * This stage serves for negative number detection. Prior to this
              * stage, all numbers are seen as positive ones. For example: turns
-             * [12,/,-,5] to [12,/,-5]. [2,*,M,-,3,*,M] should not become [2,*,M,-3,*,M]
+             * [12,/,-,5] to [12,/,-5]. [2,*,M,-,3,*,M] should not become
+             * [2,*,M,-3,*,M]
              *
              * It also counts the number of list-returning operators in the
              * system.
@@ -922,7 +928,7 @@ public class MathExpression implements Savable, Solvable {
                     if ((isBinaryOperator(tkn) || isUnaryPreOperator(tkn)
                             || isOpeningBracket(tkn)
                             || isLogicOperator(tkn) || isAssignmentOperator(tkn)
-                            || isComma(tkn) || (Method.isStatsMethod(tkn ) && f!=null && !f.isMatrix() )  )
+                            || isComma(tkn) || (Method.isStatsMethod(tkn) && f != null && !f.isMatrix()))
                             && Operator.isPlusOrMinus(scanner.get(i + 1)) && isNumber(scanner.get(i + 2))) {
                         utility.append(scanner.get(i + 1));
                         utility.append(scanner.get(i + 2));
@@ -936,7 +942,7 @@ public class MathExpression implements Savable, Solvable {
                 }//end catch
 
             }//end for
-   
+
             scanner.removeAll(whitespaceremover);
 
         } else if (!correctFunction) {
@@ -2336,7 +2342,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
      * Manages the mapping of variable names to frame slots. Use one instance
      * per MathExpression compilation.
      */
-    public final class VariableRegistry {
+    public static final class VariableRegistry {
 
         private final Map<String, Integer> nameToSlot = new HashMap<>();
         private int nextAvailableSlot = 0;
