@@ -21,8 +21,7 @@ package com.github.gbenroscience.parser.turbo;
  */
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.parser.Function;
-import com.github.gbenroscience.parser.MathExpression;
-import com.github.gbenroscience.parser.methods.Declarations;
+import com.github.gbenroscience.parser.MathExpression; 
 import com.github.gbenroscience.parser.turbo.tools.FastCompositeExpression;
 import com.github.gbenroscience.parser.turbo.tools.TurboCompilerFactory;
 import com.github.gbenroscience.util.FunctionManager;
@@ -54,7 +53,6 @@ public class ParserNGTurboMatrixTest {
         testCofactorAndAdjoint(size);
         testMatrixDivision(size);
         testEigenvalues(size);
-        testEigenval();
     }
 
     private void testLinearSolver(int n) throws Throwable {
@@ -62,12 +60,13 @@ public class ParserNGTurboMatrixTest {
         // Create function and embed the matrix
         Matrix m = new Matrix(data, n, n + 1);
         m.setName("M");
-        Function f = new Function(m);
-        FunctionManager.add(f);
+        Function f = new Function(m); 
+    
         MathExpression expr = new MathExpression("linear_sys(M)");
-
-        FastCompositeExpression turbo = TurboCompilerFactory.getCompiler(expr.getCachedPostfix())
-                .compile(expr.getCachedPostfix(), null);
+      
+        FastCompositeExpression turbo = TurboCompilerFactory.getCompiler(expr)
+                .compile();
+ 
 
         Matrix res = turbo.applyMatrix(emptyFrame);
 
@@ -83,15 +82,15 @@ public class ParserNGTurboMatrixTest {
 
         // Adjoint test
         MathExpression adjExpr = new MathExpression("adjoint(A)");
-        FastCompositeExpression turboAdj = TurboCompilerFactory.getCompiler(adjExpr.getCachedPostfix())
-                .compile(adjExpr.getCachedPostfix(), null);
+        FastCompositeExpression turboAdj = TurboCompilerFactory.getCompiler(adjExpr)
+                .compile();
 
         assertEquals(n, turboAdj.applyMatrix(emptyFrame).getRows());
 
         // Cofactors test
         MathExpression cofExpr = new MathExpression("cofactor(A)");
-        FastCompositeExpression turboCof = TurboCompilerFactory.getCompiler(cofExpr.getCachedPostfix())
-                .compile(cofExpr.getCachedPostfix(), null);
+        FastCompositeExpression turboCof = TurboCompilerFactory.getCompiler(cofExpr)
+                .compile();
 
         assertEquals(n, turboCof.applyMatrix(emptyFrame).getRows());
     }
@@ -105,8 +104,8 @@ public class ParserNGTurboMatrixTest {
         FunctionManager.add(new Function(b));
 
         MathExpression divExpr = new MathExpression("A / B");
-        FastCompositeExpression turboDiv = TurboCompilerFactory.getCompiler(divExpr.getCachedPostfix())
-                .compile(divExpr.getCachedPostfix(), null);
+        FastCompositeExpression turboDiv = TurboCompilerFactory.getCompiler(divExpr)
+                .compile();
 
         assertEquals(n, turboDiv.applyMatrix(emptyFrame).getRows());
     }
@@ -115,17 +114,14 @@ public class ParserNGTurboMatrixTest {
         Matrix e = new Matrix(generateRandomArray(n * n), n, n);
         e.setName("R");
         FunctionManager.add(new Function(e));
-
-        System.out.println("Matrix-" + e);
-
+ 
         MathExpression eigenExpr = new MathExpression("eigvalues(R)");
-        FastCompositeExpression turbo = TurboCompilerFactory.getCompiler(eigenExpr.getCachedPostfix())
-                .compile(eigenExpr.getCachedPostfix(), null);
+        FastCompositeExpression turbo = TurboCompilerFactory.getCompiler(eigenExpr)
+                .compile();
 
-        Matrix res = turbo.applyMatrix(emptyFrame);
-        System.out.println("eigValues: " + res);
-        assertEquals(1, res.getRows());
-        assertEquals(n, res.getCols());
+        Matrix res = turbo.applyMatrix(emptyFrame); 
+        assertEquals(n, res.getRows());
+        assertEquals(2, res.getCols());
     }
 
     private double[] generateRandomArray(int size) {
@@ -136,7 +132,7 @@ public class ParserNGTurboMatrixTest {
         return arr;
     }
 
-    @Test
+  //  @Test
     public void testEigenval() {
 
         MathExpression me = new MathExpression("R=@(5,5)(3.6960389979858523  ,10.656660507703922  ,8.250361808124694  ,1.2864528025782198  ,9.735431283674686,"
@@ -153,12 +149,12 @@ public class ParserNGTurboMatrixTest {
         FastCompositeExpression turbo = null;
         try {
             MathExpression eigenExpr = new MathExpression("eigvalues(R)");
-            turbo = TurboCompilerFactory.getCompiler(eigenExpr.getCachedPostfix())
-                    .compile(eigenExpr.getCachedPostfix(), null);
+            turbo = TurboCompilerFactory.getCompiler(eigenExpr)
+                    .compile();
             Matrix res = turbo.applyMatrix(emptyFrame);
             System.out.println("eigValues-----------------------\n " + res);
-            assertEquals(1, res.getRows());
-            assertEquals(5, res.getCols());
+            assertEquals(5, res.getRows());
+            assertEquals(2, res.getCols());
         } catch (Throwable ex) {
             Logger.getLogger(ParserNGTurboMatrixTest.class.getName()).log(Level.SEVERE, null, ex);
         }

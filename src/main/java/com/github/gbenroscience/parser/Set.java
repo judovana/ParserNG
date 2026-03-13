@@ -1112,7 +1112,7 @@ public class Set {
                         case MATRIX:
                             printImpl(f.getMatrix().toString());
                             break;
-                        case LIST:
+                        case VECTOR:
                             printImpl(f.getMatrix().toString());
                             break;
                         default:

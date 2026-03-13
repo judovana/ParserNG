@@ -441,7 +441,7 @@ public class Declarations {
             case MEDIAN:
                 return TYPE.NUMBER.toString();
             case MODE:
-                return TYPE.LIST.toString();
+                return TYPE.VECTOR.toString();
             case RANGE:
                 return TYPE.NUMBER.toString();
             case MID_RANGE:
@@ -461,9 +461,9 @@ public class Declarations {
             case STD_ERR:
                 return TYPE.NUMBER.toString();
             case RANDOM:
-                return TYPE.LIST.toString();
+                return TYPE.VECTOR.toString();
             case SORT:
-                return TYPE.LIST.toString();
+                return TYPE.VECTOR.toString();
             case SUM:
                 return TYPE.NUMBER.toString();
             case LIST_SUM:
@@ -475,13 +475,13 @@ public class Declarations {
             case INTEGRATION:
                 return TYPE.NUMBER.toString();
             case QUADRATIC:
-                return TYPE.LIST.toString();
+                return TYPE.VECTOR.toString();
             case TARTAGLIA_ROOTS:
-                return TYPE.LIST.toString();
+                return TYPE.VECTOR.toString();
             case GENERAL_ROOT:
                 return TYPE.NUMBER.toString();
             case LINEAR_SYSTEM:
-                return TYPE.LIST.toString();
+                return TYPE.VECTOR.toString();
             case DETERMINANT:
                 return TYPE.NUMBER.toString();
             case INVERSE_MATRIX:

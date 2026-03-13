@@ -33,8 +33,10 @@ public class TurboCompilerFactory {
     /**
      * Intelligently selects and returns the best Turbo engine for the
      * expression.
+     * @param me The {@linkplain MathExpression} 
      */
-    public static TurboExpressionCompiler getCompiler(MathExpression.Token[] postfix) {
+    public static TurboExpressionCompiler getCompiler(MathExpression me) {
+        MathExpression.Token[] postfix = me.getCachedPostfix();
         boolean involvesMatrices = false;
 
         // Scan tokens for Matrix indicators
@@ -47,10 +49,10 @@ public class TurboCompilerFactory {
 
         if (involvesMatrices) {
             // Returns the O(1) allocation engine for heavy linear algebra
-            return new FlatMatrixTurboCompiler();
+            return new FlatMatrixTurboCompiler(postfix);
         } else {
             // Returns the ultra-lean engine for scalar 3D point generation
-            return new ScalarTurboCompiler();
+            return new ScalarTurboCompiler(postfix);
         }
     }
 

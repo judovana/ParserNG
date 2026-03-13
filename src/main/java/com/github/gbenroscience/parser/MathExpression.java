@@ -33,7 +33,6 @@ import static com.github.gbenroscience.parser.Operator.*;
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 
 import static com.github.gbenroscience.parser.TYPE.ALGEBRAIC_EXPRESSION;
-import static com.github.gbenroscience.parser.TYPE.LIST;
 import static com.github.gbenroscience.parser.TYPE.MATRIX;
 import com.github.gbenroscience.parser.benchmarks.GG;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
@@ -47,6 +46,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Stack;
+import static com.github.gbenroscience.parser.TYPE.VECTOR;
 
 /**
  *
@@ -105,7 +105,7 @@ public class MathExpression implements Savable, Solvable {
      * If set to true, the constants folding algorithm will be run to further
      * optimize the compiled postfix and so make the speed of evaluation faster.
      */
-    private boolean willFoldConstants = true;
+    private boolean willFoldConstants;
 
     private ExpressionSolver expressionSolver;
 
@@ -193,6 +193,7 @@ public class MathExpression implements Savable, Solvable {
         // NEW FIELDS FOR FUNCTION ASSIGNMENT
         public String assignToName;  // The variable to assign result to (e.g., "vw")
         public boolean isAssignmentTarget = false;
+        private String[]rawArgs;
 
         // Constructor for Numbers
         public Token(double value) {
@@ -245,6 +246,12 @@ public class MathExpression implements Savable, Solvable {
             this.isAssignmentTarget = (assignToName != null);
         }
 
+        public String[] getRawArgs() {
+            return rawArgs;
+        }
+
+        
+        
         // Helper to get precedence for opChar
         public static int getPrec(char op) {
             switch (op) {
@@ -331,11 +338,15 @@ public class MathExpression implements Savable, Solvable {
      *
      */
     public MathExpression(String input) {
-        this(input, new VariableManager());
+        this(input, new VariableManager(), true);
     }//end constructor MathExpression
 
-    public MathExpression(String input, VariableManager variableManager) {
+    public MathExpression(String input, boolean foldConstants) {
+        this(input, new VariableManager(), foldConstants);
+    }//end constructor MathExpression
 
+    public MathExpression(String input, VariableManager variableManager, boolean foldConstants) {
+        this.willFoldConstants = foldConstants;
         this.help = input.equals(Declarations.HELP);
         for (int i = 0; i < INIT_POOL_SIZE; i++) {
             pool[i] = new EvalResult();
@@ -423,13 +434,12 @@ public class MathExpression implements Savable, Solvable {
         setNoOfListReturningOperators(0);
         whitespaceremover.add("");
         //Scanner operation
- 
+
         MathScanner opScanner = new MathScanner(expression);
         opScanner.scanner(variableManager);
         this.commaAlias = opScanner.commaAlias;
 
         scanner = opScanner.getScanner();
-   
 
         correctFunction = opScanner.isRunnable();
 
@@ -446,7 +456,11 @@ public class MathExpression implements Savable, Solvable {
     }//end method initializing(args)
 
     public void setWillFoldConstants(boolean willFoldConstants) {
+        boolean changed = willFoldConstants != this.willFoldConstants;
         this.willFoldConstants = willFoldConstants;
+        if(changed){
+            compileToPostfix();
+        }
     }
 
     public boolean isWillFoldConstants() {
@@ -523,13 +537,13 @@ public class MathExpression implements Savable, Solvable {
             if (!hasMatrixOps) {
                 System.out.println("SELECTED ScalarTurboCompiler");
                 // Pure scalar expressions: use ultra-fast scalar compiler (~5ns)
-                compiler = new ScalarTurboCompiler();
+                compiler = new ScalarTurboCompiler(cachedPostfix);
             } else {
                 System.out.println("SELECTED FlatMatrixTurboCompiler");
                 // Any matrix operations: use flat-array optimized compiler (~50-1000ns)
-                compiler = new FlatMatrixTurboCompiler();
+                compiler = new FlatMatrixTurboCompiler(cachedPostfix);
             }
-            compiledTurbo = compiler.compile(cachedPostfix, registry);
+            compiledTurbo = compiler.compile();
             turboCompiled = true;
             return compiledTurbo;
 
@@ -1880,7 +1894,7 @@ public class MathExpression implements Savable, Solvable {
                         "comb", "perm",
                         // ===== ROUNDING & ABSOLUTE =====
                         "abs", "floor", "ceil", "round", "trunc", "sign",
-                        // ===== LIST STATISTICS (pure functions - no state) =====
+                        // ===== VECTOR STATISTICS (pure functions - no state) =====
                         "listsum", "sum", "prod", "product",
                         "mean", "listavg", "avg", "average",
                         "median", "med",
@@ -2218,9 +2232,9 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
         }
 
 // In EvalResult class:
-        public void reset() { 
+        public void reset() {
             this.type = TYPE_SCALAR;
-            this.error = null; 
+            this.error = null;
         }
 
         @Override
@@ -2269,7 +2283,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
                 case TYPE_STRING:
                     return TYPE.STRING;
                 case TYPE_VECTOR:
-                    return TYPE.LIST;
+                    return TYPE.VECTOR;
                 case TYPE_MATRIX:
                     return TYPE.MATRIX;
                 case TYPE_BOOLEAN:
@@ -2291,7 +2305,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
                     case ALGEBRAIC_EXPRESSION:
                         wrap(f.getMathExpression().getExpression());
                         break;
-                    case LIST:
+                    case VECTOR:
                         wrap(f.getMatrix().getFlatArray());
                         break;
                     default:

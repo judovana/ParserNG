@@ -16,8 +16,10 @@
 package com.github.gbenroscience.parser.turbo.tools;
 
 import com.github.gbenroscience.math.Maths;
+import com.github.gbenroscience.math.differentialcalculus.Derivative;
 import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
+import com.github.gbenroscience.util.FunctionManager;
 import java.lang.invoke.*;
 import java.util.*;
 
@@ -58,6 +60,45 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                 }
                 return arr;
             });
+
+    private MathExpression.Token[] postfix;
+
+    private static final Set<String> FAST_PATH_METHODS = new HashSet<>(Arrays.asList(
+            "acsc_deg",
+            "sech", "tan-¹_rad", "acot_rad",
+            "cos-¹_deg", "asin_grad", "sqrt", "acos_grad", "acot_deg",
+            "cube", "exp", "ln-¹", "asec_rad", "asec_deg",
+            "acosh", "diff", "sec_grad", "ceil",
+            "csc_rad", "tanh-¹", "comb", "tan-¹_deg", "acsch", "acot_grad",
+            "sec_rad", "fact", "acoth", "atanh",
+            "log", "tan_grad", "tan-¹_grad",
+            "st_err", "coth-¹", "min", "log-¹",
+            "cot-¹_grad", "sech-¹", "pow",
+            "csc_deg", "cos-¹_rad", "tan_rad", "max",
+            "sin-¹_deg", "intg", "cot-¹_deg", "quadratic",
+            "alog", "acsc_rad", "abs",
+            "sin-¹_rad", "tan_deg", "lg", "sec_deg", "atan_deg", "ln",
+            "sinh-¹", "asin_rad", "acos_deg", "cov", "mode",
+            "atan_rad", "asech", "cos_grad", "cot-¹_rad", "asec_grad",
+            "s_d", "acos_rad", "alg", "aln",
+            "sinh", "cos_rad", "rnd", "rng",
+            "t_root", "acsc_grad", "square", "csch-¹",
+            "sec-¹_grad", "asin_deg", "cos_deg", "perm", "csc_grad",
+            "sec-¹_deg", "sin_deg", "sin-¹_grad", "cot_deg",
+            "coth", "cbrt", "sec-¹_rad", "tanh",
+            "cos-¹_grad", "lg-¹", "plot", "root",
+            "cot_rad", "atan_grad", "sin_grad", "cot_grad",
+            "csc-¹_grad", "length", "csc-¹_deg", "cosh-¹", "cosh",
+            "csc-¹_rad", "sin_rad", "csch", "asinh"
+    
+
+    ///////////////////////////////////////////////////////
+
+    ));
+
+    public ScalarTurboCompiler(MathExpression.Token[] postfix) {
+        this.postfix = postfix;
+    }
 
     /**
      * Hardened production bridge. Zero allocation for arity <= 8. Safely scales
@@ -101,34 +142,66 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
      * 2. Each handle transforms (double[]) -> double 3. Binary ops: combine
      * left & right, permute args 4. Wrap result in EvalResult.wrap(scalar)
      *
-     * @param postfix The compiled postfix (RPN) token array
-     * @param registry The variable registry for frame slot management
      * @return A FastCompositeExpression that returns wrapped scalar
      * @throws Throwable if compilation fails
      */
     @Override
-    public FastCompositeExpression compile(MathExpression.Token[] postfix,
-            MathExpression.VariableRegistry registry) throws Throwable {
+    public FastCompositeExpression compile() throws Throwable {
 
         // Compile to scalar MethodHandle
-        MethodHandle scalarHandle = compileScalar(postfix, registry);
+        MethodHandle scalarHandle = compileScalar(postfix);
 
         // Wrap scalar result in EvalResult
-        return (double[] variables) -> {
-            try {
-                double value = (double) scalarHandle.invokeExact(variables);
-                return new MathExpression.EvalResult().wrap(value);
-            } catch (Throwable t) {
-                throw new RuntimeException("Turbo scalar execution failed", t);
+        return new FastCompositeExpression() {
+            @Override
+            public MathExpression.EvalResult apply(double[] variables) {
+                try {
+                    double value = (double) scalarHandle.invokeExact(variables);
+                    return new MathExpression.EvalResult().wrap(value);
+                } catch (Throwable t) {
+                    throw new RuntimeException("Turbo scalar execution failed", t);
+                }
             }
+
+            @Override
+            public double applyScalar(double[] variables) {
+                try {
+                    // invokeExact is key: no casting, no boxing, no overhead.
+                    return (double) scalarHandle.invokeExact(variables);
+                } catch (Throwable t) {
+                    throw new RuntimeException("Turbo primitive execution failed", t);
+                }
+            }
+
         };
+    }
+
+    private static boolean isIntrinsic(String name, int arity) {
+        // Only arity 1 and 2 are candidates for primitive MethodHandle optimization
+        if (arity < 1 || arity > 2) {
+            return false;
+        }
+
+        String lowerName = name.toLowerCase();
+
+        // Check if the full name (e.g., "sin_deg") is in the fast path
+        if (FAST_PATH_METHODS.contains(lowerName)) {
+            return true;
+        }
+
+        // Check if the base name (e.g., "sin") is in the fast path
+        if (lowerName.contains("_")) {
+            String base = lowerName.split("_")[0];
+            return FAST_PATH_METHODS.contains(base);
+        }
+
+        return false;
     }
 
     /**
      * Internal: Compile to raw scalar MethodHandle (double[] -> double).
      */
-    private static MethodHandle compileScalar(MathExpression.Token[] postfix,
-            MathExpression.VariableRegistry registry) throws Throwable {
+    private static MethodHandle compileScalar(MathExpression.Token[] postfix) throws Throwable {
 
         Stack<MethodHandle> stack = new Stack<>();
 
@@ -138,9 +211,16 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                     if (t.name != null && !t.name.isEmpty()) {
                         // Variable: load from array at frameIndex
                         int frameIndex = t.frameIndex;
-                        MethodHandle loader = MethodHandles.arrayElementGetter(double[].class);
-                        // result: (double[]) -> double
-                        stack.push(MethodHandles.insertArguments(loader, 1, frameIndex));
+                        // 1. Get the base method handle for our helper
+                        MethodHandle getter = LOOKUP.findStatic(ScalarTurboCompiler.class, "getVar",
+                                MethodType.methodType(double.class, double[].class, int.class));
+
+                        // 2. BAKE the index into the handle (Currying)
+                        // This transforms (double[], int) -> double into (double[]) -> double
+                        MethodHandle directVarHandle = MethodHandles.insertArguments(getter, 1, frameIndex);
+
+                        stack.push(directVarHandle);
+
                     } else {
                         // Constant value: (double[]) -> double (ignoring the array)
                         MethodHandle constant = MethodHandles.constant(double.class, t.value);
@@ -161,15 +241,73 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
 
                 case MathExpression.Token.FUNCTION:
                 case MathExpression.Token.METHOD:
-                    // Extract the exact number of arguments required by this function
-                    int arity = t.arity;
-                    List<MethodHandle> args = new ArrayList<>(arity);
-                    for (int i = 0; i < arity; i++) {
-                        // Since it's a stack (LIFO), we add to index 0 to maintain correct 1st, 2nd, 3rd arg order
-                        args.add(0, stack.pop());
+                    String name = t.name.toLowerCase(); 
+
+                    if (name.equals("diff")) {
+                        String[] args = t.getRawArgs();
+                        if (args == null || args.length == 0) {
+                            throw new IllegalArgumentException("Method 'diff' requires arguments.");
+                        }
+
+                        // 1. Resolve Expression/Handle
+                        String targetExpr = args[0];
+                        if (FunctionManager.contains(targetExpr)) {
+                            // Pull the raw string body from the manager
+                            targetExpr = FunctionManager.lookUp(targetExpr).getMathExpression().getExpression();
+                        }
+
+                        // 2. Resolve Variable & Order (with defaults)
+                        String variable = (args.length > 1) ? args[1] : "x";
+                        String order = (args.length > 2) ? args[2] : "1";
+
+                        // 3. Symbolic Derivation
+                        String solution;
+                        try {
+                            solution = Derivative.eval("diff(" + targetExpr + "," + variable + "," + order + ")");
+                        } catch (Exception e) {
+                            throw new RuntimeException("Symbolic engine failed: " + targetExpr, e);
+                        }
+
+                        // 4. Recursive Compilation into the MethodHandle Tree
+                        if (com.github.gbenroscience.parser.Number.isNumber(solution)) {
+                            double val = Double.parseDouble(solution);
+                            MethodHandle constant = MethodHandles.constant(double.class, val);
+                            stack.push(MethodHandles.dropArguments(constant, 0, double[].class));
+                        } else {
+                            // Reparse the solution string and compile it.
+                            // This effectively "inlines" the derivative logic.
+                            MathExpression solutionExpr = new MathExpression(solution, true);
+                            stack.push(compileScalar(solutionExpr.getCachedPostfix()));
+                        }
+                        break;
                     }
-                    // Compile this specific function call and push the resulting handle back to the stack
-                    stack.push(compileFunction(t, args));
+
+                    // --- Standard Intrinsic / Slow-Path for other Functions/Methods ---
+                    int arity = t.arity;
+
+                    // 1. Check if we can bypass the Registry for a Fast-Path Intrinsic
+                    if (isIntrinsic(name, arity)) {
+                        if (arity == 1) {
+                            // Primitive Unary Path: (double) -> double
+                            MethodHandle operand = stack.pop();
+                            MethodHandle fn = getUnaryFunctionHandle(name);
+                            stack.push(MethodHandles.filterArguments(fn, 0, operand));
+                        } else if (arity == 2) {
+                            // Primitive Binary Path: (double, double) -> double
+                            MethodHandle right = stack.pop();
+                            MethodHandle left = stack.pop();
+                            MethodHandle fn = getBinaryFunctionHandle(name);
+                            MethodHandle combined = MethodHandles.filterArguments(fn, 0, left, right);
+                            stack.push(MethodHandles.permuteArguments(combined, MT_SAFE_WRAP, 0, 0));
+                        }
+                    } else {
+                        // 2. Fallback: SLOW-PATH (Bridge + Registry + Object Wrapping)
+                        List<MethodHandle> args = new ArrayList<>(arity);
+                        for (int i = 0; i < arity; i++) {
+                            args.add(0, stack.pop());
+                        }
+                        stack.push(compileFunction(t, args));
+                    }
                     break;
             }
         }
@@ -325,64 +463,193 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
      * Rounding: floor, ceil, abs - Other: exp, fact
      */
     private static MethodHandle getUnaryFunctionHandle(String name) throws Throwable {
-        switch (name) {
-            // ===== TRIGONOMETRIC: RADIANS =====
-            case "sin":
-            case "sin_rad":
-                return LOOKUP.findStatic(Math.class, "sin", MT_DOUBLE_D);
-            case "cos":
-            case "cos_rad":
-                return LOOKUP.findStatic(Math.class, "cos", MT_DOUBLE_D);
-            case "tan":
-            case "tan_rad":
-                return LOOKUP.findStatic(Math.class, "tan", MT_DOUBLE_D);
+        String lower = name.toLowerCase();
+        String base;
+        String unit = "rad";
 
-            // ===== TRIGONOMETRIC: DEGREES =====
-            case "sin_deg":
-                return chainToRadians(LOOKUP.findStatic(Math.class, "sin", MT_DOUBLE_D));
-            case "cos_deg":
-                return chainToRadians(LOOKUP.findStatic(Math.class, "cos", MT_DOUBLE_D));
-            case "tan_deg":
-                return chainToRadians(LOOKUP.findStatic(Math.class, "tan", MT_DOUBLE_D));
-
-            // ===== INVERSE TRIGONOMETRIC =====
-            case "asin":
-                return LOOKUP.findStatic(Math.class, "asin", MT_DOUBLE_D);
-            case "acos":
-                return LOOKUP.findStatic(Math.class, "acos", MT_DOUBLE_D);
-            case "atan":
-                return LOOKUP.findStatic(Math.class, "atan", MT_DOUBLE_D);
-
-            // ===== EXPONENTIAL & LOGARITHMIC =====
-            case "exp":
-                return LOOKUP.findStatic(Math.class, "exp", MT_DOUBLE_D);
-            case "log":
-            case "ln":
-                return LOOKUP.findStatic(Math.class, "log", MT_DOUBLE_D);
-            case "log10":
-                return LOOKUP.findStatic(Math.class, "log10", MT_DOUBLE_D);
-
-            // ===== POWER & ROOT =====
-            case "abs":
-                return LOOKUP.findStatic(Math.class, "abs", MT_DOUBLE_D);
-            case "sqrt":
-                return LOOKUP.findStatic(Math.class, "sqrt", MT_DOUBLE_D);
-            case "cbrt":
-                return LOOKUP.findStatic(Math.class, "cbrt", MT_DOUBLE_D);
-
-            // ===== ROUNDING =====
-            case "floor":
-                return LOOKUP.findStatic(Math.class, "floor", MT_DOUBLE_D);
-            case "ceil":
-                return LOOKUP.findStatic(Math.class, "ceil", MT_DOUBLE_D);
-
-            // ===== OTHER =====
-            case "fact":
-                return LOOKUP.findStatic(Maths.class, "fact", MT_DOUBLE_D);
-
-            default:
-                throw new UnsupportedOperationException("Function not found: " + name);
+        if (lower.contains("_")) {
+            String[] parts = lower.split("_");
+            base = parts[0];
+            unit = parts[1];
+        } else {
+            base = lower;
         }
+
+        MethodHandle mh;
+
+        switch (base) {
+            case "sin":
+                mh = LOOKUP.findStatic(Math.class, "sin", MT_DOUBLE_D);
+                break;
+            case "cos":
+                mh = LOOKUP.findStatic(Math.class, "cos", MT_DOUBLE_D);
+                break;
+            case "tan":
+                mh = LOOKUP.findStatic(Math.class, "tan", MT_DOUBLE_D);
+                break;
+            case "asin":
+            case "sin-¹":
+                mh = LOOKUP.findStatic(Math.class, "asin", MT_DOUBLE_D);
+                break;
+            case "acos":
+            case "cos-¹":
+                mh = LOOKUP.findStatic(Math.class, "acos", MT_DOUBLE_D);
+                break;
+            case "atan":
+            case "tan-¹":
+                mh = LOOKUP.findStatic(Math.class, "atan", MT_DOUBLE_D);
+                break;
+            case "sec":
+                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "sec", MT_DOUBLE_D);
+                break;
+            case "csc":
+                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "csc", MT_DOUBLE_D);
+                break;
+            case "cot":
+                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "cot", MT_DOUBLE_D);
+                break;
+
+            case "asec":
+            case "sec-¹":
+                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "asec", MT_DOUBLE_D);
+                break;
+            case "acsc":
+            case "csc-¹":
+                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "acsc", MT_DOUBLE_D);
+                break;
+            case "acot":
+            case "cot-¹":
+                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "acot", MT_DOUBLE_D);
+                break;
+            case "sinh":
+                mh = LOOKUP.findStatic(Math.class, "sinh", MT_DOUBLE_D);
+                break;
+            case "cosh":
+                mh = LOOKUP.findStatic(Math.class, "cosh", MT_DOUBLE_D);
+                break;
+            case "tanh":
+                mh = LOOKUP.findStatic(Math.class, "tanh", MT_DOUBLE_D);
+                break;
+            case "sech":
+                mh = LOOKUP.findStatic(Maths.class, "sech", MT_DOUBLE_D); // Assuming Maths helper
+                break;
+            case "csch":
+                mh = LOOKUP.findStatic(Maths.class, "csch", MT_DOUBLE_D);
+                break;
+            case "coth":
+                mh = LOOKUP.findStatic(Maths.class, "coth", MT_DOUBLE_D);
+                break;
+
+// --- INVERSE HYPERBOLICS ---
+            case "asinh":
+            case "sinh-¹":
+                mh = LOOKUP.findStatic(Maths.class, "asinh", MT_DOUBLE_D);
+                break;
+            case "acosh":
+            case "cosh-¹":
+                mh = LOOKUP.findStatic(Maths.class, "acosh", MT_DOUBLE_D);
+                break;
+            case "atanh":
+            case "tanh-¹":
+                mh = LOOKUP.findStatic(Maths.class, "atanh", MT_DOUBLE_D);
+                break;
+            case "asech":
+            case "sech-¹":
+                mh = LOOKUP.findStatic(Maths.class, "asech", MT_DOUBLE_D);
+                break;
+            case "acsch":
+            case "csch-¹":
+                mh = LOOKUP.findStatic(Maths.class, "acsch", MT_DOUBLE_D);
+                break;
+            case "acoth":
+            case "coth-¹":
+                mh = LOOKUP.findStatic(Maths.class, "acoth", MT_DOUBLE_D);
+                break;
+
+// --- ADDITIONAL LOG / EXP ---
+            case "log":
+            case "alg": // Anti-log base 10
+                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "alg", MT_DOUBLE_D);
+                break;
+            case "ln-¹":
+                mh = LOOKUP.findStatic(Math.class, "exp", MT_DOUBLE_D); // ln-¹ is just e^x
+                break;
+            case "lg-¹":
+                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "alg", MT_DOUBLE_D);
+                break;
+
+// --- ROUNDING / MISC ---
+            case "ceil":
+                mh = LOOKUP.findStatic(Math.class, "ceil", MT_DOUBLE_D);
+                break;
+            case "rnd":
+                mh = LOOKUP.findStatic(Math.class, "round", MT_DOUBLE_D); // Note: might need cast logic
+                break;
+            case "sqrt":
+                mh = LOOKUP.findStatic(Math.class, "sqrt", MT_DOUBLE_D);
+                break;
+            case "cbrt":
+                mh = LOOKUP.findStatic(Math.class, "cbrt", MT_DOUBLE_D);
+                break;
+            case "exp":
+                mh = LOOKUP.findStatic(Math.class, "exp", MT_DOUBLE_D);
+                break;
+            case "ln":
+            case "aln":
+                mh = LOOKUP.findStatic(Math.class, "log", MT_DOUBLE_D);
+                break;
+            case "lg":
+                mh = LOOKUP.findStatic(Math.class, "log10", MT_DOUBLE_D);
+                break;
+            case "abs":
+                mh = LOOKUP.findStatic(Math.class, "abs", MT_DOUBLE_D);
+                break;
+            case "fact":
+                mh = LOOKUP.findStatic(Maths.class, "fact", MT_DOUBLE_D);
+                break;
+            case "square":
+                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "square", MT_DOUBLE_D);
+                break;
+            case "cube":
+                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "cube", MT_DOUBLE_D);
+                break;
+            default:
+                throw new UnsupportedOperationException("No fast-path for: " + base);
+        }
+
+        // Bake the unit conversion into the MethodHandle chain
+        switch (unit) {
+            case "deg":
+                return chainToRadians(mh);
+            case "grad":
+                return chainGradToRadians(mh);
+            default:
+                return mh;
+        }
+    }
+
+    public static double sec(double x) {
+        return 1.0 / Math.cos(x);
+    }
+
+    public static double csc(double x) {
+        return 1.0 / Math.sin(x);
+    }
+
+    public static double cot(double x) {
+        return 1.0 / Math.tan(x);
+    }
+
+    public static double asec(double x) {
+        return Math.acos(1.0 / x);
+    }
+
+    public static double acsc(double x) {
+        return Math.asin(1.0 / x);
+    }
+
+    public static double acot(double x) {
+        return Math.atan(1.0 / x);
     }
 
     /**
@@ -396,6 +663,25 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
         return MethodHandles.filterArguments(trigOp, 0, toRad);
     }
 
+    private static MethodHandle chainGradToRadians(MethodHandle trigOp) throws Throwable {
+        // 1 grad = PI / 200 radians
+        MethodHandle toRad = MethodHandles.filterArguments(
+                LOOKUP.findStatic(Math.class, "multiply", MT_DOUBLE_DD), // Custom multiply or use a constant
+                0, MethodHandles.constant(double.class, Math.PI / 200.0)
+        );
+        // Simplified: Just use a helper method for clarity
+        MethodHandle gradToRad = LOOKUP.findStatic(ScalarTurboCompiler.class, "gradToRad", MT_DOUBLE_D);
+        return MethodHandles.filterArguments(trigOp, 0, gradToRad);
+    }
+
+    public static double gradToRad(double grads) {
+        return grads * (Math.PI / 200.0);
+    }
+
+    public static double getVar(double[] vars, int index) {
+        return vars[index];
+    }
+
     /**
      * Get binary function handle (arity 2).
      *
@@ -403,7 +689,7 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
      * min, max
      */
     private static MethodHandle getBinaryFunctionHandle(String name) throws Throwable {
-        switch (name) {
+        switch (name.toLowerCase()) {
             case "pow":
                 return LOOKUP.findStatic(Math.class, "pow", MT_DOUBLE_DD);
             case "atan2":
@@ -412,8 +698,19 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                 return LOOKUP.findStatic(Math.class, "min", MT_DOUBLE_DD);
             case "max":
                 return LOOKUP.findStatic(Math.class, "max", MT_DOUBLE_DD);
+            case "log":
+                return LOOKUP.findStatic(Math.class, "max", MT_DOUBLE_DD);
+            case "diff":
+                return LOOKUP.findStatic(Math.class, "max", MT_DOUBLE_DD);
+            case "intg":
+                return LOOKUP.findStatic(Math.class, "max", MT_DOUBLE_DD);
+            case "comb":
+            case "perm":
+                // Redirecting to your Maths library for permutations/combinations
+                return LOOKUP.findStatic(Maths.class,
+                        name.equals("comb") ? "combination" : "permutation", MT_DOUBLE_DD);
             default:
-                throw new UnsupportedOperationException("Binary function not found: " + name);
+                throw new UnsupportedOperationException("Binary fast-path not found: " + name);
         }
     }
 

@@ -24,12 +24,12 @@ import java.util.logging.Logger;
  */
 public class FunctionManager {
 
-    
     public static final String ANON_PREFIX = "anon";
     /**
-     * This is an indicator of the total number of anonymous functions ever created since the code was run in this session.
+     * This is an indicator of the total number of anonymous functions ever
+     * created since the code was run in this session.
      */
-    public  static final AtomicInteger ANON_CURSOR = new AtomicInteger(0);
+    public static final AtomicInteger ANON_CURSOR = new AtomicInteger(0);
     public static final Map<String, Function> FUNCTIONS = Collections.synchronizedMap(new HashMap<>());
 
     /**
@@ -43,6 +43,16 @@ public class FunctionManager {
     public static boolean contains(String fName) {
         Function f = lookUp(fName);
         return f != null && f.getType() != TYPE.MATRIX;
+    }//end method
+
+    public static boolean containsMatrix(String fName) {
+        Function f = lookUp(fName);
+        return f != null && f.getType() == TYPE.MATRIX;
+    }//end method
+
+    public static boolean containsAny(String fName) {
+        Function f = lookUp(fName);
+        return f != null;
     }//end method
 
     /**
@@ -97,7 +107,7 @@ public class FunctionManager {
                 VariableManager.delete(fName);//if so delete it.
             }//end if
             FUNCTIONS.put(fName, f);
-            if(fName.startsWith(ANON_PREFIX)){
+            if (fName.startsWith(ANON_PREFIX)) {
                 ANON_CURSOR.incrementAndGet();
             }
         } else {
@@ -137,7 +147,8 @@ public class FunctionManager {
 
     /**
      * Removes a Function object from this FunctionManager.
-     * @param fName 
+     *
+     * @param fName
      */
     public static void delete(String fName) {
         FUNCTIONS.remove(fName);
@@ -146,13 +157,14 @@ public class FunctionManager {
 
     /**
      * Updates a Function object in this FunctionManager.
+     *
      * @param expression The function expression
      */
     public static void update(String expression) {
         try {
             Function f = new Function(expression);
             String name = f.getName();
-            if(name.startsWith(ANON_PREFIX) && FUNCTIONS.get(name) == null){
+            if (name.startsWith(ANON_PREFIX) && FUNCTIONS.get(name) == null) {
                 ANON_CURSOR.incrementAndGet();
             }
             FUNCTIONS.put(name, f);
@@ -179,8 +191,8 @@ public class FunctionManager {
             FUNCTIONS.keySet().removeAll(anonKeys);
         }
     }
-    
-    public static final void clear(){
+
+    public static final void clear() { 
         FUNCTIONS.clear();
     }
 

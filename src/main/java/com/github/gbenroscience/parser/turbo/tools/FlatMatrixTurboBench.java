@@ -17,13 +17,13 @@ package com.github.gbenroscience.parser.turbo.tools;
 
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.parser.Function;
-import com.github.gbenroscience.parser.MathExpression; 
+import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.util.FunctionManager;
+
 /**
  *
- * @author GBEMIRO
- * Benchmarks for flat-array matrix turbo compiler.
- * Tests scalar, small matrix, and large matrix operations.
+ * @author GBEMIRO Benchmarks for flat-array matrix turbo compiler. Tests
+ * scalar, small matrix, and large matrix operations.
  */
 public class FlatMatrixTurboBench {
 
@@ -33,25 +33,67 @@ public class FlatMatrixTurboBench {
         System.out.println("=".repeat(80));
 
         benchmarkScalar();
+        benchmarkScalar1();
         benchmarkSmallMatrix();
         benchmarkLargeMatrix();
         benchmarkMatrixMultiplication();
         benchmarkMatrixPower();
     }
 
-    private static void benchmarkScalar() throws Throwable {
-        System.out.println("\n--- SCALAR EXPRESSIONS ---");
+    private static void benchmarkScalar1() throws Throwable {
+        System.out.println("\n--- SCALAR EXPRESSIONS 1---");
 
-        MathExpression expr = new MathExpression("2*x + 3*sin(y) - 5");
-        FastCompositeExpression turbo = expr.compileTurbo();
-        double[] vars = {Math.PI / 4, Math.PI / 6};
+        String ex = "2*x^8 + 3*sin(y^3) - 5*x+2";
+        MathExpression expr = new MathExpression(ex);
+        //  TurboExpressionCompiler tec = TurboCompilerFactory.getCompiler(expr);
+        FlatMatrixTurboCompiler fmtc = new FlatMatrixTurboCompiler(expr.getCachedPostfix());
+        FastCompositeExpression fec = fmtc.compile();
+        double[] vars = {3, 2, -1};
 
+        double v = -100;
         long start = System.nanoTime();
         for (int i = 0; i < 1_000_000; i++) {
-            turbo.apply(vars);
+            v = fec.applyScalar(vars);
         }
         long duration = System.nanoTime() - start;
+
+        System.out.printf("Expression: %n", ex);
+        System.out.printf("Value = %n", v);
+        System.out.printf("Speed: %.2f ns/op%n", duration / 1_000_000.0);
+        System.out.printf("Throughput: %.2f ops/sec%n", 1_000_000.0 / (duration / 1e9));
+    }
+
+    private static void benchmarkScalar() throws Throwable {
+        System.out.println("\n--- MATRIX ALGEBRA ---");
+        int n = 20;
+        Matrix t = new Matrix(n, n);
+        t.setName("T");
+        t.randomFill(35);
+        //t.print();
+        System.out.println("T: After fill-----\n");
+         
+        FunctionManager.add(new Function(t));
+
+        Matrix v = new Matrix(n, n);
+        v.setName("V");
+        v.randomFill(35);
+        //v.print();
+        System.out.println("V: After fill-----\n");
         
+        FunctionManager.add(new Function(v));
+
+        MathExpression expr = new MathExpression("2*T+V");
+        FastCompositeExpression turbo = expr.compileTurbo();
+        double[] vars = {};
+        MathExpression.EvalResult er = null;
+        System.out.println("Looping!");
+        long start = System.nanoTime();
+        for (int i = 0; i < 1_000_000; i++) {
+            er = turbo.apply(vars);
+        }
+        long duration = System.nanoTime() - start;
+
+        System.out.println("res: "+er);
         System.out.printf("Expression: 2*x + 3*sin(y) - 5%n");
         System.out.printf("Speed: %.2f ns/op%n", duration / 1_000_000.0);
         System.out.printf("Throughput: %.2f ops/sec%n", 1_000_000.0 / (duration / 1e9));
@@ -61,7 +103,7 @@ public class FlatMatrixTurboBench {
         System.out.println("\n--- SMALL MATRIX (3x3) ---");
 
         MathExpression expr = new MathExpression(
-            "M=@(3,3)(1,2,3,4,5,6,7,8,9);N=@(3,3)(9,8,7,6,5,4,3,2,1);matrix_add(M,N)"
+                "M=@(3,3)(1,2,3,4,5,6,7,8,9);N=@(3,3)(9,8,7,6,5,4,3,2,1);matrix_add(M,N)"
         );
         FastCompositeExpression turbo = expr.compileTurbo();
         double[] vars = {};
@@ -71,27 +113,27 @@ public class FlatMatrixTurboBench {
             turbo.apply(vars);
         }
         long duration = System.nanoTime() - start;
-        
+
         System.out.printf("Operation: matrix_add(3x3, 3x3)%n");
-        System.out.printf("Speed: %.2f ns/op (%.2f μs)%n", 
-            duration / 100_000.0,
-            duration / 100_000.0 / 1000.0);
+        System.out.printf("Speed: %.2f ns/op (%.2f μs)%n",
+                duration / 100_000.0,
+                duration / 100_000.0 / 1000.0);
     }
 
     private static void benchmarkLargeMatrix() throws Throwable {
         System.out.println("\n--- LARGE MATRIX (50x50) ---");
 
         // Create 50x50 matrices
-        double[] data50 = new double[50*50];
+        double[] data50 = new double[50 * 50];
         for (int i = 0; i < data50.length; i++) {
             data50[i] = Math.random();
         }
-       
+
         Matrix m = new Matrix(data50, 50, 50);
         MathExpression expr = new MathExpression("2*M-3*M");
         FunctionManager.lookUp("M").setMatrix(m);
 
-        System.out.println("scanner: "+expr.getScanner());        
+        System.out.println("scanner: " + expr.getScanner());
         FastCompositeExpression turbo = expr.compileTurbo();
         double[] vars = {};
 
@@ -100,7 +142,7 @@ public class FlatMatrixTurboBench {
             turbo.apply(vars);
         }
         long duration = System.nanoTime() - start;
-        
+
         System.out.printf("Operation: 2*M - 3*M (50x50 matrices)%n");
         System.out.printf("Speed: %.2f μs/op%n", duration / 10_000.0 / 1000.0);
         System.out.printf("vs Interpreted: ~50x faster%n");
@@ -110,23 +152,24 @@ public class FlatMatrixTurboBench {
         System.out.println("\n--- MATRIX MULTIPLICATION ---");
 
         // 10x10 matrices
-        double[] a10 = new double[10*10];
-        double[] b10 = new double[10*10];
+        double[] a10 = new double[10 * 10];
+        double[] b10 = new double[10 * 10];
         for (int i = 0; i < a10.length; i++) {
             a10[i] = Math.random();
             b10[i] = Math.random();
         }
 
-        Matrix ma = new Matrix(a10, 10, 10);ma.setName("A");
-        Matrix mb = new Matrix(b10, 10, 10);mb.setName("B");
+        Matrix ma = new Matrix(a10, 10, 10);
+        ma.setName("A");
+        Matrix mb = new Matrix(b10, 10, 10);
+        mb.setName("B");
         FunctionManager.add(new Function(ma));
         FunctionManager.add(new Function(mb));
-        
 
         MathExpression expr = new MathExpression("matrix_mul(A,B)");
         FunctionManager.lookUp("A").setMatrix(ma);
         FunctionManager.lookUp("B").setMatrix(mb);
-        
+
         FastCompositeExpression turbo = expr.compileTurbo();
         double[] vars = {};
 
@@ -135,7 +178,7 @@ public class FlatMatrixTurboBench {
             turbo.apply(vars);
         }
         long duration = System.nanoTime() - start;
-        
+
         System.out.printf("Operation: matrix_mul(10x10, 10x10)%n");
         System.out.printf("Speed: %.2f μs/op%n", duration / 1_000.0 / 1000.0);
         System.out.printf("Complexity: O(n^3) = O(1000) operations%n");
@@ -144,7 +187,7 @@ public class FlatMatrixTurboBench {
     private static void benchmarkMatrixPower() throws Throwable {
         System.out.println("\n--- MATRIX POWER (Binary Exponentiation) ---");
 
-        double[] mdata = new double[4*4];
+        double[] mdata = new double[4 * 4];
         for (int i = 0; i < mdata.length; i++) {
             mdata[i] = Math.random();
         }
@@ -153,7 +196,7 @@ public class FlatMatrixTurboBench {
 
         MathExpression expr = new MathExpression("M^10");
         FunctionManager.lookUp("M").setMatrix(m);
-        
+
         FastCompositeExpression turbo = expr.compileTurbo();
         double[] vars = {};
 
@@ -162,7 +205,7 @@ public class FlatMatrixTurboBench {
             turbo.apply(vars);
         }
         long duration = System.nanoTime() - start;
-        
+
         System.out.printf("Operation: M^10 (4x4 matrix)%n");
         System.out.printf("Speed: %.2f μs/op%n", duration / 1_000.0 / 1000.0);
         System.out.printf("Uses binary exponentiation: O(log 10) = 4 multiplications%n");

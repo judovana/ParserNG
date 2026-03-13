@@ -28,7 +28,7 @@ import com.github.gbenroscience.parser.MathExpression;
  * - Small matrices: 50-200 ns
  * - Large matrices: linear to problem size (excellent cache locality)
  */
-@FunctionalInterface
+ 
 public interface FastCompositeExpression {
     
     /**
@@ -39,24 +39,16 @@ public interface FastCompositeExpression {
      * @return EvalResult of any type (scalar, matrix, vector, string, error)
      */
     MathExpression.EvalResult apply(double[] variables);
-    
-    /**
+ 
+     /**
      * Convenience method for scalar extraction.
      * Throws ClassCastException if result is not scalar.
      * 
      * @param variables execution frame variables
      * @return scalar value
      */
-    default double applyScalar(double[] variables) {
-        MathExpression.EvalResult result = apply(variables);
-        if (result.type != MathExpression.EvalResult.TYPE_SCALAR) {
-            throw new ClassCastException(
-                "Expected scalar but got: " + result.getTypeName()
-            );
-        }
-        return result.scalar;
-    }
-    
+     double applyScalar(double[] variables);
+     
     /**
      * Convenience method for matrix extraction.
      * Throws ClassCastException if result is not a matrix.

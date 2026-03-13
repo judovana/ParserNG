@@ -1735,7 +1735,7 @@ public class Matrix {
         // Wilkinson formula: mu = d - (sign(delta) * b * c) / (|delta| + sqrt(delta^2 + b*c))
         return d - (signDelta * b * c) / denom;
     }
- 
+
     private void qrStepHessenberg(double[][] H, int m) {
         double[] sin = new double[m - 1];
         double[] cos = new double[m - 1];
@@ -1786,29 +1786,39 @@ public class Matrix {
             }
         }
     }
+
     /**
-     *  R:
-3.6960389979858523  ,10.656660507703922  ,8.250361808124694  ,1.2864528025782198  ,9.735431283674686            
-5.585459956012235  ,7.5122356839343745  ,6.063066728284797  ,8.559695263800457  ,3.7673226536438857            
-8.701609027359616  ,7.689979890725766  ,3.9690824306208285  ,3.664071779088659  ,5.514556971406468            
-1.7165078288826077  ,8.089363716212478  ,8.651319052236992  ,4.1374739688508955  ,1.234189853093153            
-1.2567034692845471  ,2.0793007773147147  ,7.254190558589741  ,7.715028903257325  ,2.8009022598677604            
-eigvalue(R):
- [28.29420297845622, 0.0, -7.032908675390415, 0.0, -0.778292476851465, 4.736713899563849, -0.778292476851465, -4.736713899563849, 2.4110239918967675, 0.0]
- * 
- * x1 = 28.29420297845622 or --- 28.29420297845622 + 0.0i
- * x2 = -7.032908675390415 or --- -7.032908675390415 + 0.0i
- * x3 = -0.778292476851465 + 4.736713899563849i
- * x4 = -0.778292476851465 - 4.736713899563849i
- * x5 = 2.4110239918967675 or --- 2.4110239918967675 + 0.0i
- * 
- * Consecutive pairs of the array represent real and imaginary parts e.g:
- * The above is interpreted as:
- * 
+     * Computes the real and imaginary eigenvalues of a Matrix.
+     * Each pair of entries in the returned array represent the real and imaginary values of each eigenvalue.
+     * So the entries at index 0 and index 1 represent 1 eigenvalue(its real and complex part).
+     * So also entries at index 2 and index 3 represent the second eigenvalue and so on.
+     * 
+     * R: 3.6960389979858523 ,10.656660507703922 ,8.250361808124694
+     * ,1.2864528025782198 ,9.735431283674686 5.585459956012235
+     * ,7.5122356839343745 ,6.063066728284797 ,8.559695263800457
+     * ,3.7673226536438857 8.701609027359616 ,7.689979890725766
+     * ,3.9690824306208285 ,3.664071779088659 ,5.514556971406468
+     * 1.7165078288826077 ,8.089363716212478 ,8.651319052236992
+     * ,4.1374739688508955 ,1.234189853093153 1.2567034692845471
+     * ,2.0793007773147147 ,7.254190558589741 ,7.715028903257325
+     * ,2.8009022598677604 eigvalue(R): [28.29420297845622, 0.0,
+     * -7.032908675390415, 0.0, -0.778292476851465, 4.736713899563849,
+     * -0.778292476851465, -4.736713899563849, 2.4110239918967675, 0.0]
+     *
+     * x1 = 28.29420297845622 or --- 28.29420297845622 + 0.0i x2 =
+     * -7.032908675390415 or --- -7.032908675390415 + 0.0i x3 =
+     * -0.778292476851465 + 4.736713899563849i x4 = -0.778292476851465 -
+     * 4.736713899563849i x5 = 2.4110239918967675 or --- 2.4110239918967675 +
+     * 0.0i
+     *
+     * Consecutive pairs of the array represent real and imaginary parts e.g:
+     * The above is interpreted as:
+     *
      * Computes the real and imaginary eigenvalues.
-     * @return 
+     *
+     * @return
      */
-public double[] computeEigenValues() {
+    public double[] computeEigenValues() {
         int n = this.rows;
         double[][] H = this.getArray(); // Working copy
 
@@ -1830,10 +1840,10 @@ public double[] computeEigenValues() {
             // Look for convergence at the bottom of the matrix (1x1 block deflation)
             if (Math.abs(H[m - 1][m - 2]) < 1e-12) {
                 H[m - 1][m - 2] = 0; // Force exact zero for clean extraction later
-                m--; 
+                m--;
                 continue;
             }
-            
+
             // Look for convergence of a 2x2 block (Complex pair deflation)
             if (m > 2 && Math.abs(H[m - 2][m - 3]) < 1e-12) {
                 H[m - 2][m - 3] = 0; // Force exact zero
@@ -1866,7 +1876,7 @@ public double[] computeEigenValues() {
         // 3. Extract eigenvalues from the diagonal and 2x2 blocks
         double[] eigenvalues = new double[2 * n]; // Format: [real1, imag1, real2, imag2...]
         int i = 0;
-        
+
         while (i < n) {
             // Check if there is an isolated 2x2 block 
             if (i < n - 1 && Math.abs(H[i + 1][i]) > 1e-12) {
@@ -1901,7 +1911,7 @@ public double[] computeEigenValues() {
         }
         return eigenvalues;
     }
-     
+
     /**
      *
      * <code>A = VɅV-¹</code> Check: Is ||A*v - lambda*v|| close to zero?
@@ -1909,8 +1919,8 @@ public double[] computeEigenValues() {
      * v); double residual = computeNorm(subtract(Av, lv));
      *
      * if (residual > 1e-9) { // This eigenvalue/vector pair might be inaccurate
-     * }
-     *Solves for the eigenvector for a real lambda
+     * } Solves for the eigenvector for a real lambda
+     *
      * @param lambda
      * @return
      */
@@ -1974,18 +1984,17 @@ public double[] computeEigenValues() {
 
         return v;
     }
-    
-    
-/**
+
+    /**
      * Fully solves for the eigenvector corresponding to the given eigenvalue.
      * Supports both real and complex eigenvalues.
      *
      * @param alpha The real part of the eigenvalue.
-     * @param beta  The imaginary part of the eigenvalue.
-     * @return A 1D array representing the eigenvector. 
-     * If beta == 0 (real), returns a real vector of length n.
-     * If beta != 0 (complex), returns a vector of length 2n, where the first n elements 
-     * are the real part (x), and the last n elements are the imaginary part (y).
+     * @param beta The imaginary part of the eigenvalue.
+     * @return A 1D array representing the eigenvector. If beta == 0 (real),
+     * returns a real vector of length n. If beta != 0 (complex), returns a
+     * vector of length 2n, where the first n elements are the real part (x),
+     * and the last n elements are the imaginary part (y).
      */
     public double[] computeEigenVector1(double alpha, double beta) {
         int n = this.rows;
@@ -2007,14 +2016,16 @@ public double[] computeEigenValues() {
                         pivot = j;
                     }
                 }
-                
+
                 // Swap rows
-                double[] temp = mat[i]; 
-                mat[i] = mat[pivot]; 
+                double[] temp = mat[i];
+                mat[i] = mat[pivot];
                 mat[pivot] = temp;
 
                 // Skip if pivot is effectively zero (free variable found)
-                if (Math.abs(mat[i][i]) < 1e-12) continue; 
+                if (Math.abs(mat[i][i]) < 1e-12) {
+                    continue;
+                }
 
                 for (int j = i + 1; j < n; j++) {
                     double factor = mat[j][i] / mat[i][i];
@@ -2040,9 +2051,13 @@ public double[] computeEigenValues() {
 
             // Normalize vector: ||v|| = 1
             double norm = 0;
-            for (double val : v) norm += val * val;
+            for (double val : v) {
+                norm += val * val;
+            }
             norm = Math.sqrt(norm);
-            for (int i = 0; i < n; i++) v[i] /= Math.max(norm, 1e-15);
+            for (int i = 0; i < n; i++) {
+                v[i] /= Math.max(norm, 1e-15);
+            }
 
             return v;
         }
@@ -2058,11 +2073,13 @@ public double[] computeEigenValues() {
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
                 double val = A[i][j];
-                if (i == j) val -= alpha;
-                
+                if (i == j) {
+                    val -= alpha;
+                }
+
                 C[i][j] = val;              // Top-Left block: A - alpha*I
                 C[i + n][j + n] = val;      // Bottom-Right block: A - alpha*I
-                
+
                 if (i == j) {
                     C[i][j + n] = beta;     // Top-Right block: beta*I
                     C[i + n][j] = -beta;    // Bottom-Left block: -beta*I
@@ -2078,12 +2095,14 @@ public double[] computeEigenValues() {
                     pivot = j;
                 }
             }
-            
-            double[] temp = C[i]; 
-            C[i] = C[pivot]; 
+
+            double[] temp = C[i];
+            C[i] = C[pivot];
             C[pivot] = temp;
 
-            if (Math.abs(C[i][i]) < 1e-12) continue;
+            if (Math.abs(C[i][i]) < 1e-12) {
+                continue;
+            }
 
             for (int j = i + 1; j < n2; j++) {
                 double factor = C[j][i] / C[i][i];
@@ -2098,7 +2117,7 @@ public double[] computeEigenValues() {
         for (int i = n2 - 1; i >= 0; i--) {
             // Complex eigenvalues result in a 2D null space in this real matrix representation
             if (Math.abs(C[i][i]) < 1e-12) {
-                uv[i] = 1.0; 
+                uv[i] = 1.0;
                 continue;
             }
             double sum = 0;
@@ -2114,29 +2133,34 @@ public double[] computeEigenValues() {
             norm += uv[i] * uv[i] + uv[i + n] * uv[i + n];
         }
         norm = Math.sqrt(norm);
-        for (int i = 0; i < n2; i++) uv[i] /= Math.max(norm, 1e-15);
+        for (int i = 0; i < n2; i++) {
+            uv[i] /= Math.max(norm, 1e-15);
+        }
 
         return uv;
     }
-    
-    
+
     /**
-     * Improved Eigenvector solver using Inverse Iteration.
-     * This prevents the "Trivial Zero" solution and is numerically stable.
-     * Supply each lambda(eigenvalue here) as the complex coordinates of a+bi, e.g (a,b), (if the eigenvalue is real,set alpha= real-value, and beta = 0)
-     * @param alpha 
-     * @param beta 
+     * Improved Eigenvector solver using Inverse Iteration. This prevents the
+     * "Trivial Zero" solution and is numerically stable. Supply each
+     * lambda(eigenvalue here) as the complex coordinates of a+bi, e.g (a,b),
+     * (if the eigenvalue is real,set alpha= real-value, and beta = 0)
+     *
+     * @param alpha
+     * @param beta
      */
     public double[] computeEigenVector(double alpha, double beta) {
         int n = this.rows;
         boolean isComplex = Math.abs(beta) > 1e-12;
         int size = isComplex ? 2 * n : n;
-        
+
         double[][] mat = new double[size][size];
         double[] b = new double[size];
-        
+
         // Seed the RHS with 1s to ensure we don't get the trivial [0,0...] solution
-        for (int i = 0; i < size; i++) b[i] = 1.0;
+        for (int i = 0; i < size; i++) {
+            b[i] = 1.0;
+        }
 
         // Construct the system (A - lambda*I)
         double[] internalArray = this.array; // Accessing your flat array
@@ -2144,14 +2168,18 @@ public double[] computeEigenValues() {
             for (int i = 0; i < n; i++) {
                 for (int j = 0; j < n; j++) {
                     mat[i][j] = internalArray[i * n + j];
-                    if (i == j) mat[i][j] -= alpha;
+                    if (i == j) {
+                        mat[i][j] -= alpha;
+                    }
                 }
             }
         } else {
             for (int i = 0; i < n; i++) {
                 for (int j = 0; j < n; j++) {
                     double val = internalArray[i * n + j];
-                    if (i == j) val -= alpha;
+                    if (i == j) {
+                        val -= alpha;
+                    }
                     mat[i][j] = val;              // Real Block: A - alpha*I
                     mat[i + n][j + n] = val;      // Real Block: A - alpha*I
                     if (i == j) {
@@ -2166,18 +2194,28 @@ public double[] computeEigenValues() {
         for (int i = 0; i < size; i++) {
             int pivot = i;
             for (int j = i + 1; j < size; j++) {
-                if (Math.abs(mat[j][i]) > Math.abs(mat[pivot][i])) pivot = j;
+                if (Math.abs(mat[j][i]) > Math.abs(mat[pivot][i])) {
+                    pivot = j;
+                }
             }
-            double[] tempRow = mat[i]; mat[i] = mat[pivot]; mat[pivot] = tempRow;
-            double tempB = b[i]; b[i] = b[pivot]; b[pivot] = tempB;
+            double[] tempRow = mat[i];
+            mat[i] = mat[pivot];
+            mat[pivot] = tempRow;
+            double tempB = b[i];
+            b[i] = b[pivot];
+            b[pivot] = tempB;
 
             // Pivot guard: if the matrix is singular, use a tiny epsilon
-            if (Math.abs(mat[i][i]) < 1e-18) mat[i][i] = 1e-18;
+            if (Math.abs(mat[i][i]) < 1e-18) {
+                mat[i][i] = 1e-18;
+            }
 
             for (int j = i + 1; j < size; j++) {
                 double factor = mat[j][i] / mat[i][i];
                 b[j] -= factor * b[i];
-                for (int k = i; k < size; k++) mat[j][k] -= factor * mat[i][k];
+                for (int k = i; k < size; k++) {
+                    mat[j][k] -= factor * mat[i][k];
+                }
             }
         }
 
@@ -2185,56 +2223,69 @@ public double[] computeEigenValues() {
         double[] v = new double[size];
         for (int i = size - 1; i >= 0; i--) {
             double sum = 0;
-            for (int j = i + 1; j < size; j++) sum += mat[i][j] * v[j];
+            for (int j = i + 1; j < size; j++) {
+                sum += mat[i][j] * v[j];
+            }
             v[i] = (b[i] - sum) / mat[i][i];
         }
 
         // Normalize the resulting vector
         double norm = 0;
         if (!isComplex) {
-            for (double val : v) norm += val * val;
+            for (double val : v) {
+                norm += val * val;
+            }
         } else {
-            for (int i = 0; i < n; i++) norm += v[i] * v[i] + v[i + n] * v[i + n];
+            for (int i = 0; i < n; i++) {
+                norm += v[i] * v[i] + v[i + n] * v[i + n];
+            }
         }
         norm = Math.sqrt(norm);
-        for (int i = 0; i < size; i++) v[i] /= Math.max(norm, 1e-15);
+        for (int i = 0; i < size; i++) {
+            v[i] /= Math.max(norm, 1e-15);
+        }
 
         return v;
     }
 
-     /**
-     * 
-     * Constructs the Eigenvector Matrix (V) internally form the original Matrix, internally generating
-     * the eigenvalues and then computing the eigenvector matrix from them.
-     * Real eigenvalues generate a single column.
-     * Complex conjugate pairs generate two adjacent columns: the real part, then the imaginary part.
-     * * @param eigenvalues The array of eigenvalues in [real1, imag1, real2, imag2...] format.
+    /**
+     *
+     * Constructs the Eigenvector Matrix (V) internally from the original
+     * Matrix, internally generating the eigenvalues and then computing the
+     * eigenvector matrix from them. Real eigenvalues generate a single column.
+     * Complex conjugate pairs generate two adjacent columns: the real part,
+     * then the imaginary part.
+     *
+     * * @param eigenvalues The array of eigenvalues in [real1, imag1, real2,
+     * imag2...] format.
      * @return A Matrix object containing the Eigenvectors.
      */
     public Matrix getEigenVectorMatrix() {
         double[] eigenvalues = computeEigenValues();
-        return this.getEigenVectorMatrix(eigenvalues); 
+        return this.getEigenVectorMatrix(eigenvalues);
     }
-    
+
     /**
-     * Overload of {@linkplain Matrix#getEigenVectorMatrix()} that accepts an array
-     * of eigenvalues and constructs the full eigenvector matrix
+     * Overload of {@linkplain Matrix#getEigenVectorMatrix()} that accepts an
+     * array of eigenvalues and constructs the full eigenvector matrix
      * Constructs the Eigenvector Matrix (V) from a given array of eigenvalues.
-     * Real eigenvalues generate a single column.
-     * Complex conjugate pairs generate two adjacent columns: the real part, then the imaginary part.
-     * @param eigenvalues The array of eigenvalues in [real1, imag1, real2, imag2...] format.
+     * Real eigenvalues generate a single column. Complex conjugate pairs
+     * generate two adjacent columns: the real part, then the imaginary part.
+     *
+     * @param eigenvalues The array of eigenvalues in [real1, imag1, real2,
+     * imag2...] format.
      * @return A Matrix object containing the Eigenvectors.
      */
-    public Matrix getEigenVectorMatrix(double[]eigenvalues) {
-         
+    public Matrix getEigenVectorMatrix(double[] eigenvalues) {
+
         int n = this.rows;
         double[] vFlat = new double[n * n];
-        
+
         int col = 0;
         for (int i = 0; i < n; i++) {
             double alpha = eigenvalues[2 * i];
             double beta = eigenvalues[2 * i + 1];
-            
+
             if (Math.abs(beta) < 1e-12) {
                 // ==========================================
                 // 1. Handle Real Eigenvector
@@ -2253,39 +2304,42 @@ public double[] computeEigenValues() {
                     vFlat[row * n + col] = uv[row];           // Real part (x)
                     vFlat[row * n + col + 1] = uv[row + n];   // Imaginary part (y)
                 }
-                col += 2; 
+                col += 2;
                 i++; // Skip the conjugate eigenvalue since we mapped both columns
             }
         }
-        
+
         // Return as a standard ParserNG Matrix object
         Matrix V = new Matrix(n, n);
         V.setArray(vFlat, n, n);
         return V;
     }
-    
-    
-     /**
-     * Constructs the Eigenvector Matrix (V) internally form the original Matrix, internally generating
-     * the eigenvalues and then computing the eigenvector matrix from them.
-     * 
-     * Real eigenvalues generate a single column.
-     * Complex conjugate pairs generate two adjacent columns: the real part, then the imaginary part.
-     * * @param eigenvalues The array of eigenvalues in [real1, imag1, real2, imag2...] format.
-     * @return A double[] array which is a flat array representation of the eigenvectors
+
+    /**
+     * Constructs the Eigenvector Matrix (V) internally form the original
+     * Matrix, internally generating the eigenvalues and then computing the
+     * eigenvector matrix from them.
+     *
+     * Real eigenvalues generate a single column. Complex conjugate pairs
+     * generate two adjacent columns: the real part, then the imaginary part.
+     *
+     * * @param eigenvalues The array of eigenvalues in [real1, imag1, real2,
+     * imag2...] format.
+     * @return A double[] array which is a flat array representation of the
+     * eigenvectors
      */
     public double[] getEigenVectors() {
-        
+
         double[] eigenvalues = computeEigenValues();
-        
+
         int n = this.rows;
         double[] vFlat = new double[n * n];
-        
+
         int col = 0;
         for (int i = 0; i < n; i++) {
             double alpha = eigenvalues[2 * i];
             double beta = eigenvalues[2 * i + 1];
-            
+
             if (Math.abs(beta) < 1e-12) {
                 // ==========================================
                 // 1. Handle Real Eigenvector
@@ -2304,13 +2358,14 @@ public double[] computeEigenValues() {
                     vFlat[row * n + col] = uv[row];           // Real part (x)
                     vFlat[row * n + col + 1] = uv[row + n];   // Imaginary part (y)
                 }
-                col += 2; 
+                col += 2;
                 i++; // Skip the conjugate eigenvalue since we mapped both columns
             }
         }
-         
+
         return vFlat;
     }
+
     /**
      * Generates the expression map of the expression... a map whose keys are
      * the powers of the variable of the expression and whose values are the

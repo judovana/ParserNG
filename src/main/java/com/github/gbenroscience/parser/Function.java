@@ -74,11 +74,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         } else {
             FunctionManager.update(toString());
         }
-        FunctionManager.update();
-        
-        
-        
-        
+        FunctionManager.update(); 
         
     }
 
@@ -170,7 +166,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             if (notAlgebraic) {
                 if (size == 1) {
                     int listSize = Integer.parseInt(params.get(0));
-                    type = TYPE.LIST;
+                    type = TYPE.VECTOR;
                 } else if (size == 2) {
                     //A matrix definition...A(2,3)=(3,2,4,5,3,1)------A=@(3,3)(3,4,32,3,4,4,3,3,4)
                     int rows = Integer.parseInt(params.get(0));
@@ -376,7 +372,8 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                     return true;
                 }
                 MathExpression.EvalResult val = expr.solveGeneric();
-                String referenceName = expr.getReturnObjectName();
+                String referenceName =  null;
+             
 
                 if (Variable.isVariableString(newFuncName) || isVarNamesList) {
                     Function f;
@@ -398,7 +395,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                             FunctionManager.FUNCTIONS.put(newFuncName, new Function(newFuncName + "=" + f.expressionForm()));
                             success = true;
                             break;
-                        case LIST:
+                        case VECTOR:
                             if (isVarNamesList && hasCommas) {
                                 throw new InputMismatchException("Initialize a function at a time!");
                             }
@@ -568,7 +565,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      * object.
      */
     public int numberOfParameters() {
-        if (type == TYPE.LIST) {
+        if (type == TYPE.VECTOR) {
             return 1;
         }
         if (type == TYPE.MATRIX) {
@@ -996,7 +993,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 return getName() + "=@" + paramList + mathExpression.getExpression();
             case MATRIX:
                 return getName() + "=@" + paramList + "(" + matrixToCommaList(matrix) + ")";
-            case LIST:
+            case VECTOR:
                 return getName() + "=@" + paramList + "(" + matrixToCommaList(matrix) + ")";
             default:
                 return "";
@@ -1014,7 +1011,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 return f.dependentVariable.getName().startsWith(FunctionManager.ANON_PREFIX);
             case MATRIX:
                 return f.matrix.getName().startsWith(FunctionManager.ANON_PREFIX);
-            case LIST:
+            case VECTOR:
                 return f.matrix.getName().startsWith(FunctionManager.ANON_PREFIX);
             default:
                 return false;
@@ -1053,7 +1050,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 return str + ")";
             case MATRIX:
                 return getName() + "(" + matrix.getRows() + "," + matrix.getCols() + ")";
-            case LIST:
+            case VECTOR:
                 return getName() + "(" + matrix.getRows() + "," + matrix.getCols() + ")";
             default:
                 return "";
@@ -1071,7 +1068,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 return dependentVariable.getName();
             case MATRIX:
                 return matrix.getName();
-            case LIST:
+            case VECTOR:
                 return matrix.getName();
             default:
                 return "";

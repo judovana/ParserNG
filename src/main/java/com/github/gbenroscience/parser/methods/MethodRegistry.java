@@ -29,9 +29,13 @@ import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.Utils;
+import com.github.gbenroscience.util.io.TextFileWriter;
+import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map; 
 import java.util.Arrays; 
+import java.util.HashSet;
 
 /**
  *
@@ -164,7 +168,7 @@ public class MethodRegistry {
         String asecDeg = expandedTrigAndHypMethodNames[36] = Declarations.getTrigFuncDRGVariant(Declarations.ARC_SEC, DRG_MODE.DEG);
         String asecRad = expandedTrigAndHypMethodNames[37] = Declarations.getTrigFuncDRGVariant(Declarations.ARC_SEC, DRG_MODE.RAD);
         String asecGrad = expandedTrigAndHypMethodNames[38] = Declarations.getTrigFuncDRGVariant(Declarations.ARC_SEC, DRG_MODE.GRAD);
-        String acscDeg = expandedTrigAndHypMethodNames[43] = Declarations.getTrigFuncDRGVariant(Declarations.ARC_COSEC, DRG_MODE.DEG);
+        String acscDeg = expandedTrigAndHypMethodNames[39] = Declarations.getTrigFuncDRGVariant(Declarations.ARC_COSEC, DRG_MODE.DEG);
         String acscRad = expandedTrigAndHypMethodNames[40] = Declarations.getTrigFuncDRGVariant(Declarations.ARC_COSEC, DRG_MODE.RAD);
         String acscGrad = expandedTrigAndHypMethodNames[41] = Declarations.getTrigFuncDRGVariant(Declarations.ARC_COSEC, DRG_MODE.GRAD);
         String acotDeg = expandedTrigAndHypMethodNames[42] = Declarations.getTrigFuncDRGVariant(Declarations.ARC_COT, DRG_MODE.DEG);
@@ -973,35 +977,17 @@ public class MethodRegistry {
         registerMethod(Declarations.MATRIX_EIGENVALUES, (ctx, arity, args) -> {
             //System.out.println("eigValues branch: args-->>" + Arrays.deepToString(args) + ", args[0].type = " + args[0].getTypeName() + ",funcName: " + funcName);
             Matrix m = FunctionManager.lookUp(args[0].textRes).getMatrix();
-            double[] evals = m.computeEigenValues();
-
-            // Create a 1xN matrix
-            Matrix result = new Matrix(1, evals.length);
-            // Directly copy the array into the matrix's internal storage
-            double array[] = new double[evals.length];
-            System.arraycopy(evals, 0, array, 0, evals.length);
-            result.setArray(array, 1, evals.length);
-            return ctx.wrap(result);
+            double[] evals = m.computeEigenValues(); 
+             // Wrap the 2n array into an n-row, 2-column Matrix
+            Matrix e = new Matrix(evals, m.getRows(), 2); 
+            return ctx.wrap(e);
+             
         });
         registerMethod(Declarations.MATRIX_EIGENVEC, (ctx, arity, args) -> {
             Function f = FunctionManager.lookUp(args[0].textRes);
             Matrix m = f.getMatrix();
-            double eigenValues[] = m.computeEigenValues();
-            int n = eigenValues.length;
-// 2. Prepare a Matrix to hold all eigenvectors as columns
-// Column 0 corresponds to lambda[0], Column 1 to lambda[1], etc.
-            double[][] eigenvectorMatrix = new double[n][n];
-
-            for (int i = 0; i < n; i++) {
-                double lambda = eigenValues[i];
-                double[] v = m.computeEigenVector(lambda);
-                // Store v as a COLUMN in the result matrix
-                for (int row = 0; row < n; row++) {
-                    eigenvectorMatrix[row][i] = v[row];
-                }
-            }
-            Matrix eigVectorMatrix = new Matrix(eigenvectorMatrix);
-            return ctx.wrap(eigVectorMatrix);
+            Matrix eigenVec = m.getEigenVectorMatrix();
+            return ctx.wrap(eigenVec);
         });
         registerMethod(Declarations.MATRIX_MULTIPLY, (ctx, arity, args) -> {
             Function fA = FunctionManager.lookUp(args[0].textRes);
@@ -1099,4 +1085,25 @@ public class MethodRegistry {
         }
     }
 
+    
+    public static void main(String[] args) {
+        HashSet<String>data= new HashSet<>(Arrays.asList(expandedTrigAndHypMethodNames));
+        StringBuilder sb = new StringBuilder();
+    
+        for(String s: methodIds.keySet()){
+            data.add(s);
+        }
+        int i = 0;
+        for(String s: data){
+            if(i%6==0){
+            sb.append("\"").append(s).append("\",\n");
+            }else{
+            sb.append("\"").append(s).append("\",");
+            }
+            i++;
+        }
+        
+        TextFileWriter.writeText(new File(System.getProperty("user.home")+"/tokens.txt"), sb.toString());
+        System.out.println("Saved at "+new File(System.getProperty("user.home")+"/tokens.txt").getAbsolutePath());
+    }
 }

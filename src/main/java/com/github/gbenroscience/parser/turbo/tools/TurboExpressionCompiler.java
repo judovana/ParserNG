@@ -27,13 +27,9 @@ public interface TurboExpressionCompiler {
     /**
      * Compile a postfix token array into a fast-executing expression.
      *
-     * @param postfix The compiled postfix (RPN) token array
-     * @param registry The variable registry for frame slot management
+     * @param postfix The compiled postfix (RPN) token array 
      * @return A FastCompositeExpression ready for evaluation
      * @throws Throwable if compilation fails
      */
-    FastCompositeExpression compile(
-        MathExpression.Token[] postfix,
-        MathExpression.VariableRegistry registry
-    ) throws Throwable;
+    FastCompositeExpression compile() throws Throwable;
 }

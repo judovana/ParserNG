@@ -620,7 +620,7 @@ public class MathScanner {
             }
 
         }//end if
-System.out.println("scanner1: "+scanner+"-----MathScanner:"+this);
+ 
         removeExcessBrackets(scanner);
         recognizeAnonymousFunctions(scanner);
         for (int i = 0; i < scanner.size(); i++) {
@@ -655,7 +655,7 @@ System.out.println("scanner1: "+scanner+"-----MathScanner:"+this);
             else if (Method.isMatrixMethod(token) && nextToken.equals("(")) {
 // matrix_mul,(,@,(x),log(x,2),4,8)
                 int close = Bracket.getComplementIndex(true, i + 1, scanner);
-                List<String> list = scanner.subList(i, close + 1); System.out.println("list: "+list);
+                List<String> list = scanner.subList(i, close + 1);  
                //IF THINGS GO BAD, UNCOMMENT HERE---2 extractFunctionStringFromExpressionForMatrixMethods(list);
                 if (list.isEmpty()) {
                     parser_Result = ParserResult.INCOMPLETE_PARAMS;
@@ -1184,7 +1184,7 @@ System.out.println("scanner1: "+scanner+"-----MathScanner:"+this);
             }//end if
 
             if (!Variable.isVariableString(scanner.get(i)) && !Operator.isOperatorString(scanner.get(i)) && !validNumber(scanner.get(i))
-                    && !Method.isMethodName(scanner.get(i))) {
+                    && !Method.isMethodName(scanner.get(i))) {System.out.println("scanner-debug-000: "+scanner);
                 errorList.add("Syntax Error! Strange Object Found: " + scanner.get(i));
                 parser_Result = ParserResult.STRANGE_INPUT;
                 setRunnable(false);
@@ -1192,13 +1192,13 @@ System.out.println("scanner1: "+scanner+"-----MathScanner:"+this);
             if (MathExpression.isAutoInitOn()) {
                 String tk = scanner.get(i);
                 if (i + 1 < sz && Variable.isVariableString(tk) && !isOpeningBracket(scanner.get(i + 1)) && !varMan.contains(tk)
-                        && !FunctionManager.contains(tk) && !Method.isDefinedMethod(tk)) {
+                        && !FunctionManager.containsAny(tk) && !Method.isDefinedMethod(tk)) {
                     varMan.parseCommand(tk + "=0.0;");
                 }//end if
             }//end if
             else {
                 if (i + 1 < sz && Variable.isVariableString(scanner.get(i)) && !isOpeningBracket(scanner.get(i + 1)) && !varMan.contains(scanner.get(i))
-                        && !FunctionManager.contains(scanner.get(i))) {
+                        && !FunctionManager.containsAny(scanner.get(i))) {
                     errorList.add(" Unknown Variable: " + scanner.get(i) + "\n Please Declare And Initialize This Variable Before Using It.\n"
                             + "Use The Command, \'variableName=value\' To Accomplish This.");
                     parser_Result = ParserResult.STRANGE_INPUT;
@@ -1207,7 +1207,7 @@ System.out.println("scanner1: "+scanner+"-----MathScanner:"+this);
                 }//end if
             }//end else
         }//end for loop
-
+ 
         if (!runnable) {
             errorList.add("\n"
                     + "Sorry, Errors Were Found In Your Expression."
@@ -1466,7 +1466,7 @@ System.out.println("scanner1: "+scanner+"-----MathScanner:"+this);
                                 case ALGEBRAIC_EXPRESSION:
                                     l.add(me.getReturnObjectName());
                                     break;
-                                case LIST:
+                                case VECTOR:
                                     l.add(me.getReturnObjectName());
                                     break;
                                 case NUMBER:
@@ -1509,7 +1509,7 @@ System.out.println("scanner1: "+scanner+"-----MathScanner:"+this);
                                 case ALGEBRAIC_EXPRESSION:
                                     l.add(me.getReturnObjectName());
                                     break;
-                                case LIST:
+                                case VECTOR:
                                     l.add(me.getReturnObjectName());
                                     break;
                                 case NUMBER:
@@ -1597,7 +1597,7 @@ System.out.println("scanner1: "+scanner+"-----MathScanner:"+this);
                                 case ALGEBRAIC_EXPRESSION:
                                     l.add(me.getReturnObjectName());
                                     break;
-                                case LIST:
+                                case VECTOR:
                                     l.add(me.getReturnObjectName());
                                     break;
                                 case NUMBER:
@@ -1640,7 +1640,7 @@ System.out.println("scanner1: "+scanner+"-----MathScanner:"+this);
                                 case ALGEBRAIC_EXPRESSION:
                                     l.add(me.getReturnObjectName());
                                     break;
-                                case LIST:
+                                case VECTOR:
                                     l.add(me.getReturnObjectName());
                                     break;
                                 case NUMBER:
@@ -1686,6 +1686,11 @@ System.out.println("scanner1: "+scanner+"-----MathScanner:"+this);
         String s10 = "diff(@(x)sin(x),2,3)";
         String s11 = "root(@(x)sin(x),2,3)";
         String s12= "root(@(x)sin(x),sin(2)-cos(1),13*(2+3))";
+        
+        
+        MathScanner sc0 = new MathScanner(s8);
+        System.out.println("*************************"+sc0.scanner(new VariableManager()));
+        
         MathScanner sc = new MathScanner(s9);
         System.out.println("*************************"+sc.scanner(new VariableManager()));
         MathScanner sc1 = new MathScanner(s10);
