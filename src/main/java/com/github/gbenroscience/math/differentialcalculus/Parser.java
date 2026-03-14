@@ -97,8 +97,8 @@ public class Parser {
     public Parser(String expression) {
 
         DataSetFormatter dsf = new DataSetFormatter(expression);
-        List<String> scanner = dsf.getDataset();
-
+        List<String> scanner = dsf.getDataset(); 
+        scanner = MathScanner.plusAndMinusStringHandlerHelper(scanner);
         MathScanner.recognizeAnonymousFunctions(scanner);
 
         this.function = localParseDerivativeCommand(scanner);

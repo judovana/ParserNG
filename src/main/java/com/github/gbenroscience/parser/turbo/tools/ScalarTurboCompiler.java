@@ -17,10 +17,15 @@ package com.github.gbenroscience.parser.turbo.tools;
 
 import com.github.gbenroscience.math.Maths;
 import com.github.gbenroscience.math.differentialcalculus.Derivative;
+import com.github.gbenroscience.math.numericalmethods.FunctionExpander;
+import com.github.gbenroscience.math.numericalmethods.NumericalIntegral;
+import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
+import com.github.gbenroscience.parser.TYPE;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.util.FunctionManager;
 import java.lang.invoke.*;
+import java.math.BigDecimal;
 import java.util.*;
 
 /**
@@ -202,9 +207,7 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
      * Internal: Compile to raw scalar MethodHandle (double[] -> double).
      */
     private static MethodHandle compileScalar(MathExpression.Token[] postfix) throws Throwable {
-
         Stack<MethodHandle> stack = new Stack<>();
-
         for (MathExpression.Token t : postfix) {
             switch (t.kind) {
                 case MathExpression.Token.NUMBER:
@@ -241,9 +244,45 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
 
                 case MathExpression.Token.FUNCTION:
                 case MathExpression.Token.METHOD:
-                    String name = t.name.toLowerCase(); 
+                    String name = t.name.toLowerCase();
+                    if (name.equals("intg")) {
+                        int arity = t.arity;
+                        // Pop args from stack (RPN order)
+                        for (int i = 0; i < arity; i++) {
+                            stack.pop();
+                        }
 
-                    if (name.equals("diff")) {
+                        String[] rawArgs = t.getRawArgs(); // [ExpressionName, Lower, Upper, Iterations]
+
+                        // 1. COMPILE the target expression into a MethodHandle immediately
+                        Function f = FunctionManager.lookUp(rawArgs[0]);
+                        MathExpression innerExpr = f.getMathExpression();
+                        MethodHandle compiledInner = compileScalar(innerExpr.getCachedPostfix());
+                        
+
+                        double lower = Double.parseDouble(rawArgs[1]);
+                        double upper = Double.parseDouble(rawArgs[2]);
+                        int iterations = (arity == 4) ? (int) Double.parseDouble(rawArgs[3]) : 10000;
+                        String[]vars = innerExpr.getVariablesNames();
+                        Integer[]slots = innerExpr.getSlots();
+
+                        // 2. Resolve a bridge method that takes the PRE-COMPILED handle
+                        MethodHandle bridge = LOOKUP.findStatic(ScalarTurboCompiler.class, "executeTurboIntegral",
+                                MethodType.methodType(double.class, Function.class, MethodHandle.class, double.class, double.class, int.class, String[].class, Integer[].class));
+                        //executeTurboIntegral(MethodHandle handle, double lower, double upper, int iterations,String[]vars, Integer[]slots)
+
+                        // 3. Bind the constants (The Compiled Handle and the Bounds)
+                        MethodHandle finalIntgHandle = MethodHandles.insertArguments(bridge, 0,f, compiledInner, lower, upper, iterations, vars, slots);
+
+                        // 4. Push to stack as (double[]) -> double
+                        stack.push(MethodHandles.dropArguments(finalIntgHandle, 0, double[].class));
+                        break;
+                    } else if (name.equals("diff")) {
+                        // 1. POP the arguments from the stack to balance it!
+                        // Since diff(expr, var, order) has 3 args, we must pop 3 times.
+                        for (int i = 0; i < t.arity; i++) {
+                            stack.pop();
+                        }
                         String[] args = t.getRawArgs();
                         if (args == null || args.length == 0) {
                             throw new IllegalArgumentException("Method 'diff' requires arguments.");
@@ -251,17 +290,13 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
 
                         // 1. Resolve Expression/Handle
                         String targetExpr = args[0];
-                        if (FunctionManager.contains(targetExpr)) {
-                            // Pull the raw string body from the manager
-                            targetExpr = FunctionManager.lookUp(targetExpr).getMathExpression().getExpression();
-                        }
 
                         // 2. Resolve Variable & Order (with defaults)
                         String variable = (args.length > 1) ? args[1] : "x";
                         String order = (args.length > 2) ? args[2] : "1";
 
                         // 3. Symbolic Derivation
-                        String solution;
+                        MathExpression.EvalResult solution;
                         try {
                             solution = Derivative.eval("diff(" + targetExpr + "," + variable + "," + order + ")");
                         } catch (Exception e) {
@@ -269,15 +304,19 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                         }
 
                         // 4. Recursive Compilation into the MethodHandle Tree
-                        if (com.github.gbenroscience.parser.Number.isNumber(solution)) {
-                            double val = Double.parseDouble(solution);
+                        if (solution.getType() == TYPE.NUMBER) {
+                            double val = solution.scalar;
                             MethodHandle constant = MethodHandles.constant(double.class, val);
                             stack.push(MethodHandles.dropArguments(constant, 0, double[].class));
+                        } else if (solution.getType() == TYPE.STRING) {
+                            // Reparse the solution string and compile it.
+                            // This effectively "inlines" the derivative logic.
+                            MathExpression solutionExpr = new MathExpression(solution.textRes, true);
+                            stack.push(compileScalar(solutionExpr.getCachedPostfix()));
                         } else {
                             // Reparse the solution string and compile it.
                             // This effectively "inlines" the derivative logic.
-                            MathExpression solutionExpr = new MathExpression(solution, true);
-                            stack.push(compileScalar(solutionExpr.getCachedPostfix()));
+                            throw new RuntimeException("Invalid expression passed to `diff` method: " + FunctionManager.lookUp(targetExpr));
                         }
                         break;
                     }
@@ -388,6 +427,18 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
             default:
                 throw new IllegalArgumentException("Unsupported binary operator: " + op);
         }
+    }
+
+    // Helper to bridge the MethodHandle to the NumericalIntegral class
+    public static double executeIntegral(String expr, double lower, double upper, double iterations) {
+        int iter = (iterations == 0) ? 0 : (int) iterations;
+        NumericalIntegral intg = new NumericalIntegral(lower, upper, iter, expr);
+        return intg.findHighRangeIntegral();
+    }
+
+    public static double executeTurboIntegral(Function f, MethodHandle handle, double lower, double upper, int iterations,String[]vars, Integer[]slots) {
+        NumericalIntegral intg = new NumericalIntegral(f, lower, upper, iterations, handle, vars, slots);
+        return intg.findHighRangeIntegral();
     }
 
     // ========== UNARY OPERATORS ==========
@@ -712,6 +763,26 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
             default:
                 throw new UnsupportedOperationException("Binary fast-path not found: " + name);
         }
+    }
+
+    // Inside ScalarTurboCompiler class
+    public static MethodHandle createHornerHandle(double[] coeffs) throws NoSuchMethodException, IllegalAccessException {
+        MethodHandle base = LOOKUP.findStatic(FunctionExpander.class, "evaluateHorner",
+                MethodType.methodType(double.class, double[].class, double[].class));
+        // Currying: Bind the first argument (coeffs)
+        return MethodHandles.insertArguments(base, 0, (Object) coeffs);
+    }
+
+    public static MethodHandle createHornerBigDecimalHandle(BigDecimal[] coeffs) throws NoSuchMethodException, IllegalAccessException {
+        MethodHandle base = LOOKUP.findStatic(FunctionExpander.class, "evaluateHornerBigDecimal",
+                MethodType.methodType(double.class, BigDecimal[].class, double[].class));
+        // Currying: Bind the first argument (coeffs)
+        return MethodHandles.insertArguments(base, 0, (Object) coeffs);
+    }
+
+    public static MethodHandle createConstantHandle(double value) {
+        MethodHandle c = MethodHandles.constant(double.class, value);
+        return MethodHandles.dropArguments(c, 0, double[].class);
     }
 
     // ========== INLINE ARITHMETIC HELPERS ==========

@@ -197,7 +197,7 @@ public class Derivative {
      * value is returned.
      *
      */
-    public static String eval(String expr) {
+    public static MathExpression.EvalResult eval(String expr) {
 //the anonymous function to be differentiated: e.g.diff(@(p)(3*p^3+2*p^2-8*p+1),1)
         try {
             Parser p = new Parser(expr);
@@ -207,7 +207,6 @@ public class Derivative {
  
                 expr = "diff(" + p.getFunction().getMathExpression().getExpression() + ")";
                 String baseVariable = p.getFunction().getIndependentVariables().get(0).getName();
-
                 int orderOfDiff = p.getOrderOfDifferentiation();
                 if(p.isNotSetOrderOfDiff()){
                     orderOfDiff = 1;
@@ -223,7 +222,8 @@ public class Derivative {
                     }//end for loop
                     expr = expr.substring(5, expr.length() - 1);
                     MathExpression me = new MathExpression(baseVariable + "=" + evalPoint + ";" + expr);
-                    return me.solve();
+                    me.updateArgs(evalPoint);
+                    return me.solveGeneric();
                 } else {
                     for (int i = 1; i <= orderOfDiff; i++) {
                         Derivative derivative = new Derivative(expr);
@@ -235,14 +235,14 @@ public class Derivative {
                     String funcExpr = "@("+baseVariable+")"+expr;
  
                     Function f = FunctionManager.add(funcExpr);
-                    return f.getName();
+                    return f.getMathExpression().getNextResult().wrap(f.getName());
                     //return funcExpr;
                 }
             }
-            return "Input Error!!!";
+            return new MathExpression.EvalResult().wrap(ParserResult.STRANGE_INPUT);
         } catch (Exception e) {
             e.printStackTrace();
-            return "Input Error";
+             return new MathExpression.EvalResult().wrap(ParserResult.STRANGE_INPUT);
         }
     }
 

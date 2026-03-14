@@ -15,7 +15,9 @@ import java.util.ArrayList;
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.math.matrix.expressParser.PrecisionMatrix;
 import static java.lang.Math.*;
-import com.github.gbenroscience.math.differentialcalculus.Formula;
+import com.github.gbenroscience.parser.turbo.tools.ScalarTurboCompiler;
+import java.lang.invoke.MethodHandle;
+import java.math.MathContext;
 import java.util.List;
 
 /**
@@ -86,6 +88,12 @@ public class FunctionExpander {
      * @param precision The precision mode to employ in expanding the Function.
      * @param function The function string.
      */
+    MethodHandle targetHandle;
+
+    private double[] coeffs; // Store the result from DOUBLE_PRECISION build
+    private BigDecimal[] coeffsBD; // Store the result from BIGDECIMAL_PRECISION build
+    private int currentPrecisionMode;
+
     public FunctionExpander(double xLower, double xUpper, int degree, int precision, Function function) {
         this.xLower = xLower;
         this.xUpper = xUpper;
@@ -181,6 +189,10 @@ public class FunctionExpander {
         return polynomial;
     }
 
+    public MethodHandle getTargetHandle() {
+        return targetHandle;
+    }
+
     /**
      *
      * @return the coefficient matrix of the function's polynomial.
@@ -226,7 +238,7 @@ public class FunctionExpander {
                     arr[rows][cols] = BigDecimal.valueOf(pow(xLower + rows * dx, cols));
                 }//end if
                 else if (cols == degree + 1) {
-                    fun.setValue(function.getIndependentVariables().get(0).getName(),  (xLower + rows * dx));
+                    fun.setValue(function.getIndependentVariables().get(0).getName(), (xLower + rows * dx));
                     try {
                         arr[rows][cols] = new BigDecimal(fun.solve());
                     }//end try
@@ -255,8 +267,7 @@ public class FunctionExpander {
      * @param expression The expression containing the function to integrate and
      * the lower and upper boundaries of integration.
      *
-     * Produces an array which has:
-     * At index 0.....the expression to integrate
+     * Produces an array which has: At index 0.....the expression to integrate
      * At index 1.....the lower limit of integration At index 2.....the upper
      * limit of integration. At index 3(optional)...the number of iterations to
      * employ in evaluating this expression.
@@ -345,67 +356,130 @@ public class FunctionExpander {
 
     }//end method
 
+    // Inside FunctionExpander
+    public MethodHandle getPolynomialHandle() {
+        return this.targetHandle;
+    }
+
+    public final void buildPolynomial(int precisionMode) {
+        // 1. Resolve variable name
+        String var = (function != null && !function.getIndependentVariables().isEmpty())
+                ? function.getIndependentVariables().get(0).getName()
+                : "x";
+        StringBuilder polyBuilder = new StringBuilder();
+
+        if (precisionMode == DOUBLE_PRECISION) {
+            // --- DOUBLE PRECISION ---
+            Matrix mat = getMatrix().solveEquation();
+            double[][] arr = mat.getArray();
+            int rows = mat.getRows();
+            this.coeffs = new double[rows];
+
+            for (int i = 0; i < rows; i++) {
+                double c = arr[i][0];
+                coeffs[i] = c;
+                appendTerm(polyBuilder, c, var, i);
+            }
+
+            // Link to Turbo logic: ScalarTurboCompiler provides the logic, 
+            // but we store the resulting bound handle here.
+            try {
+                this.targetHandle = ScalarTurboCompiler.createHornerHandle(coeffs);
+            } catch (Exception e) {
+                System.err.println("WARNING: Couldn' initialize MethodHandle-- for double precision");
+                // Fallback or log: If turbo setup fails, we still have the string poly
+            }
+
+        } else if (precisionMode == BIGDECIMAL_PRECISION) {
+            // --- BIGDECIMAL PRECISION ---
+            PrecisionMatrix mat = getPrecisionMatrix().solveEquation();
+            BigDecimal[][] arr = mat.getArray();
+            int rows = mat.getRows();
+            this.coeffsBD = new BigDecimal[rows];
+
+            for (int i = 0; i < rows; i++) {
+                BigDecimal c = arr[i][0];
+                coeffsBD[i] = c;
+                appendTermBigDecimal(polyBuilder, c, var, i);
+            }
+
+            try {
+                this.targetHandle = ScalarTurboCompiler.createHornerBigDecimalHandle(coeffsBD);
+            } catch (Exception e) {
+                System.err.println("WARNING: Couldn' initialize MethodHandle-- for bigdecimal precision");
+                // Fallback
+            }
+
+        } else {
+            throw new InputMismatchException("Choose A Relevant Precision Mode.");
+        }
+
+        // Finalize the string representation
+        String finalPoly = polyBuilder.toString();
+        setPolynomial(finalPoly.isEmpty() ? "0" : finalPoly);
+    }
+
+// Helpers for clean string building
+    private void appendTerm(StringBuilder sb, double coeff, String var, int power) {
+        if (coeff == 0) {
+            return;
+        }
+        if (coeff > 0 && sb.length() > 0) {
+            sb.append("+");
+        }
+        if (power == 0) {
+            sb.append(coeff);
+        } else if (power == 1) {
+            sb.append(coeff).append("*").append(var);
+        } else {
+            sb.append(coeff).append("*").append(var).append("^").append(power);
+        }
+    }
+
+    private void appendTermBigDecimal(StringBuilder sb, BigDecimal coeff, String var, int power) {
+        if (coeff.signum() == 0) {
+            return;
+        }
+        if (coeff.signum() > 0 && sb.length() > 0) {
+            sb.append("+");
+        }
+        if (power == 0) {
+            sb.append(coeff.toPlainString());
+        } else if (power == 1) {
+            sb.append(coeff.toPlainString()).append("*").append(var);
+        } else {
+            sb.append(coeff.toPlainString()).append("*").append(var).append("^").append(power);
+        }
+    }
+
     /**
      * Builds the polynomial expansion of the function.
      *
      * @param precisionMode The precision mode to employ in expanding the
      * Function.
      */
-    public void buildPolynomial(int precisionMode) {
-        if (precisionMode == DOUBLE_PRECISION) {
-
-            Matrix mat = getMatrix();
-            mat = mat.solveEquation();
-            String var = function.getIndependentVariables().get(0).getName();
-            String poly = "";
-
-            int power = 0;
-            double arr[][] = mat.getArray();
-            for (int rows = 0; rows < mat.getRows(); rows++, power++) {
-                for (int cols = 0; cols < mat.getCols(); cols++) {
-
-                    poly = poly.concat(arr[rows][cols] + "*" + var + "^" + power + "+");
-
-                }//end cols
-            }//end rows
-
-            poly = poly.replace("+-", "-");
-            poly = poly.replace("-+", "-");
-            poly = poly.replace("--", "+");
-            poly = poly.replace("++", "+");
-
-            setPolynomial(poly.substring(0, poly.length() - 1));//remove the ending "+".
-
-        }//end if
-        else if (precisionMode == BIGDECIMAL_PRECISION) {
-
-            PrecisionMatrix mat = getPrecisionMatrix();
-            mat = mat.solveEquation();
-            String var = function.getIndependentVariables().get(0).getName();
-            String poly = "";
-
-            int power = 0;
-            BigDecimal arr[][] = mat.getArray();
-            for (int rows = 0; rows < mat.getRows(); rows++, power++) {
-                for (int cols = 0; cols < mat.getCols(); cols++) {
-
-                    poly = poly.concat(arr[rows][cols] + var + "^" + power + "+");
-
-                }//end cols
-            }//end rows
-
-            poly = poly.replace("+-", "-");
-            poly = poly.replace("-+", "-");
-            poly = poly.replace("--", "+");
-            poly = poly.replace("++", "+");
-
-            setPolynomial(poly.substring(0, poly.length() - 1));//remove the ending "+".
-
-        }//end else if
-        else {
-            throw new InputMismatchException("Choose A Relevant Precision Mode.");
+    public static double evaluateHorner(double[] coeffs, double[] vars) {
+        double x = vars[0]; // Assuming x is at index 0
+        double result = 0;
+        // Iterate backwards from the highest power
+        for (int i = coeffs.length - 1; i >= 0; i--) {
+            result = result * x + coeffs[i];
         }
-    }//end method
+        return result;
+    }
+
+    public static double evaluateHornerBigDecimal(BigDecimal[] coeffs, double[] vars) {
+        // Convert input x to BigDecimal for the calculation
+        BigDecimal x = BigDecimal.valueOf(vars[0]);
+        BigDecimal result = BigDecimal.ZERO;
+
+        // Horner's Method: result = result * x + coeff
+        for (int i = coeffs.length - 1; i >= 0; i--) {
+            result = result.multiply(x, MathContext.DECIMAL128).add(coeffs[i], MathContext.DECIMAL128);
+        }
+
+        return result.doubleValue();
+    }
 
     /**
      * @return the derivative of the polynomial.
@@ -419,6 +493,68 @@ public class FunctionExpander {
      */
     public String getPolynomialIntegral() {
         return new PolynomialCalculus().integrate();
+    }
+
+    public MethodHandle getPolynomialIntegralHandle() {
+        try {
+            if (currentPrecisionMode == DOUBLE_PRECISION) {
+                // Integration: Power rule shift
+                // c0 -> c0*x^1/1, c1 -> c1*x^2/2, etc.
+                double[] intglCoeffs = new double[coeffs.length + 1];
+                intglCoeffs[0] = 0; // Constant of integration (C)
+
+                for (int i = 0; i < coeffs.length; i++) {
+                    intglCoeffs[i + 1] = coeffs[i] / (i + 1);
+                }
+                return ScalarTurboCompiler.createHornerHandle(intglCoeffs);
+
+            } else if (currentPrecisionMode == BIGDECIMAL_PRECISION) {
+                BigDecimal[] intglCoeffsBD = new BigDecimal[coeffsBD.length + 1];
+                intglCoeffsBD[0] = BigDecimal.ZERO;
+
+                for (int i = 0; i < coeffsBD.length; i++) {
+                    BigDecimal power = new BigDecimal(i + 1);
+                    intglCoeffsBD[i + 1] = coeffsBD[i].divide(power, MathContext.DECIMAL128);
+                }
+                return ScalarTurboCompiler.createHornerBigDecimalHandle(intglCoeffsBD);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Could not generate Polynomial Integral Handle", e);
+        }
+        return null;
+    }
+
+    public MethodHandle getPolynomialDerivativeHandle() {
+        try {
+            if (currentPrecisionMode == DOUBLE_PRECISION) {
+                // If poly is c0 + c1*x + c2*x^2, derivative is c1 + 2*c2*x
+                // The constant term (c0) disappears, so the array is shorter.
+                if (coeffs.length <= 1) {
+                    return ScalarTurboCompiler.createConstantHandle(0.0);
+                }
+
+                double[] derivCoeffs = new double[coeffs.length - 1];
+                for (int i = 1; i < coeffs.length; i++) {
+                    derivCoeffs[i - 1] = coeffs[i] * i;
+                }
+                return ScalarTurboCompiler.createHornerHandle(derivCoeffs);
+
+            } else if (currentPrecisionMode == BIGDECIMAL_PRECISION) {
+                if (coeffsBD.length <= 1) {
+                    return ScalarTurboCompiler.createConstantHandle(0.0);
+                }
+
+                BigDecimal[] derivCoeffsBD = new BigDecimal[coeffsBD.length - 1];
+                for (int i = 1; i < coeffsBD.length; i++) {
+                    BigDecimal power = new BigDecimal(i);
+                    derivCoeffsBD[i - 1] = coeffsBD[i].multiply(power, MathContext.DECIMAL128);
+                }
+                return ScalarTurboCompiler.createHornerBigDecimalHandle(derivCoeffsBD);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Could not generate Polynomial Derivative Handle", e);
+        }
+        return null;
     }
 
     /**
@@ -503,10 +639,10 @@ public class FunctionExpander {
     }//end class PolynomialCalculus
 
     public static void main(String args[]) {
-       
+
         FunctionExpander polynomial = new FunctionExpander("poly(@(x)(x-1)(x+2)(3+x),1,20,4)", DOUBLE_PRECISION);//var x=1;..is to initialize the variable x.
-        System.out.println(polynomial.getPolynomial());
-        
+        System.out.println("------------" + polynomial.getPolynomial());
+
         FunctionExpander expand = new FunctionExpander("poly(@(x)asin(x),0.8,1.0,25)", DOUBLE_PRECISION);//var x=1;..is to initialize the variable x.
         String poly = expand.getPolynomial();
         System.out.println("polynomial function = " + poly + "\n\n\n");
@@ -520,8 +656,8 @@ public class FunctionExpander {
 
 }//end class
 /**
- * 
- * 
+ *
+ *
  * (x-1)(x+2)(x+3) = x^3+4x^2+x-6
- *  
+ *
  */

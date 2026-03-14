@@ -47,6 +47,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Stack;
 import static com.github.gbenroscience.parser.TYPE.VECTOR;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  *
@@ -741,6 +743,19 @@ public class MathExpression implements Savable, Solvable {
         return registry.hasVariable(var);
     }
 
+    public String[] getVariablesNames() {
+        return registry.getVariables();
+    }
+    
+    
+    public Integer[] getSlots() {
+        return registry.getSlots();
+    }
+    
+    public Pair<String[],Integer[]> getVariables(){
+        return registry.getVarsAndSlots();
+    }
+
     /**
      * Retrieves a Variable handle from the expression's registry. This handle
      * is "Pre-Bound" to the correct slot in the execution frame.
@@ -827,11 +842,11 @@ public class MathExpression implements Savable, Solvable {
     }
 
     /**
-     *
-     * @return an array of {@link Integer} objects which are the frame index of
+     * test and see if it produces same output as {@link MathExpression#getSlots() }
+     * @return an array of ints which are the frame index of
      * variables in the expression
      */
-    public int[] getSlots() {
+    public int[] getSlotsAlt() {
         ArrayList<Integer> slots = new ArrayList<>();
 
         for (int i = 0; i < cachedPostfix.length; i++) {
@@ -1325,18 +1340,30 @@ public class MathExpression implements Savable, Solvable {
             return;
         }
 
+        // --- 1. THE FIX: Passive Listeners for Function Arguments ---
+        class FuncArgTracker {
+
+            Token funcToken;
+            int depthLevel; // The exact paren depth this function operates at
+            List<String> args = new ArrayList<>();
+            StringBuilder currentArg = new StringBuilder();
+
+            FuncArgTracker(Token funcToken, int depthLevel) {
+                this.funcToken = funcToken;
+                this.depthLevel = depthLevel;
+            }
+        }
+
+        // Using a List so we can broadcast token strings to all open functions simultaneously
+        List<FuncArgTracker> trackers = new ArrayList<>();
+        int currentParenDepth = 0;
+
+        // --- 2. STANDARD SHUNTING YARD STACKS ---
         Stack<Token> opStack = new Stack<>();
-        Stack<Integer> argCounts = new Stack<>();
-        Stack<Boolean> lastWasComma = new Stack<>();
-        Stack<Boolean> isGrouping = new Stack<>();  // Track if this paren is grouping
-        Stack<List<String>> argCollector = new Stack<>();  // NEW: Collect raw args for functions
+        Stack<Boolean> isFuncParenStack = new Stack<>(); // Tracks if a '(' belongs to a function
 
         Token[] postfix = new Token[scanner.size() * 2];
         int p = 0;
-
-        int depth = 0;
-        argCounts.push(0);
-        lastWasComma.push(true);
 
         int len = scanner.size();
         for (int idx = 0; idx < len; idx++) {
@@ -1348,237 +1375,66 @@ public class MathExpression implements Savable, Solvable {
                 continue;
             }
 
-            switch (t.kind) {
-                case Token.NUMBER:
-                    postfix[p++] = t;
-                    if (depth > 0 && lastWasComma.peek()) {
-                        int currentCount = argCounts.pop();
-                        argCounts.push(currentCount + 1);
-                        lastWasComma.pop();
-                        lastWasComma.push(false);
+            // ==========================================
+            // PHASE A: PASSIVE STRING TRACKING
+            // ==========================================
+            boolean isFuncParen = false;
 
-                        // NEW: Collect the argument string
-                        if (!argCollector.isEmpty()) {
-                            argCollector.peek().add(s);
-                        }
-                    }
-                    if (t.v != null) {
-                        // Get or create a slot for this variable name
-                        int slot = registry.getSlot(t.name);
-                        // Link the Token directly to that slot
-                        t.frameIndex = slot;
-                        // Link the Variable object to that slot so the user can update it
-                        t.v.setFrameIndex(slot);
-                    }
-                    break;
-
-                case Token.FUNCTION:
-                case Token.METHOD:
-                    opStack.push(t);
-                    // NEW: Initialize argument collection for this function/method
-                    argCollector.push(new ArrayList<>());
-                    break;
-
-                case Token.LPAREN:
-                    boolean isFuncParen = false;
-                    if (!opStack.isEmpty()) {
-                        Token lastOp = opStack.peek();
-                        if (lastOp.kind == Token.FUNCTION || lastOp.kind == Token.METHOD) {
-                            isFuncParen = true;
-                        }
-                    }
-
-                    opStack.push(t);
-
-                    if (isFuncParen) {
-                        depth++;
-                        argCounts.push(0);
-                        lastWasComma.push(true);
-                        isGrouping.push(false);
-                    } else {
-                        // Grouping paren - still track if we're in a function
-                        // NEW: Collect the opening paren for grouping expressions
-                        if (!argCollector.isEmpty()) {
-                            argCollector.peek().add("(");
-                        }
-                        isGrouping.push(true);
-                    }
-                    break;
-
-                case Token.RPAREN:
-                    // NEW: Collect closing paren for grouping expressions
-                    if (!argCollector.isEmpty() && !isGrouping.isEmpty() && isGrouping.peek()) {
-                        argCollector.peek().add(")");
-                    }
-
-                    // Pop operators until matching '('
-                    while (!opStack.isEmpty() && opStack.peek().kind != Token.LPAREN) {
-                        postfix[p++] = opStack.pop();
-                    }
-
-                    if (!opStack.isEmpty()) {
-                        opStack.pop(); // discard the '('
-                    }
-
-                    boolean wasGrouping = !isGrouping.isEmpty() && isGrouping.pop();
-
-                    if (wasGrouping) {
-                        // Closing a GROUPING paren
-                        // This completes a value in the function's arg list
-                        if (depth > 0 && lastWasComma.peek()) {
-                            int currentCount = argCounts.pop();
-                            argCounts.push(currentCount + 1);
-                            lastWasComma.pop();
-                            lastWasComma.push(false);
-                        }
-                    } else {
-                        // Closing a FUNCTION CALL paren
-                        if (!opStack.isEmpty()) {
-                            Token callable = opStack.pop();
-
-                            int actualArgCount = argCounts.pop();
-                            lastWasComma.pop();
-                            callable.arity = Math.max(1, actualArgCount);
-
-                            // NEW: Store the collected raw arguments
-                            if (!argCollector.isEmpty()) {
-                                List<String> rawArgsList = argCollector.pop();
-                                callable.rawArgs = rawArgsList.toArray(new String[0]);
-                                System.out.println("rawArgs: "+Arrays.toString(callable.rawArgs)+", for method: "+callable.name+" in scanner: "+scanner);
-                            }
-
-                            postfix[p++] = callable;
-
-                            depth--;
-
-                            // Function result is a value in parent
-                            if (depth > 0 && lastWasComma.peek()) {
-                                int parentCount = argCounts.pop();
-                                argCounts.push(parentCount + 1);
-                                lastWasComma.pop();
-                                lastWasComma.push(false);
-                            }
-                        }
-                    }
-                    break;
-
-                case Token.COMMA:
-                    // NEW: Separator marker in rawArgs
-                    if (!argCollector.isEmpty()) {
-                        argCollector.peek().add(",");
-                    }
-
-                    while (!opStack.isEmpty() && opStack.peek().kind != Token.LPAREN) {
-                        postfix[p++] = opStack.pop();
-                    }
-                    if (depth > 0 && !lastWasComma.isEmpty()) {
-                        lastWasComma.pop();
-                        lastWasComma.push(true);
-                    }
-                    break;
-
-                case Token.OPERATOR:
-                    // NEW: Collect operator in arguments
-                    if (!argCollector.isEmpty()) {
-                        argCollector.peek().add(s);
-                    }
-
-                    if (t.isPostfix) {
-                        postfix[p++] = t;
-                    } else {
-                        while (!opStack.isEmpty() && opStack.peek().kind == Token.OPERATOR) {
-                            Token top = opStack.peek();
-                            if ((!t.isRightAssoc && t.precedence <= top.precedence)
-                                    || (t.isRightAssoc && t.precedence < top.precedence)) {
-                                postfix[p++] = opStack.pop();
-                            } else {
-                                break;
-                            }
-                        }
-                        opStack.push(t);
-                    }
-                    break;
-            }
-        }
-
-        while (!opStack.isEmpty()) {
-            Token top = opStack.pop();
-            if (top.kind != Token.LPAREN) {
-                postfix[p++] = top;
-            }
-        }
-
-        cachedPostfix = new Token[p];
-        System.arraycopy(postfix, 0, cachedPostfix, 0, p);
-
-        // CRITICAL FOR PRODUCTION: Multi-pass constant folding with safety guards
-        if (willFoldConstants) {
-            foldConstantsWithSafetyGuards();  // <-- PRODUCTION VERSION
-        }
-
-        // Initialize the frame size based on how many unique variables were found
-        this.executionFrame = new double[registry.size()];
-        for (Token t : cachedPostfix) {
-            if (t.v != null) {
-                executionFrame[t.frameIndex] = t.v.getValue();
-            }
-        }
-        expressionSolver = new ExpressionSolver();
-    }
-
-    private void compileToPostfixGeminiRawArgs() {
-        if (cachedPostfix != null) {
-            return;
-        }
-
-        Stack<Token> opStack = new Stack<>();
-        Stack<Integer> argCounts = new Stack<>();
-        Stack<Boolean> lastWasComma = new Stack<>();
-        Stack<Boolean> isGrouping = new Stack<>();
-
-        // --- NEW: Stacks to capture raw argument strings ---
-        Stack<List<String>> argStringsStack = new Stack<>();
-        Stack<StringBuilder> argAccumulators = new Stack<>();
-
-        Token[] postfix = new Token[scanner.size() * 2];
-        int p = 0;
-        int depth = 0;
-        argCounts.push(0);
-        lastWasComma.push(true);
-
-        int len = scanner.size();
-        for (int idx = 0; idx < len; idx++) {
-            String s = scanner.get(idx);
-            String next = idx + 1 < len ? scanner.get(idx + 1) : null;
-
-            Token t = translate(s, next);
-            if (t == null) {
-                continue;
-            }
-
-            // --- RAW STRING CAPTURE ---
-            // If we are inside a function call, append this token to the current argument string
-            if (!argAccumulators.isEmpty()) {
-                // We don't want to append the outer COMMA or the final RPAREN 
-                // of the current function to its own argument list.
-                if (!s.equals(",") && !s.equals(")")) {
-                    argAccumulators.peek().append(s);
+            if (t.kind == Token.LPAREN) {
+                currentParenDepth++;
+                if (!opStack.isEmpty() && (opStack.peek().kind == Token.FUNCTION || opStack.peek().kind == Token.METHOD)) {
+                    isFuncParen = true;
+                    // Turn on a new microphone for this function at the current depth
+                    trackers.add(new FuncArgTracker(opStack.peek(), currentParenDepth));
                 }
             }
 
+            // Broadcast the current token string 's' to all open trackers
+            for (int i = 0; i < trackers.size(); i++) {
+                FuncArgTracker tracker = trackers.get(i);
+
+                // A comma or right paren ONLY belongs to this function if it's at the function's base depth
+                boolean isOwningComma = (t.kind == Token.COMMA && currentParenDepth == tracker.depthLevel);
+                boolean isOwningRParen = (t.kind == Token.RPAREN && currentParenDepth == tracker.depthLevel);
+
+                // Prevent the function from capturing its own opening parenthesis
+                boolean isStartingParen = (t.kind == Token.LPAREN && isFuncParen && i == trackers.size() - 1);
+
+                if (isOwningComma) {
+                    // Lock in the finished argument and clear the builder for the next one
+                    tracker.args.add(tracker.currentArg.toString().trim());
+                    tracker.currentArg.setLength(0);
+                } else if (isOwningRParen) {
+                    // Function is closing. Lock in the final argument.
+                    String lastArg = tracker.currentArg.toString().trim();
+                    if (!lastArg.isEmpty() || !tracker.args.isEmpty()) {
+                        if (!lastArg.isEmpty()) {
+                            tracker.args.add(lastArg);
+                        }
+                    }
+
+                    // Wire up the perfectly parsed arguments directly to the Token
+                    tracker.funcToken.rawArgs = tracker.args.toArray(new String[0]);
+                    tracker.funcToken.arity = tracker.args.size(); // Perfect arity counting (handles 0-arg funcs seamlessly)
+
+                } else if (!isStartingParen) {
+                    // It's a regular token inside an argument, just append it!
+                    tracker.currentArg.append(s);
+                }
+            }
+
+            // ==========================================
+            // PHASE B: STANDARD SHUNTING YARD
+            // ==========================================
             switch (t.kind) {
                 case Token.NUMBER:
                     postfix[p++] = t;
-                    if (depth > 0 && lastWasComma.peek()) {
-                        argCounts.push(argCounts.pop() + 1);
-                        lastWasComma.pop();
-                        lastWasComma.push(false);
-                    }
                     if (t.v != null) {
                         int slot = registry.getSlot(t.name);
                         t.frameIndex = slot;
                         t.v.setFrameIndex(slot);
                     }
+
                     break;
 
                 case Token.FUNCTION:
@@ -1587,108 +1443,35 @@ public class MathExpression implements Savable, Solvable {
                     break;
 
                 case Token.LPAREN:
-                    boolean isFuncParen = false;
-                    if (!opStack.isEmpty()) {
-                        Token lastOp = opStack.peek();
-                        if (lastOp.kind == Token.FUNCTION || lastOp.kind == Token.METHOD) {
-                            isFuncParen = true;
-                        }
-                    }
-
                     opStack.push(t);
-
-                    if (isFuncParen) {
-                        depth++;
-                        argCounts.push(0);
-                        lastWasComma.push(true);
-                        isGrouping.push(false);
-
-                        // Start tracking raw strings for this new function call level
-                        argStringsStack.push(new ArrayList<>());
-                        argAccumulators.push(new StringBuilder());
-                    } else {
-                        isGrouping.push(true);
-                        // If this is a grouping paren inside a function arg, we need to record it
-                        if (!argAccumulators.isEmpty()) {
-                            argAccumulators.peek().append("(");
-                        }
-                    }
+                    isFuncParenStack.push(isFuncParen);
                     break;
 
                 case Token.RPAREN:
                     while (!opStack.isEmpty() && opStack.peek().kind != Token.LPAREN) {
                         postfix[p++] = opStack.pop();
                     }
+
                     if (!opStack.isEmpty()) {
-                        opStack.pop(); // discard '('
+                        opStack.pop(); // Discard the '('
                     }
-                    boolean wasGrouping = !isGrouping.isEmpty() && isGrouping.pop();
 
-                    if (wasGrouping) {
-                        if (!argAccumulators.isEmpty()) {
-                            argAccumulators.peek().append(")");
-                        }
-                        if (depth > 0 && lastWasComma.peek()) {
-                            argCounts.push(argCounts.pop() + 1);
-                            lastWasComma.pop();
-                            lastWasComma.push(false);
-                        }
-                    } else {
-                        // Closing a FUNCTION/METHOD call
-                        if (!opStack.isEmpty()) {
-                            Token callable = opStack.pop();
-                            int actualArgCount = argCounts.pop();
-                            lastWasComma.pop();
-                            callable.arity = Math.max(1, actualArgCount);
-
-                            // --- FINALIZING RAW ARGS ---
-                            String lastArg = argAccumulators.pop().toString();
-                            List<String> collectedArgs = argStringsStack.pop();
-                            if (!lastArg.trim().isEmpty()) {
-                                collectedArgs.add(lastArg);
-                            }
-
-                            callable.rawArgs = collectedArgs.toArray(new String[0]);
-                            System.out.println("rawArgs: " + Arrays.toString(callable.rawArgs) + ", scanner: " + scanner);
-                            postfix[p++] = callable;
-                            depth--;
-
-                            if (depth > 0 && lastWasComma.peek()) {
-                                argCounts.push(argCounts.pop() + 1);
-                                lastWasComma.pop();
-                                lastWasComma.push(false);
-                            }
-
-                            // If this function call was itself an argument to an outer function,
-                            // we must pass its "stringified" self up to the parent accumulator
-                            if (!argAccumulators.isEmpty()) {
-                                // Re-construct the call string for the parent: func(arg1, arg2)
-                                StringBuilder parentAcc = argAccumulators.peek();
-                                parentAcc.append(callable.name).append("(");
-                                String[] ra = callable.getRawArgs();
-                                for (int i = 0; i < ra.length; i++) {
-                                    parentAcc.append(ra[i]).append(i < ra.length - 1 ? "," : "");
-                                }
-                                parentAcc.append(")");
-                            }
-                        }
+                    boolean wasFunc = !isFuncParenStack.isEmpty() && isFuncParenStack.pop();
+                    if (wasFunc && !opStack.isEmpty()) {
+                        postfix[p++] = opStack.pop(); // Move function to output
                     }
+
+                    // Turn off the tracker if a function just closed
+                    if (!trackers.isEmpty() && currentParenDepth == trackers.get(trackers.size() - 1).depthLevel) {
+                        trackers.remove(trackers.size() - 1);
+                    }
+
+                    currentParenDepth--;
                     break;
 
                 case Token.COMMA:
                     while (!opStack.isEmpty() && opStack.peek().kind != Token.LPAREN) {
                         postfix[p++] = opStack.pop();
-                    }
-
-                    // Finalize the current raw argument string and start the next one
-                    if (!argAccumulators.isEmpty()) {
-                        argStringsStack.peek().add(argAccumulators.peek().toString());
-                        argAccumulators.peek().setLength(0); // Reset for next argument
-                    }
-
-                    if (depth > 0 && !lastWasComma.isEmpty()) {
-                        lastWasComma.pop();
-                        lastWasComma.push(true);
                     }
                     break;
 
@@ -1711,7 +1494,7 @@ public class MathExpression implements Savable, Solvable {
             }
         }
 
-        // ... (rest of your existing cleanup and constant folding logic) ...
+        // Clean up remaining operators
         while (!opStack.isEmpty()) {
             Token top = opStack.pop();
             if (top.kind != Token.LPAREN) {
@@ -1726,177 +1509,6 @@ public class MathExpression implements Savable, Solvable {
             foldConstantsWithSafetyGuards();
         }
 
-        this.executionFrame = new double[registry.size()];
-        for (Token t : cachedPostfix) {
-            if (t.v != null) {
-                executionFrame[t.frameIndex] = t.v.getValue();
-            }
-        }
-        expressionSolver = new ExpressionSolver();
-    }
-
-    private void compileToPostfixOriginal() {
-        if (cachedPostfix != null) {
-            return;
-        }
-
-        Stack<Token> opStack = new Stack<>();
-        Stack<Integer> argCounts = new Stack<>();
-        Stack<Boolean> lastWasComma = new Stack<>();
-        Stack<Boolean> isGrouping = new Stack<>();  // Track if this paren is grouping
-
-        Token[] postfix = new Token[scanner.size() * 2];
-        int p = 0;
-
-        int depth = 0;
-        argCounts.push(0);
-        lastWasComma.push(true);
-
-        int len = scanner.size();
-        for (int idx = 0; idx < len; idx++) {
-            String s = scanner.get(idx);
-            String next = idx + 1 < len ? scanner.get(idx + 1) : null;
-
-            Token t = translate(s, next);
-            if (t == null) {
-                continue;
-            }
-
-            switch (t.kind) {
-                case Token.NUMBER:
-                    postfix[p++] = t;
-                    if (depth > 0 && lastWasComma.peek()) {
-                        int currentCount = argCounts.pop();
-                        argCounts.push(currentCount + 1);
-                        lastWasComma.pop();
-                        lastWasComma.push(false);
-                    }
-                    if (t.v != null) {
-// Get or create a slot for this variable name
-                        int slot = registry.getSlot(t.name);
-                        // Link the Token directly to that slot
-                        t.frameIndex = slot;
-                        // Link the Variable object to that slot so the user can update it
-                        t.v.setFrameIndex(slot);
-                    }
-                    break;
-
-                case Token.FUNCTION:
-                case Token.METHOD:
-                    opStack.push(t);
-                    break;
-
-                case Token.LPAREN:
-                    boolean isFuncParen = false;
-                    if (!opStack.isEmpty()) {
-                        Token lastOp = opStack.peek();
-                        if (lastOp.kind == Token.FUNCTION || lastOp.kind == Token.METHOD) {
-                            isFuncParen = true;
-                        }
-                    }
-
-                    opStack.push(t);
-
-                    if (isFuncParen) {
-                        depth++;
-                        argCounts.push(0);
-                        lastWasComma.push(true);
-                        isGrouping.push(false);
-                    } else {
-                        // Grouping paren - still track if we're in a function
-                        isGrouping.push(true);
-                    }
-                    break;
-
-                case Token.RPAREN:
-                    // Pop operators until matching '('
-                    while (!opStack.isEmpty() && opStack.peek().kind != Token.LPAREN) {
-                        postfix[p++] = opStack.pop();
-                    }
-
-                    if (!opStack.isEmpty()) {
-                        opStack.pop(); // discard the '('
-                    }
-
-                    boolean wasGrouping = !isGrouping.isEmpty() && isGrouping.pop();
-
-                    if (wasGrouping) {
-                        // Closing a GROUPING paren
-                        // This completes a value in the function's arg list
-                        if (depth > 0 && lastWasComma.peek()) {
-                            int currentCount = argCounts.pop();
-                            argCounts.push(currentCount + 1);
-                            lastWasComma.pop();
-                            lastWasComma.push(false);
-                        }
-                    } else {
-                        // Closing a FUNCTION CALL paren
-                        if (!opStack.isEmpty()) {
-                            Token callable = opStack.pop();
-
-                            int actualArgCount = argCounts.pop();
-                            lastWasComma.pop();
-                            callable.arity = Math.max(1, actualArgCount);
-                            postfix[p++] = callable;
-
-                            depth--;
-
-                            // Function result is a value in parent
-                            if (depth > 0 && lastWasComma.peek()) {
-                                int parentCount = argCounts.pop();
-                                argCounts.push(parentCount + 1);
-                                lastWasComma.pop();
-                                lastWasComma.push(false);
-                            }
-                        }
-                    }
-                    break;
-
-                case Token.COMMA:
-                    while (!opStack.isEmpty() && opStack.peek().kind != Token.LPAREN) {
-                        postfix[p++] = opStack.pop();
-                    }
-                    if (depth > 0 && !lastWasComma.isEmpty()) {
-                        lastWasComma.pop();
-                        lastWasComma.push(true);
-                    }
-                    break;
-
-                case Token.OPERATOR:
-                    if (t.isPostfix) {
-                        postfix[p++] = t;
-                    } else {
-                        while (!opStack.isEmpty() && opStack.peek().kind == Token.OPERATOR) {
-                            Token top = opStack.peek();
-                            if ((!t.isRightAssoc && t.precedence <= top.precedence)
-                                    || (t.isRightAssoc && t.precedence < top.precedence)) {
-                                postfix[p++] = opStack.pop();
-                            } else {
-                                break;
-                            }
-                        }
-                        opStack.push(t);
-                    }
-                    break;
-            }
-        }
-
-        while (!opStack.isEmpty()) {
-            Token top = opStack.pop();
-            if (top.kind != Token.LPAREN) {
-                postfix[p++] = top;
-            }
-        }
-
-        cachedPostfix = new Token[p];
-        System.arraycopy(postfix, 0, cachedPostfix, 0, p);
-
-        // CRITICAL FOR PRODUCTION: Multi-pass constant folding with safety guards
-        if (willFoldConstants) {
-            foldConstantsWithSafetyGuards();  // <-- PRODUCTION VERSION
-        }
-
-// Initialize the frame size based on how many unique variables were found
         this.executionFrame = new double[registry.size()];
         for (Token t : cachedPostfix) {
             if (t.v != null) {
@@ -2759,6 +2371,26 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
     private void resetPool() {
         poolPointer = 0;
     }
+// Simple generic Pair implementation
+
+    public static final class Pair<K, V> {
+
+        private final K key;
+        private final V value;
+
+        public Pair(K key, V value) {
+            this.key = key;
+            this.value = value;
+        }
+
+        public K getKey() {
+            return key;
+        }
+
+        public V getValue() {
+            return value;
+        }
+    }
 
     /**
      * Manages the mapping of variable names to frame slots. Use one instance
@@ -2789,6 +2421,36 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
          */
         public int size() {
             return nextAvailableSlot;
+        }
+
+        private String[] getVariables() {
+            String[] vars = new String[nameToSlot.size()];
+            int i = 0;
+            for (Map.Entry<String, Integer> entry : nameToSlot.entrySet()) {
+                vars[i++] = entry.getKey();
+            }
+            return vars;
+        }
+
+        private Integer[] getSlots() {
+            Integer[] slots = new Integer[nameToSlot.size()];
+            int i = 0;
+            for (Map.Entry<String, Integer> entry : nameToSlot.entrySet()) {
+                slots[i++] = entry.getValue();
+            }
+            return slots;
+        }
+
+        private Pair<String[], Integer[]> getVarsAndSlots() {
+            String[] vars = new String[nameToSlot.size()];
+            Integer[] slots = new Integer[nameToSlot.size()];
+            int i = 0;
+            for (Map.Entry<String, Integer> entry : nameToSlot.entrySet()) {
+                vars[i] = entry.getKey();
+                slots[i] = entry.getValue();
+                i++;
+            }
+            return new Pair<>(vars, slots);
         }
 
         public void reset() {
@@ -3023,12 +2685,13 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
         System.out.println("--------------------------" + FunctionManager.FUNCTIONS);
         System.out.println("differential calculus:>>3 " + meDiff.solve());
         System.out.println("differential calculus:>>4 " + new MathExpression("diff(@(x)sin(ln(x)), b);").solve());
+        System.out.println("differential calculus:>>5 " + new MathExpression("diff(@(x)sin(ln(x)), 2,1);").solve());
         System.out.println(new MathExpression("sin(ln(x));").solve());
         System.out.println("FUNCTIONS: " + FunctionManager.FUNCTIONS);
 // Expected: 11
 
         System.out.println("sort(-3,8,3,2,6,-7,9,1,0,-1): " + new MathExpression("sort(-3,8,3,2,6,-7,9,1,0,-1)").solve());
-        System.out.println("sort(0,4+0,2+0): " + new MathExpression("sort(0,4+0,2+0)").solve());
+        System.out.println("sort(0,4+1,2+0): " + new MathExpression("sort(0,4+1,2+0)").solve());
         System.out.println("sort(3+1,-3): " + new MathExpression("sort(3+1, -3)").solve());
         System.out.println("sort(4+2): " + new MathExpression("sort(4+2)").solve());
         System.out.println(new MathExpression("x=0.9;sqrt(0.64-x^2)").solve());
@@ -3043,7 +2706,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
         f.updateArgs(2, 3);
         double r = f.calc();
         System.out.println("VARIABLES--3 = " + VariableManager.VARIABLES);
-        System.out.println("r = " + r);
+        System.out.println("f(x,y) = x - x/y__________________r = " + r);
         int iterations = 1;
         double vvv[] = new double[1];
         long start = System.nanoTime();

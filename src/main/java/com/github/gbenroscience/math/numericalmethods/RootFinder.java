@@ -533,7 +533,7 @@ public class RootFinder {
             String variable = getVariable();
 
             //System.err.println(" function to differentiate: "+function.expressionForm());
-            String gradFunxn = Derivative.eval("diff(" + function.expressionForm() + ",1)");
+            MathExpression.EvalResult gradFunxn = Derivative.eval("diff(" + function.expressionForm() + ",1)");
 
             //System.err.println("gradient function is "+gradFunxn);
             Function gradFunc = new Function("@(" + variable + ")" + gradFunxn);

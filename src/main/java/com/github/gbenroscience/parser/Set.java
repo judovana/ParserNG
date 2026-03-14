@@ -613,25 +613,22 @@ public class Set {
      * @return the derivative at the specified value of the horizontal
      * coordinate.
      */
-    public String differentiate() {
+    public MathExpression.EvalResult differentiate() {
 
         int sz = data.size();
         switch (sz) {
             case 1: {
                 String anonFunc = data.get(0);
-                String solution = Derivative.eval("diff(" + anonFunc + ",1)");
-
-                return solution;
+                return Derivative.eval("diff(" + anonFunc + ",1)"); 
             }
             case 2: {
                 String anonFunc = data.get(0);
                 double value = Double.parseDouble(data.get(1));
 
-                String solution = Derivative.eval("diff(" + anonFunc + "," + value + ")");
+                return Derivative.eval("diff(" + anonFunc + "," + value + ")");
                 /*  NumericalDerivative der = new NumericalDerivative(new Function(anonFunc), value );
                 return der.findDerivativeByPolynomialExpander();*/
-                return solution;
-            }
+                  }
             case 3: {
                 String anonFunc = data.get(0);
                 double value = Double.parseDouble(data.get(1));
@@ -639,8 +636,8 @@ public class Set {
                 /*  NumericalDerivative der = new NumericalDerivative(FunctionManager.lookUp(data.get(0)),Double.parseDouble(data.get(1)));
                 return der.findDerivativeByPolynomialExpander();
                  */
-                String solution = Derivative.eval("diff(" + anonFunc + "," + value + "," + order + ")");
-                return solution;
+                return Derivative.eval("diff(" + anonFunc + "," + value + "," + order + ")");
+              
             }
             default:
                 throw new InputMismatchException(" Parameter List " + data + " Is Invalid!");

@@ -249,8 +249,8 @@ public class NumericalDerivative {
         System.out.println("Derivative by polynomial expander approx: "+der.findDerivativeByPolynomialExpander());
         System.out.println("Derivative by limit approx: "+der.findDerivativeByLimit(2.0E-6));
         try {
-            String expr = Derivative.eval( "diff(F,"+evalPoint+")");
-            System.out.println("Absolute derivative: "+expr);
+            MathExpression.EvalResult expr = Derivative.eval( "diff(F,1,"+evalPoint+")");
+            System.out.println("Absolute derivative: "+expr.toString());
         } catch (Exception ex) {
             Logger.getLogger(NumericalDerivative.class.getName()).log(Level.SEVERE, null, ex);
         }

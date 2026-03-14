@@ -358,12 +358,12 @@ public class MethodRegistry {
             int sz = args.length;
             switch (sz) {
                 case 1: {
-                    String solution = Derivative.eval("diff(" + args[0] + ",1)");//only the function handle was sent...e.g diff(F)
+                    MathExpression.EvalResult solution = Derivative.eval("diff(" + args[0] + ",1)");//only the function handle was sent...e.g diff(F)
                     return ctx.wrap(solution);
                 }
                 case 2: {//diff(F,v|n) F = func to be differentiated, v = new func to hold return value of differentiation, n = order of differentiation
                     String anonFunc = args[0].textRes;
-                    String solution = Derivative.eval("diff(" + anonFunc + "," + (args[1].textRes != null ? args[1].textRes : args[1].scalar) + ")");
+                    MathExpression.EvalResult solution = Derivative.eval("diff(" + anonFunc + "," + (args[1].textRes != null ? args[1].textRes : args[1].scalar) + ")");
                     return ctx.wrap(solution);
                 }
                 case 3: {
@@ -374,12 +374,9 @@ public class MethodRegistry {
                     /*  NumericalDerivative der = new NumericalDerivative(FunctionManager.lookUp(data.get(0)),Double.parseDouble(data.get(1)));
                 return der.findDerivativeByPolynomialExpander();
                      */
-                    String solution = Derivative.eval("diff(" + anonFunc + "," + (args[1].textRes != null ? args[1].textRes : args[1].scalar) + "," + args[2] + ")");
-                    if (com.github.gbenroscience.parser.Number.isNumber(solution)) {
-                        return ctx.wrap(Double.parseDouble(solution));
-                    } else {
-                        return ctx.wrap(solution);
-                    }
+                    MathExpression.EvalResult ev = Derivative.eval("diff(" + anonFunc + "," + (args[1].textRes != null ? args[1].textRes : args[1].scalar) + "," + args[2] + ")");
+                       return ctx.wrap(ev);
+                    
                 }
                 default:
                     return ctx.wrap(Double.NaN);
