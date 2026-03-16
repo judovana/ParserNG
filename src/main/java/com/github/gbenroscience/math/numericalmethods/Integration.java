@@ -10,7 +10,122 @@ import java.lang.invoke.MethodHandle;
 import java.util.*;
 
 public class Integration {
-    
+
+// Create the full 8-point arrays (mirrored)
+    private static final double[] fullNodes8 = new double[8];
+    private static final double[] fullWeights8 = new double[8];
+
+// Create the full 64-point arrays (mirrored)
+    private static final double[] fullNodes = new double[64];
+    private static final double[] fullWeights = new double[64];
+
+    private static final double[] fullNodes16 = new double[16];
+    private static final double[] fullWeights16 = new double[16];
+
+    private static final double[] fullNodes32 = new double[32];
+    private static final double[] fullWeights32 = new double[32];
+
+    //////n=8
+    // Define the 4 positive nodes and weights for n=8
+private static final double[] nodes4 = {
+        0.1834346424956498, 0.5255324099163290,
+        0.7966664774136267, 0.9602898564975362
+    };
+
+    private static final double[] weights4 = {
+        0.3626837833783620, 0.3137066458778873,
+        0.2223810344533445, 0.1012285362903763
+    };
+
+    ////16 point
+private static final double[] nodes8 = {
+        0.0950125098376374, 0.2816035507792589, 0.4580167776572274, 0.6178762444026438,
+        0.7554044083550030, 0.8656312023878318, 0.9445750230732326, 0.9894009349916499
+    };
+    private static final double[] weights8 = {
+        0.1894506104550685, 0.1826034150449236, 0.1691565193950025, 0.1495959888165767,
+        0.1246289712569339, 0.0951585116824475, 0.0622535239386479, 0.0271524594117541
+    };
+
+    /////32 point
+private static final double[] nodes16 = {
+        0.0483076656877383, 0.1444719615827965, 0.2392873622521371, 0.3318686022953256,
+        0.4213512761306353, 0.5068999089322294, 0.5877157572407623, 0.6630442669302152,
+        0.7321821187402897, 0.7944837959679424, 0.8493676137325700, 0.8963211557602521,
+        0.9349060759377397, 0.9647622555875064, 0.9856115115452683, 0.9972638618494816
+    };
+    private static final double[] weights16 = {
+        0.0965445133110442, 0.0956387200792749, 0.0938443990808046, 0.0911738786957639,
+        0.0876520930044038, 0.0833119242269468, 0.0781938957870703, 0.0723457941088485,
+        0.0658222227763618, 0.0586840934785355, 0.0510008305922203, 0.0428483214667525,
+        0.0343103221349885, 0.0254746746194153, 0.0164416613033565, 0.0073015540131196
+    };
+
+    ///64 point
+
+// Define the 32 positive nodes and weights
+private static final double[] nodes32 = {
+        0.0243502926634244, 0.0729931217877990, 0.1214628192961206, 0.1696444204239928,
+        0.2174236437400071, 0.2646871622087674, 0.3113228719902110, 0.3572201583376681,
+        0.4022701579639916, 0.4463660172534641, 0.4894031457070530, 0.5312794640198945,
+        0.5718956462026340, 0.6111553551723933, 0.6489654712546573, 0.6852363130542332,
+        0.7198818501716108, 0.7528199072605319, 0.7839723589433414, 0.8132653151227976,
+        0.8406292962525804, 0.8659993981540928, 0.8893154459951141, 0.9105221370785028,
+        0.9295691721319396, 0.9464113748584028, 0.9610087996520537, 0.9733268277899110,
+        0.9833362538846260, 0.9910133714767443, 0.9963401167719553, 0.9993050417357721
+    };
+
+    private static final double[] weights32 = {
+        0.0486909570091397, 0.0485754674415034, 0.0483447622348030, 0.0479993885964583,
+        0.0475401657148303, 0.0469681828162100, 0.0462847965813144, 0.0454916279274181,
+        0.0445905581637566, 0.0435837245293235, 0.0424735151236536, 0.0412625632426235,
+        0.0399537411327203, 0.0385501531786156, 0.0370551285402400, 0.0354722132568824,
+        0.0338051618371416, 0.0320579283548516, 0.0302346570724025, 0.0283396726142595,
+        0.0263774697150547, 0.0243527025687109, 0.0222701738083833, 0.0201348231535302,
+        0.0179517157756973, 0.0157260304760247, 0.0134630478967186, 0.0111681394601311,
+        0.0088467598263639, 0.0065044579689784, 0.0041470332605625, 0.0017832807216964
+    };
+
+    private final double[] preAllocatedVars = new double[256];
+
+    static {
+
+        for (int i = 0; i < 4; i++) {
+            // Fill negative side (indices 0 to 3)
+            fullNodes8[3 - i] = -nodes4[i];
+            fullWeights8[3 - i] = weights4[i];
+
+            // Fill positive side (indices 4 to 7)
+            fullNodes8[4 + i] = nodes4[i];
+            fullWeights8[4 + i] = weights4[i];
+        }
+
+        for (int i = 0; i < 8; i++) {
+            fullNodes16[7 - i] = -nodes8[i];
+            fullWeights16[7 - i] = weights8[i];
+            fullNodes16[8 + i] = nodes8[i];
+            fullWeights16[8 + i] = weights8[i];
+        }
+
+        for (int i = 0; i < 16; i++) {
+            fullNodes32[15 - i] = -nodes16[i];
+            fullWeights32[15 - i] = weights16[i];
+            fullNodes32[16 + i] = nodes16[i];
+            fullWeights32[16 + i] = weights16[i];
+        }
+
+        for (int i = 0; i < 32; i++) {
+            // Fill negative side (0 to 31)
+            fullNodes[31 - i] = -nodes32[i];
+            fullWeights[31 - i] = weights32[i];
+
+            // Fill positive side (32 to 63)
+            fullNodes[32 + i] = nodes32[i];
+            fullWeights[32 + i] = weights32[i];
+        }
+
+//end 64 point
+    }
 
     private Function function = null;   // Function to be integrated
     private boolean setFunction = false;        // = true when Function set
@@ -128,11 +243,8 @@ public class Integration {
         return this.integralSum;
     }
 
-    // GAUSSIAN-LEGENDRE QUADRATURE
-    // Numerical integration using n point Gaussian-Legendre quadrature (instance method)
-    // All parameters preset
     private double gaussQuadWithoutMethodHandle() {
-
+        // 1. Validations
         if (!this.setGLpoints) {
             throw new IllegalArgumentException("Number of points not set");
         }
@@ -143,117 +255,176 @@ public class Integration {
             throw new IllegalArgumentException("No integral function has been set");
         }
 
-        double[] gaussQuadDist = new double[glPoints];
-        double[] gaussQuadWeight = new double[glPoints];
+        double[] gaussQuadDist;
+        double[] gaussQuadWeight;
+
+        // 2. Direct switch for O(1) table access (The Bypass)
+        switch (this.glPoints) {
+            case 8:
+                gaussQuadDist = fullNodes8;
+                gaussQuadWeight = fullWeights8;
+                break;
+            case 16:
+                gaussQuadDist = fullNodes16;
+                gaussQuadWeight = fullWeights16;
+                break;
+            case 32:
+                gaussQuadDist = fullNodes32;
+                gaussQuadWeight = fullWeights32;
+                break;
+            case 64:
+                gaussQuadDist = fullNodes;
+                gaussQuadWeight = fullWeights;
+                break;
+            default:
+                // Dynamic fallback for non-standard point counts
+                int kn = -1;
+                for (int k = 0; k < this.gaussQuadIndex.size(); k++) {
+                    if (this.gaussQuadIndex.get(k) == this.glPoints) {
+                        kn = k;
+                        break;
+                    }
+                }
+
+                if (kn == -1) {
+                    gaussQuadDist = new double[glPoints];
+                    gaussQuadWeight = new double[glPoints];
+                    Integration.gaussQuadCoeff(gaussQuadDist, gaussQuadWeight, glPoints);
+                    Integration.gaussQuadIndex.add(glPoints);
+                    Integration.gaussQuadDistArrayList.add(gaussQuadDist);
+                    Integration.gaussQuadWeightArrayList.add(gaussQuadWeight);
+                } else {
+                    gaussQuadDist = gaussQuadDistArrayList.get(kn);
+                    gaussQuadWeight = gaussQuadWeightArrayList.get(kn);
+                }
+                break;
+        }
+
+        // 3. High-Precision Setup
         double sum = 0.0D;
+        double c = 0.0D; // Kahan compensation
         double xplus = 0.5D * (upperLimit + lowerLimit);
         double xminus = 0.5D * (upperLimit - lowerLimit);
-        double dx = 0.0D;
-        boolean test = true;
-        int k = -1, kn = -1;
 
-        // Get Gauss-Legendre coefficients, i.e. the weights and scaled distances
-        // Check if coefficients have been already calculated on an earlier call
-        if (!this.gaussQuadIndex.isEmpty()) {
-            for (k = 0; k < this.gaussQuadIndex.size(); k++) {
-                Integer ki = this.gaussQuadIndex.get(k);
-                if (ki.intValue() == this.glPoints) {
-                    test = false;
-                    kn = k;
-                }
-            }
-        }
+        // LOCAL REFERENCE trick (Prevents repeated heap access via 'this')
+        double[] dist = gaussQuadDist;
+        double[] weight = gaussQuadWeight;
 
-        if (test) {
-            // Calculate and store coefficients
-            Integration.gaussQuadCoeff(gaussQuadDist, gaussQuadWeight, glPoints);
-            Integration.gaussQuadIndex.add(glPoints);
-            Integration.gaussQuadDistArrayList.add(gaussQuadDist);
-            Integration.gaussQuadWeightArrayList.add(gaussQuadWeight);
-        } else {
-            // Recover coefficients
-            gaussQuadDist = gaussQuadDistArrayList.get(kn);
-            gaussQuadWeight = gaussQuadWeightArrayList.get(kn);
-        }
+        // Cache functional reference locally
+        com.github.gbenroscience.parser.Function func = this.function;
 
-        // Perform summation
+        // 4. Perform summation with Kahan algorithm
         for (int i = 0; i < glPoints; i++) {
-            dx = xminus * gaussQuadDist[i];
-            this.function.updateArgs(xplus + dx);
-            sum += gaussQuadWeight[i] * this.function.calc();
+            // Calculate point and update function arguments
+            func.updateArgs(xplus + (xminus * dist[i]));
+
+            // Precise addition
+            double val = weight[i] * func.calc();
+            double y = val - c;
+            double t = sum + y;
+            c = (t - sum) - y;
+            sum = t;
         }
-        this.integralSum = sum * xminus;      // rescale
-        this.setIntegration = true;         // integration performed
-        return this.integralSum;            // return value
+
+        this.integralSum = sum * xminus;
+        this.setIntegration = true;
+        return this.integralSum;
     }
 
     private double gaussQuadWithMethodHandle() {
-        // 1. Validations (TargetHandle check added)
         if (!this.setGLpoints) {
             throw new IllegalArgumentException("Number of points not set");
         }
         if (!this.setLimits) {
             throw new IllegalArgumentException("Limits not set");
         }
-        // Ensure we have a handle if we are in turbo mode, otherwise check function
         if (this.targetHandle == null && !this.setFunction) {
             throw new IllegalArgumentException("No integral function or MethodHandle set");
         }
 
         double[] gaussQuadDist;
         double[] gaussQuadWeight;
+
+        // Direct switch for O(1) table access
+        switch (this.glPoints) {
+            case 8:
+                gaussQuadDist = fullNodes8;
+                gaussQuadWeight = fullWeights8;
+                break;
+            case 16:
+                gaussQuadDist = fullNodes16;
+                gaussQuadWeight = fullWeights16;
+                break;
+            case 32:
+                gaussQuadDist = fullNodes32;
+                gaussQuadWeight = fullWeights32;
+                break;
+            case 64:
+                gaussQuadDist = fullNodes;
+                gaussQuadWeight = fullWeights;
+                break;
+            default:
+                // Dynamic fallback: Search existing cache or compute via Newton-Raphson
+                int kn = -1;
+                for (int k = 0; k < gaussQuadIndex.size(); k++) {
+                    if (gaussQuadIndex.get(k) == this.glPoints) {
+                        kn = k;
+                        break;
+                    }
+                }
+                if (kn != -1) {
+                    gaussQuadDist = gaussQuadDistArrayList.get(kn);
+                    gaussQuadWeight = gaussQuadWeightArrayList.get(kn);
+                } else {
+                    gaussQuadDist = new double[glPoints];
+                    gaussQuadWeight = new double[glPoints];
+                    Integration.gaussQuadCoeff(gaussQuadDist, gaussQuadWeight, glPoints);
+                    Integration.gaussQuadIndex.add(glPoints);
+                    Integration.gaussQuadDistArrayList.add(gaussQuadDist);
+                    Integration.gaussQuadWeightArrayList.add(gaussQuadWeight);
+                }
+                break;
+        }
+
         double sum = 0.0D;
+        double c = 0.0D; // Kahan compensation variable
         double xplus = 0.5D * (upperLimit + lowerLimit);
         double xminus = 0.5D * (upperLimit - lowerLimit);
 
-        // --- Coefficient Management (logic preserved) ---
-        int kn = -1;
-        boolean test = true;
-        if (!this.gaussQuadIndex.isEmpty()) {
-            for (int k = 0; k < this.gaussQuadIndex.size(); k++) {
-                if (this.gaussQuadIndex.get(k) == this.glPoints) {
-                    test = false;
-                    kn = k;
-                    break;
-                }
-            }
-        }
+        // LOCAL REFERENCE trick (Drains the CPU)
+        double[] dist = gaussQuadDist;
+        double[] weight = gaussQuadWeight;
 
-        if (test) {
-            gaussQuadDist = new double[glPoints];
-            gaussQuadWeight = new double[glPoints];
-            Integration.gaussQuadCoeff(gaussQuadDist, gaussQuadWeight, glPoints);
-            Integration.gaussQuadIndex.add(glPoints);
-            Integration.gaussQuadDistArrayList.add(gaussQuadDist);
-            Integration.gaussQuadWeightArrayList.add(gaussQuadWeight);
-        } else {
-            gaussQuadDist = gaussQuadDistArrayList.get(kn);
-            gaussQuadWeight = gaussQuadWeightArrayList.get(kn);
-        }
-
-        // --- Turbo Summation with MethodHandle ---
         if (this.targetHandle != null) {
-            double[] vars = new double[256];
-            int vIdx = this.varIndex; // Use the assigned slot index
+            // REUSE an existing array if possible to avoid allocation
+            double[] vars = (this.preAllocatedVars != null) ? this.preAllocatedVars : new double[256];
+            int vIdx = this.varIndex;
+
             try {
                 for (int i = 0; i < glPoints; i++) {
-                    double dx = xminus * gaussQuadDist[i];
-                    // Update the correct variable slot, not just index 0
-                    vars[vIdx] = xplus + dx;
+                    vars[vIdx] = xplus + (xminus * dist[i]);
 
-                    // invokeExact for microsecond-level performance
-                    double y = (double) this.targetHandle.invokeExact(vars);
-                    sum += gaussQuadWeight[i] * y;
+                    // 1. Get value to add
+                    double val = weight[i] * (double) this.targetHandle.invokeExact(vars);
+
+                    // 2. Kahan Summation (Extreme Precision)
+                    double y = val - c;
+                    double t = sum + y;
+                    c = (t - sum) - y;
+                    sum = t;
                 }
             } catch (Throwable t) {
                 throw new RuntimeException("Turbo Integration failed at slot " + vIdx, t);
             }
         } else {
-            // Fallback to interpreted logic
+            // Legacy path with Kahan
             for (int i = 0; i < glPoints; i++) {
-                double dx = xminus * gaussQuadDist[i];
-                this.function.updateArgs(xplus + dx);
-                sum += gaussQuadWeight[i] * this.function.calc();
+                this.function.updateArgs(xplus + (xminus * dist[i]));
+                double val = weight[i] * this.function.calc();
+                double y = val - c;
+                double t = sum + y;
+                c = (t - sum) - y;
+                sum = t;
             }
         }
 
