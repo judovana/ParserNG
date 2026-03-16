@@ -38,14 +38,15 @@ public class ScalarTurboBench {
         benchmarkTrigonometric();
         benchmarkComplexExpression(false);
         benchmarkComplexExpression(true);
-        benchmarkWithVariables();
+        benchmarkWithVariablesSimple();
+        benchmarkWithVariablesAdvanced();
         benchmarkConstantFolding();
     }
 
     private static void benchmarkIntegralCalculus() throws Throwable {
         System.out.println("\n=== INTEGRAL CALCULUS; FOLDING OFF===\n");
         //String expr = "diff(@(x)cos(x)+sin(x),2,1)";
-        String expr = "intg(@(x)(sin(x)+cos(x)), 2,1)";
+        String expr = "intg(@(x)(sin(x)+cos(x)), -2,200, 100000)";
 
         // Warm up JIT
         MathExpression interpreted = new MathExpression(expr, false);
@@ -205,9 +206,51 @@ public class ScalarTurboBench {
         System.out.printf("Speedup:     %.1fx%n", (double) interpretedDur / turboDur);
         System.out.println("values=" + Arrays.toString(v));
     }
+    
+    
+     private static void benchmarkWithVariablesSimple() throws Throwable {
+        System.out.println("\n=== WITH VARIABLES: SIMPLE; FOLDING OFF ===\n");
 
-    private static void benchmarkWithVariables() throws Throwable {
-        System.out.println("\n=== WITH VARIABLES; FOLDING OFF ===\n");
+        String expr = "x*sin(x)+2";
+
+        MathExpression interpreted = new MathExpression(expr, false);
+        int xSlot = interpreted.getVariable("x").getFrameIndex(); 
+
+        double[] res = new double[2];
+        long start = System.nanoTime();
+        for (int i = 0; i < N; i++) {
+            interpreted.updateSlot(xSlot, 2.5);
+            res[0] = interpreted.solveGeneric().scalar;
+        }
+
+        double intDur = System.nanoTime() - start;
+
+        MathExpression turbo = new MathExpression(expr, false);
+        FastCompositeExpression compiled = turbo.compileTurbo();
+
+        double[] vars = new double[3];
+        vars[xSlot] = 2.5; 
+
+        for (int i = 0; i < 1000; i++) {
+            compiled.applyScalar(vars);
+        }
+
+        start = System.nanoTime();
+        for (int i = 0; i < N; i++) {
+            res[1] = compiled.applyScalar(vars);
+        }
+        double turboDur = System.nanoTime() - start;
+
+        System.out.printf("Expression: %s%n", expr);
+        System.out.printf("Variables: x=2.5, y=3.7, z=1.2%n");
+        System.out.printf("Interpreted:     %.2f ns/op%n", intDur / N);
+        System.out.printf("Turbo:     %.2f ns/op%n", turboDur / N);
+        System.out.printf("Speedup:     %.1fx%n", (double) intDur / turboDur);
+        System.out.println("values=" + Arrays.toString(res));
+    }
+
+    private static void benchmarkWithVariablesAdvanced() throws Throwable {
+        System.out.println("\n=== WITH VARIABLES: ADVANCED; FOLDING OFF ===\n");
 
         String expr = "x*sin(x) + y*sin(y) + z / cos(x - y) + sqrt(x^2 + y^2)";
 

@@ -1220,7 +1220,7 @@ public class MathExpression implements Savable, Solvable {
         }
     }
 
-    // Or, for a single variable update (the most common benchmark case):
+    // Or, for a single variable make (the most common benchmark case):
     public void updateSlot(int slot, double value) {
         if (slot >= 0 && slot < this.executionFrame.length) {
             this.executionFrame[slot] = value;
@@ -1560,16 +1560,16 @@ public class MathExpression implements Savable, Solvable {
         public EvalResult evaluate() {
             // Just use the pre-allocated stack - no allocation per call
             int ptr = -1;
-
+     
             for (int i = 0; i < cachedPostfix.length; i++) {
                 Token t = cachedPostfix[i];
-                /*              System.out.println("\n=== Evaluating token: "
-                        + (t.kind == Token.NUMBER ? "NUM(" + t.value + ")"
+                    /*          System.out.println("\n=== Evaluating token: "
+                        + (t.kind == Token.NUMBER ? "NUM(" + t.value + ") OR VAR("+t.name+"), "
                                 : t.kind == Token.OPERATOR ? "OP(" + t.opChar + ")"
                                         : t.kind == Token.FUNCTION ? "FUNC(" + t.name + ",arity=" + t.arity + ")"
                                                 : "METHOD(" + t.name + ",arity=" + t.arity + ")")
-                        + " | Stack ptr before = " + ptr);
-                 */
+                        + " | Stack ptr before = " + ptr);*/
+                 
                 switch (t.kind) {
                     case Token.NUMBER:
                         if (t.name != null && !t.name.isEmpty()) {
@@ -2786,9 +2786,11 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
         MathExpression tartRoots = new MathExpression("t_root(@(x)5*x^3-12*x+120)");
         System.out.println(tartRoots.solve());
 
-        MathExpression printer = new MathExpression("print(anon22,C)");
-        System.out.println(printer.solve());
         System.out.println(new MathExpression("M=@(x)7*x^2;M(2)").solve());
+        System.out.println("FUNCTIONS: "+FunctionManager.FUNCTIONS);
+        MathExpression printer = new MathExpression("print(anon9,C)");
+        System.out.println("anon9: "+FunctionManager.lookUp("anon9"));
+        System.out.println(printer.solve());
 
         //   double N = 100; 
         //   Shootouts.benchmark(s2, (int) N);

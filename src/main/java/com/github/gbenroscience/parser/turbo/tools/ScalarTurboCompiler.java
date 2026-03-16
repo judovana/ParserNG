@@ -19,9 +19,12 @@ import com.github.gbenroscience.math.Maths;
 import com.github.gbenroscience.math.differentialcalculus.Derivative;
 import com.github.gbenroscience.math.numericalmethods.FunctionExpander;
 import com.github.gbenroscience.math.numericalmethods.NumericalIntegral;
+import com.github.gbenroscience.math.numericalmethods.RootFinder;
+import com.github.gbenroscience.math.numericalmethods.TurboRootFinder;
 import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.TYPE;
+import com.github.gbenroscience.parser.Variable;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.util.FunctionManager;
 import java.lang.invoke.*;
@@ -245,7 +248,61 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                 case MathExpression.Token.FUNCTION:
                 case MathExpression.Token.METHOD:
                     String name = t.name.toLowerCase();
-                    if (name.equals("intg")) {
+                    if (name.equals("root")) {
+                        int arity = t.arity;
+                        for (int i = 0; i < arity; i++) {
+                            stack.pop();
+                        }
+                        // The array contains [fName|expr, x1, x2, iterations] N.B functionBody is usally an anonymous function name or a defined function name
+                        String[] args = t.getRawArgs();
+                        if (args.length != arity) {
+                            throw new RuntimeException("Invalid input. Expression did not pass token compiler phase");
+                        }
+                        if (args.length > 4) {
+                            throw new RuntimeException("Invalid input. Argument count for general root is invalid. Expected: <=4 Found " + args.length);
+                        }
+
+                        String fNameOrExpr = args[0];
+                        Function f = Variable.isVariableString(fNameOrExpr) ? FunctionManager.lookUp(fNameOrExpr) : FunctionManager.add(fNameOrExpr);
+
+                        String varName = f.getIndependentVariables().get(0).getName();
+                        double lower = args.length > 1 ? Double.parseDouble(args[1]) : -2;
+                        double upper = args.length > 2 ? Double.parseDouble(args[2]) : 2;
+                        int iterations = args.length > 3 ? Integer.parseInt(args[3]) : TurboRootFinder.DEFAULT_ITERATIONS;
+
+                        // 1. Recursive compilation of the target function body
+                        MathExpression innerExpr = f.getMathExpression();
+                        int xSlot = innerExpr.getVariable(varName).getFrameIndex();
+                        // Compiles the body to its own MethodHandle tree
+                        MethodHandle targetHandle = compileScalar(innerExpr.getCachedPostfix());
+
+                        // 2. Symbolic derivative for Newtonian acceleration
+                        MethodHandle derivHandle = null;
+                        try {
+                            String derivString = Derivative.eval("diff(" + fNameOrExpr + "," + varName + ",1)").textRes;
+                            derivHandle = compileScalar(new MathExpression(derivString).getCachedPostfix());
+                        } catch (Exception e) {
+                            // Fallback: TurboRootFinder handles null derivativeHandle by skipping Newtonian
+                            derivHandle = null;
+                        }
+
+                        // 3. Bind the execution bridge
+                        // Signature: (MethodHandle, MethodHandle, int, double, double) -> double
+                        MethodHandle bridge = LOOKUP.findStatic(ScalarTurboCompiler.class, "executeTurboRoot",
+                                MethodType.methodType(double.class, MethodHandle.class, MethodHandle.class,
+                                        int.class, double.class, double.class, int.class));
+
+                        // 4. Curry the arguments into a single operation handle
+                        MethodHandle currentHandle = MethodHandles.insertArguments(bridge, 0,
+                                targetHandle, derivHandle, xSlot, lower, upper, iterations);
+
+                        // 5. Adapt the handle to accept the standard (double[]) input frame
+                        currentHandle = MethodHandles.dropArguments(currentHandle, 0, double[].class);
+
+                        // The handle is now ready to be pushed to the compiler's compilation stack
+                        stack.push(currentHandle);
+                    } else if (name.equals("intg")) {
+                        //[F, 2.0, 3.0, 10000]
                         int arity = t.arity;
                         // Pop args from stack (RPN order)
                         for (int i = 0; i < arity; i++) {
@@ -253,26 +310,32 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                         }
 
                         String[] rawArgs = t.getRawArgs(); // [ExpressionName, Lower, Upper, Iterations]
+                        if (rawArgs.length != arity) {
+                            throw new RuntimeException("Invalid input. Expression did not pass token compiler phase");
+                        }
+                        if (rawArgs.length != 3 && rawArgs.length != 4) {
+                            throw new RuntimeException("Invalid input. Incomplete arguments for definite integral function: `intg`");
+                        }
 
                         // 1. COMPILE the target expression into a MethodHandle immediately
                         Function f = FunctionManager.lookUp(rawArgs[0]);
                         MathExpression innerExpr = f.getMathExpression();
                         MethodHandle compiledInner = compileScalar(innerExpr.getCachedPostfix());
-                        
 
                         double lower = Double.parseDouble(rawArgs[1]);
                         double upper = Double.parseDouble(rawArgs[2]);
-                        int iterations = (arity == 4) ? (int) Double.parseDouble(rawArgs[3]) : 10000;
-                        String[]vars = innerExpr.getVariablesNames();
-                        Integer[]slots = innerExpr.getSlots();
+                        int iterations = (int) ((arity == 4) ? (int) Double.parseDouble(rawArgs[3]) : (int)((upper-lower)/0.05));
+                        String[] vars = innerExpr.getVariablesNames();
+                        Integer[] slots = innerExpr.getSlots();
 
                         // 2. Resolve a bridge method that takes the PRE-COMPILED handle
                         MethodHandle bridge = LOOKUP.findStatic(ScalarTurboCompiler.class, "executeTurboIntegral",
-                                MethodType.methodType(double.class, Function.class, MethodHandle.class, double.class, double.class, int.class, String[].class, Integer[].class));
+                                MethodType.methodType(double.class, Function.class, MethodHandle.class, double.class, double.class, int.class,
+                                        String[].class, Integer[].class));
                         //executeTurboIntegral(MethodHandle handle, double lower, double upper, int iterations,String[]vars, Integer[]slots)
 
                         // 3. Bind the constants (The Compiled Handle and the Bounds)
-                        MethodHandle finalIntgHandle = MethodHandles.insertArguments(bridge, 0,f, compiledInner, lower, upper, iterations, vars, slots);
+                        MethodHandle finalIntgHandle = MethodHandles.insertArguments(bridge, 0, f, compiledInner, lower, upper, iterations, vars, slots);
 
                         // 4. Push to stack as (double[]) -> double
                         stack.push(MethodHandles.dropArguments(finalIntgHandle, 0, double[].class));
@@ -283,25 +346,76 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                         for (int i = 0; i < t.arity; i++) {
                             stack.pop();
                         }
+
                         String[] args = t.getRawArgs();
+
                         if (args == null || args.length == 0) {
                             throw new IllegalArgumentException("Method 'diff' requires arguments.");
                         }
+                        if (args.length != t.arity) {
+                            throw new RuntimeException("Invalid input. Expression did not pass token compiler phase");
+                        }
+                        if (args.length > 3) {
+                            throw new RuntimeException("Invalid input. Argument count for general root is invalid. Expected: <=3 Found " + args.length);
+                        }
 
+                        String returnHandle = null;
+                        double evalPoint = -1;
+                        int order = -1;
                         // 1. Resolve Expression/Handle
-                        String targetExpr = args[0];
-
-                        // 2. Resolve Variable & Order (with defaults)
-                        String variable = (args.length > 1) ? args[1] : "x";
-                        String order = (args.length > 2) ? args[2] : "1";
+                        String targetExpr = args[0]; 
 
                         // 3. Symbolic Derivation
-                        MathExpression.EvalResult solution;
-                        try {
-                            solution = Derivative.eval("diff(" + targetExpr + "," + variable + "," + order + ")");
-                        } catch (Exception e) {
-                            throw new RuntimeException("Symbolic engine failed: " + targetExpr, e);
+                        MathExpression.EvalResult solution = null;
+                        switch (args.length) {
+                            case 1:
+                                targetExpr = args[0];
+                                order = 1;
+                                solution = Derivative.eval("diff(" + targetExpr + "," + order + ")");
+                                break;
+                            case 2:
+                                targetExpr = args[0];
+                                if (com.github.gbenroscience.parser.Number.isNumber(args[1])) {//order
+                                    order = Integer.parseInt(args[1]);
+                                    solution = Derivative.eval("diff(" + targetExpr + "," + order + ")");
+                                } else if (Variable.isVariableString(args[1])) {//Function handle
+                                    returnHandle = args[1];
+                                    FunctionManager.lockDown(returnHandle, args);
+                                    solution = Derivative.eval("diff(" + targetExpr + "," + returnHandle + ")");
+                                }
+
+                                break;
+                            case 3:
+                                targetExpr = args[0];
+                                if (com.github.gbenroscience.parser.Number.isNumber(args[2])) {//order
+                                    order = Integer.parseInt(args[2]);
+                                } else if (Variable.isVariableString(args[1])) {//Function handle
+                                    throw new RuntimeException("The 3rd argument of the diff command is the order of differentiation! It must be a whole number!");
+                                }
+
+                                if (com.github.gbenroscience.parser.Number.isNumber(args[1])) {//order
+                                    evalPoint = Integer.parseInt(args[1]);
+                                    solution = Derivative.eval("diff(" + targetExpr + "," + evalPoint + "," + order + ")");
+                                } else if (Variable.isVariableString(args[1])) {//Function handle
+                                    returnHandle = args[1];
+                                    FunctionManager.lockDown(returnHandle, args);
+                                    solution = Derivative.eval("diff(" + targetExpr + "," + returnHandle + "," + order + ")");
+                                }
+
+                                break;
+
+                            default:
+                                throw new AssertionError();
                         }
+                        /*
+     * diff(F) Evaluate F's grad func and return the result 
+     * diff(F,v) Evaluate F's grad func and store the result in a function pointer called v 
+     * diff(F,n) Evaluate F's grad func n times 
+     * diff(F,v,n) Evaluate F's grad func n times and store the result in a function pointer called v 
+     * diff(F,x,n) Evaluate F's grad func n times and calculate the result at x
+                         */
+
+                      
 
                         // 4. Recursive Compilation into the MethodHandle Tree
                         if (solution.getType() == TYPE.NUMBER) {
@@ -429,16 +543,22 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
         }
     }
 
-    // Helper to bridge the MethodHandle to the NumericalIntegral class
-    public static double executeIntegral(String expr, double lower, double upper, double iterations) {
-        int iter = (iterations == 0) ? 0 : (int) iterations;
-        NumericalIntegral intg = new NumericalIntegral(lower, upper, iter, expr);
-        return intg.findHighRangeIntegral();
+  
+
+    public static double executeTurboIntegral(Function f, MethodHandle handle, double lower, double upper, int iterations, String[] vars, Integer[] slots) {
+        NumericalIntegral intg = new NumericalIntegral(f, lower, upper, iterations, handle, vars, slots);
+        return intg.findHighRangeIntegralTurbo();
     }
 
-    public static double executeTurboIntegral(Function f, MethodHandle handle, double lower, double upper, int iterations,String[]vars, Integer[]slots) {
-        NumericalIntegral intg = new NumericalIntegral(f, lower, upper, iterations, handle, vars, slots);
-        return intg.findHighRangeIntegral();
+    /**
+     * Execution bridge for the TurboRootFinder. This is invoked by the compiled
+     * MethodHandle chain.
+     */
+    public static double executeTurboRoot(MethodHandle baseHandle, MethodHandle derivHandle,
+            int xSlot, double lower, double upper, int iterations) {
+        // We use a default iteration cap of 1000 for the turbo version
+        TurboRootFinder trf = new TurboRootFinder(baseHandle, derivHandle, xSlot, lower, upper, iterations);
+        return trf.findRoots();
     }
 
     // ========== UNARY OPERATORS ==========

@@ -395,6 +395,33 @@ public class MethodRegistry {
             }//end else if
             return ctx.wrap(Double.NaN);
         });
+        
+        registerMethod(Declarations.GENERAL_ROOT, (ctx, arity, args) -> {
+            RootFinder rf;
+            switch (args.length) {
+                case 1:
+                    rf = new RootFinder(FunctionManager.lookUp(args[0].textRes));
+                    ctx.wrap(rf.findRoots());
+                    break;
+                case 2:
+                    rf = new RootFinder(FunctionManager.lookUp(args[0].textRes), args[1].scalar);
+                    ctx.wrap(rf.findRoots());
+                    break;
+                case 3:
+                    rf = new RootFinder(FunctionManager.lookUp(args[0].textRes), args[1].scalar, args[2].scalar);
+                    ctx.wrap(rf.findRoots());
+                    break;
+                case 4:
+                    rf = new RootFinder(FunctionManager.lookUp(args[0].textRes), args[1].scalar, args[2].scalar, (int) args[3].scalar);
+                    ctx.wrap(rf.findRoots());
+                    break;
+
+                default:
+                    throw new AssertionError();
+            }
+
+            return ctx;
+        });
         registerMethod(Declarations.PLOT, (ctx, arity, args) -> ctx.wrap(-1));
 
         registerMethod(Declarations.PRINT, (ctx, arity, args) -> {
@@ -820,32 +847,6 @@ public class MethodRegistry {
             return res;
         });
 
-        registerMethod(Declarations.GENERAL_ROOT, (ctx, arity, args) -> {
-            RootFinder rf;
-            switch (args.length) {
-                case 1:
-                    rf = new RootFinder(FunctionManager.lookUp(args[0].textRes));
-                    ctx.wrap(rf.findRoots());
-                    break;
-                case 2:
-                    rf = new RootFinder(FunctionManager.lookUp(args[0].textRes), args[1].scalar);
-                    ctx.wrap(rf.findRoots());
-                    break;
-                case 3:
-                    rf = new RootFinder(FunctionManager.lookUp(args[0].textRes), args[1].scalar, args[2].scalar);
-                    ctx.wrap(rf.findRoots());
-                    break;
-                case 4:
-                    rf = new RootFinder(FunctionManager.lookUp(args[0].textRes), args[1].scalar, args[2].scalar, (int) args[3].scalar);
-                    ctx.wrap(rf.findRoots());
-                    break;
-
-                default:
-                    throw new AssertionError();
-            }
-
-            return ctx;
-        });
 
         registerMethod(Declarations.QUADRATIC, (ctx, arity, args) -> {
             Function f = FunctionManager.lookUp(args[0].textRes);

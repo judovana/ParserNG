@@ -108,7 +108,8 @@ public class RootFinder {
      * The number of iterations with any of the methods before switching to
      * another method
      */
-    private int iterations = 2000;
+    private int iterations = DEFAULT_ITERATIONS;
+    public static final int DEFAULT_ITERATIONS = 2000;
 
     /**
      *

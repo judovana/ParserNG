@@ -172,16 +172,15 @@ public class Derivative {
 
         return array;
     }//end method
-    
-    
+
     /**
-     * 
+     *
      * @param name The name to check.
-     * @return true if the name is automatically generated and
-     * so, most likely refers to a stored Differentiable.
+     * @return true if the name is automatically generated and so, most likely
+     * refers to a stored Differentiable.
      */
-    public boolean isBaseVariable(String name){
-       return name.equals(this.baseVariable);
+    public boolean isBaseVariable(String name) {
+        return name.equals(this.baseVariable);
     }//end method
 
     /**
@@ -201,14 +200,13 @@ public class Derivative {
 //the anonymous function to be differentiated: e.g.diff(@(p)(3*p^3+2*p^2-8*p+1),1)
         try {
             Parser p = new Parser(expr);
-             
- 
+
             if (p.result == ParserResult.VALID) {
- 
+
                 expr = "diff(" + p.getFunction().getMathExpression().getExpression() + ")";
                 String baseVariable = p.getFunction().getIndependentVariables().get(0).getName();
                 int orderOfDiff = p.getOrderOfDifferentiation();
-                if(p.isNotSetOrderOfDiff()){
+                if (p.isNotSetOrderOfDiff()) {
                     orderOfDiff = 1;
                 }
 
@@ -222,6 +220,7 @@ public class Derivative {
                     }//end for loop
                     expr = expr.substring(5, expr.length() - 1);
                     MathExpression me = new MathExpression(baseVariable + "=" + evalPoint + ";" + expr);
+                    System.out.println(baseVariable + "=" + evalPoint + ";" + expr);
                     me.updateArgs(evalPoint);
                     return me.solveGeneric();
                 } else {
@@ -231,9 +230,9 @@ public class Derivative {
                         expr = "diff(" + derivative.differentiate() + ")";
                     }//end for loop
                     expr = expr.substring(5, expr.length() - 1);
- 
-                    String funcExpr = "@("+baseVariable+")"+expr;
- 
+
+                    String funcExpr = "@(" + baseVariable + ")" + expr;
+
                     Function f = FunctionManager.add(funcExpr);
                     return f.getMathExpression().getNextResult().wrap(f.getName());
                     //return funcExpr;
@@ -242,7 +241,7 @@ public class Derivative {
             return new MathExpression.EvalResult().wrap(ParserResult.STRANGE_INPUT);
         } catch (Exception e) {
             e.printStackTrace();
-             return new MathExpression.EvalResult().wrap(ParserResult.STRANGE_INPUT);
+            return new MathExpression.EvalResult().wrap(ParserResult.STRANGE_INPUT);
         }
     }
 
@@ -250,6 +249,29 @@ public class Derivative {
      * @param args
      */
     public static void main(String args[]) {
+        String f = "10*x^5";
+        Derivative d;
+        try {
+            d = new Derivative(f);
+            System.out.println("diff(" + f + ") = " + d.differentiate());
+        } catch (Exception ex) {
+            Logger.getLogger(Derivative.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        
+        
+         f = "diff(@(x)10*x^5,3)";
+        try {
+            MathExpression.EvalResult ev = Derivative.eval(f);
+            String res = ev.textRes;
+            System.out.println("diff(" + f + ") = " + res);
+            System.out.println("Grad Function = " + FunctionManager.lookUp(res));
+            
+        } catch (Exception ex) {
+            Logger.getLogger(Derivative.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        
         try {
             //MAKE DECISION ON WHETHER TO ENABLE (-x+...
             //OR TO DISABLE IT. ENABLING IT WILL MEAN CONVERTING -x patterns to -1*x....

@@ -59,6 +59,7 @@ public class NumericalIntegral {
 
     private String vars[];
     private Integer slots[];
+    double dx = 0.2;
 
     public NumericalIntegral() {
         this.targetHandle = null;
@@ -80,6 +81,7 @@ public class NumericalIntegral {
         this.targetHandle = targetHandle;
         this.slots = slots;
         this.vars = vars;
+        dx = (upper - lower) / iterations;
     }
 
     /**
@@ -95,6 +97,7 @@ public class NumericalIntegral {
         this.xLower = xLower;
         this.xUpper = xUpper;
         this.targetHandle = null;
+        dx = (xUpper - xLower) / iterations;
         try {
             this.function = FunctionManager.lookUp(function);
         }//end try
@@ -553,7 +556,7 @@ public class NumericalIntegral {
      * @return the integral of the function using the trapezoidal rule.
      */
     public double findHighRangeIntegral() {
-        double dx = 0.2;
+
         NumericalIntegral integral = new NumericalIntegral(function, targetHandle, vars, slots);
 
         try {
@@ -646,11 +649,19 @@ public class NumericalIntegral {
      * @return the integral of the function using the trapezoidal rule.
      */
     public double findHighRangeIntegralTurbo() {
-        double dx = 0.2;
+
         // Metadata passed to maintain variable slot mapping
         NumericalIntegral integral = new NumericalIntegral(function, targetHandle, this.vars, this.slots);
         /**
-         * This try-catch block is necessary because sometimes, x and xUpper are
+         * This try-catch block is necessary because sometimes,
+            } else {
+                double sum = 0.0;
+                if (xLower <= xUpper) {
+                    double x = xLower;
+                    for (; x < (xUpper - dx); x += dx) {
+                        integral.xLower = x;
+                        integral.xUpper = x + dx;
+                        // Keep using Gaussian for th x and xUpper are
          * so close and in the case of the polynomial integral, computing it
          * uses matrices which means that row-reduction will fail if the
          * coefficients of the matrices are too close due to the computational
@@ -696,7 +707,7 @@ public class NumericalIntegral {
         } catch (Exception e) {
             // Fallback to the more robust advanced polynomial if Gaussian fails (e.g. NaN)
             return findHighRangeIntegralWithAdvancedPolynomial();
-        }
+        } 
     }
 
     /**

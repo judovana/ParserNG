@@ -9,47 +9,8 @@ import com.github.gbenroscience.parser.Function;
 import java.lang.invoke.MethodHandle;
 import java.util.*;
 
-/*
-*   Class Integration
-*       interface Function also required
-*
-*   Contains the methods for Gaussian-Legendre quadrature, the
-*   backward and forward rectangular rules and the trapezium rule
-*
-*   The function to be integrated is supplied by means of
-*       an interface, Function
-*
-*   WRITTEN BY: Dr Michael Thomas FlanaganArrayList
-*
-*   DATE:	 February 2002
-*   UPDATE:  22 June 2003, 16 July 2006, 25 April 2007, 2 May 2007, 4 July 2008, 22 September 2008
-*
-*   DOCUMENTATION:
-*   See Michael Thomas Flanagan's Java library on-line web page:
-*   http://www.ee.ucl.ac.uk/~mflanaga/java/Integration.html
-*   http://www.ee.ucl.ac.uk/~mflanaga/java/
-*
-*   Copyright (c) 2002 - 2008 Michael Thomas Flanagan
-*
-* PERMISSION TO COPY:
-*
-* Permission to use, copy and modify this software and its documentation for NON-COMMERCIAL purposes is granted, without fee,
-* provided that an acknowledgement to the author, Dr Michael Thomas Flanagan at www.ee.ucl.ac.uk/~mflanaga, appears in all copies
-* and associated documentation or publications.
-*
-* Redistributions of the source code of this source code, or parts of the source codes, must retain the above copyright notice, this list of conditions
-* and the following disclaimer and requires written permission from the Michael Thomas Flanagan:
-*
-* Redistribution in binary form of all or parts of this class must reproduce the above copyright notice, this list of conditions and
-* the following disclaimer in the documentation and/or other materials provided with the distribution and requires written permission from the Michael Thomas Flanagan:
-*
-* Dr Michael Thomas Flanagan makes no representations about the suitability or fitness of the software for any or for a particular purpose.
-* Dr Michael Thomas Flanagan shall not be liable for any damages suffered as a result of using, modifying or distributing this software
-* or its derivatives.
-*
-***************************************************************************************/
-// Numerical integration class
 public class Integration {
+    
 
     private Function function = null;   // Function to be integrated
     private boolean setFunction = false;        // = true when Function set
@@ -316,15 +277,21 @@ public class Integration {
         return intgrtn.gaussQuad(glPoints);
     }
 
+    private static void clearCache() {
+        Integration.gaussQuadIndex.clear();
+        Integration.gaussQuadDistArrayList.clear();
+        Integration.gaussQuadWeightArrayList.clear();
+    }
+
     // Numerical integration using n point Gaussian-Legendre quadrature (static method)
     // All parameters provided
     // Updated static method to include the variable slot index
-public static double gaussQuad(MethodHandle targetHandle, int varIndex, Function intFunc, double lowerLimit, double upperLimit, int glPoints) {
-    Integration intgrtn = new Integration(intFunc, lowerLimit, upperLimit);
-    intgrtn.targetHandle = targetHandle;
-    intgrtn.varIndex = varIndex; // Pass the slot here
-    return intgrtn.gaussQuad(glPoints);
-}
+    public static double gaussQuad(MethodHandle targetHandle, int varIndex, Function intFunc, double lowerLimit, double upperLimit, int glPoints) {
+        Integration intgrtn = new Integration(intFunc, lowerLimit, upperLimit);
+        intgrtn.targetHandle = targetHandle;
+        intgrtn.varIndex = varIndex; // Pass the slot here
+        return intgrtn.gaussQuad(glPoints);
+    }
 
     // Returns the distance (gaussQuadDist) and weight coefficients (gaussQuadCoeff)
     // for an n point Gauss-Legendre Quadrature.
@@ -335,7 +302,7 @@ public static double gaussQuad(MethodHandle targetHandle, int varIndex, Function
         double z = 0.0D, z1 = 0.0D;
         double pp = 0.0D, p1 = 0.0D, p2 = 0.0D, p3 = 0.0D;
 
-        double eps = 3e-11;	// set required precision
+        double eps = 1e-15;	// set required precision
         double x1 = -1.0D;		// lower limit
         double x2 = 1.0D;		// upper limit
 

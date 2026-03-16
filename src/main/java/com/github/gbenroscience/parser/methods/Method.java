@@ -707,13 +707,10 @@ public class Method {
                 return list;
             } else if (name.equals(MATRIX_EIGENPOLY)) {
                 Set set = new Set(list);
-                String poly = set.eigenPoly();
-
-                list.clear();
-                String ref = FunctionManager.ANON_PREFIX + (FunctionManager.ANON_CURSOR.get() + 1);
-
-                Function.storeAnonymousFunction("@(" + Matrix.lambda + ")" + poly);
-                list.add(ref);
+                String poly = set.eigenPoly(); 
+                list.clear(); 
+                Function fn = Function.storeAnonymousFunction("@(" + Matrix.lambda + ")" + poly);
+                list.add(fn.getName());
                 return list;
             } else if (name.equals(MATRIX_EIGENVALUES)) {
                 Set set = new Set(list);

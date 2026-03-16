@@ -4,7 +4,9 @@
  */
 package com.github.gbenroscience.util;
 
+import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.parser.Function;
+import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.TYPE;
 import com.github.gbenroscience.parser.Variable;
 
@@ -13,6 +15,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -78,6 +81,79 @@ public class FunctionManager {
     }//end method
 
     /**
+     * Some actions require a handle being gotten on a function name. This
+     * method allows you to acquire the name. Create a dummy function to be
+     * populated with its true values later.
+     *
+     * @param fName
+     * @param independentVars
+     * @return
+     */
+    public static Function lockDown(String fName, String... independentVars) {
+        Function f = lookUp(fName);
+        if (f != null) {
+            return f;
+        }
+        f = new Function();
+        f.setDependentVariable(new Variable(fName));
+        for (String d : independentVars) {
+            if (Variable.isVariableString(d)) {
+                Variable v = VariableManager.lookUp(d);
+                if (v != null) {
+                    f.getIndependentVariables().add(v);
+                } else {
+                    f.getIndependentVariables().add(new Variable(d));
+                }
+            }
+        }
+        if (independentVars.length == 2 && com.github.gbenroscience.parser.Number.isNumber(independentVars[0])
+                && com.github.gbenroscience.parser.Number.isNumber(independentVars[1])) {
+            int rows = Integer.parseInt(independentVars[0]);
+            int cols = Integer.parseInt(independentVars[1]);
+            Matrix m = new Matrix(rows, cols);
+            m.setName(fName);
+            f.setMatrix(m);
+        } else if (independentVars.length == 1 && com.github.gbenroscience.parser.Number.isNumber(independentVars[0])) {
+            int cols = Integer.parseInt(independentVars[0]);
+            Matrix m = new Matrix(1, cols);
+            m.setName(fName);
+            f.setMatrix(m);
+            f.setType(TYPE.VECTOR);
+        } else {
+            f.setMathExpression(new MathExpression());
+            f.setType(TYPE.ALGEBRAIC_EXPRESSION);
+        }
+         FUNCTIONS.put(fName, f);
+         return FUNCTIONS.get(fName);
+
+    }//end method
+
+    /**
+     * Create a dummy function to be populated with its true values later.
+     *
+     * @param independentVars
+     * @return
+     */
+    public static synchronized Function lockDownAnon(String... independentVars) {
+        String fName = ANON_PREFIX + ANON_CURSOR.incrementAndGet();
+        return lockDown(fName, independentVars);
+    }//end method
+/**
+ * Creates the anonymous copy of a Function
+ * @param f
+ * @return 
+ */
+    public static synchronized Function lockDownAnon(Function f) {
+        String fName = ANON_PREFIX + ANON_CURSOR.incrementAndGet();
+        if (f.getType() == TYPE.MATRIX || f.getType() == TYPE.VECTOR) {
+            if (f.getMatrix() != null) {
+                f.getMatrix().setName(fName);
+            }
+        }
+        return FUNCTIONS.put(fName, f);
+    }//end method
+
+    /**
      * Adds a Function object to this FunctionManager.
      *
      * @param expression The expression that creates the Function to add. The
@@ -87,33 +163,31 @@ public class FunctionManager {
      * variable
      */
     public static Function add(String expression) {
-        Function f = new Function(expression);
-        add(f);
-        return f;
+        try {
+            Function f = new Function(expression);
+            String name = f.getName();
+            FUNCTIONS.put(name, f);
+            Function fn = FUNCTIONS.get(name);
+            update();
+            return fn;
+        } catch (Exception ex) {
+            Logger.getLogger(FunctionManager.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        return null;
     }//end method
 
     /**
      *
      * @param f The Function object to add to this object.
      */
-    public static void add(Function f) {
+    public static Function add(Function f) {
         String fName = f.getName();
-
-        Function oldFunc = FUNCTIONS.get(fName);
-
-        if (oldFunc == null) {//function does not exist in registry
-            Variable v = VariableManager.lookUp(fName);//check if a Variable has this name in the Variables registry
-            if (v != null) {
-                VariableManager.delete(fName);//if so delete it.
-            }//end if
-            FUNCTIONS.put(fName, f);
-            if (fName.startsWith(ANON_PREFIX)) {
-                ANON_CURSOR.incrementAndGet();
-            }
-        } else {
-            update(f.toString());
-        }
+        delete(fName);
+        VariableManager.delete(fName);//if so delete it.
+        Function fn = FUNCTIONS.put(fName, f);
         update();
+        return fn;
     }//end method
 
     /**
@@ -156,22 +230,33 @@ public class FunctionManager {
     }//end method
 
     /**
-     * Updates a Function object in this FunctionManager.
+     * Used to update Functions by name. A great use is to promote anonymous
+     * functions into named functions
      *
-     * @param expression The function expression
+     * @param oldFuncName
+     * @param newName
      */
-    public static void update(String expression) {
+    public static void update(String oldFuncName, String newName) {
         try {
-            Function f = new Function(expression);
-            String name = f.getName();
-            if (name.startsWith(ANON_PREFIX) && FUNCTIONS.get(name) == null) {
-                ANON_CURSOR.incrementAndGet();
-            }
-            FUNCTIONS.put(name, f);
+            Function f = FUNCTIONS.remove(oldFuncName);
+            if(f!=null && f.getType() == TYPE.MATRIX){
+                f.getMatrix().setName(newName);
+            } 
+            FUNCTIONS.put(newName, f);
         } catch (Exception ex) {
             Logger.getLogger(FunctionManager.class.getName()).log(Level.SEVERE, null, ex);
         }
 
+        update();
+    }//end method
+
+    /**
+     * Updates the Map with the most recent version of this Function.
+     *
+     * @param f
+     */
+    public static void update(Function f) {
+        FUNCTIONS.put(f.getName(), f);
         update();
     }//end method
 
@@ -192,7 +277,7 @@ public class FunctionManager {
         }
     }
 
-    public static final void clear() { 
+    public static final void clear() {
         FUNCTIONS.clear();
     }
 
@@ -250,6 +335,14 @@ public class FunctionManager {
                 VariableManager.add(f.getIndependentVariables().toArray(new Variable[]{}));
             }
         }
+    }
+
+    public static void main(String[] args) {
+        Function f = FunctionManager.lockDown("v", "x", "y", "z", "w");
+        System.out.println(FUNCTIONS);
+        System.out.println("Function = " + f.toString());
+        System.out.println("Evaluate: " + f.evalArgs("v(2,3,4,5)"));
+
     }
 
 }//end class
