@@ -40,36 +40,47 @@ import com.github.gbenroscience.parser.Function;
  */
 public class MappedExpander {
 
+    private final double[] sampledValues; // Pre-sampled at Extrema nodes
     private final double[] coefficients;
     private final DomainMap map;
     public static final int MAX_DEPTH = 25;
+    private final int N;
 
-    public MappedExpander(Function function, DomainMap map, int n) {
+    /**
+     * Uses Chebyshev Extrema nodes: u_k = cos(k * PI / N) for k = 0...N. This
+     * matches Clenshaw-Curtis weights perfectly.
+     */
+    public MappedExpander(Function function, DomainMap map, int N) {
         this.map = map;
-        this.coefficients = new double[n];
-        double[] fx = new double[n];
+        this.N = N;
+        this.sampledValues = new double[N + 1];
+        this.coefficients = new double[N + 1];
 
-        // 1. Sample at mapped Chebyshev nodes
-        for (int k = 1; k <= n; k++) {
-            double u = Math.cos(Math.PI * (2.0 * k - 1.0) / (2.0 * n));
+        // 1. Sample at Extrema nodes (including boundaries -1 and 1)
+        for (int k = 0; k <= N; k++) {
+            double u = Math.cos((k * Math.PI) / N);
             double x = map.toPhysical(u);
 
             function.updateArgs(x);
-            fx[k - 1] = function.calc();
+            double val = function.calc();
 
-            // Hardening: Handle poles/NaNs
-            if (Double.isNaN(fx[k - 1]) || Double.isInfinite(fx[k - 1])) {
-                fx[k - 1] = 0; // Or implement a small epsilon offset
+            // HARDENING: Avoid zeroing out singularities. 
+            // If NaN/Inf, sample slightly inside the domain instead.
+            if (Double.isNaN(val) || Double.isInfinite(val)) {
+                double eps = 1e-14 * (k < N / 2 ? 1 : -1);
+                function.updateArgs(map.toPhysical(u + eps));
+                val = function.calc();
             }
+            sampledValues[k] = val;
         }
 
-        // 2. Compute coefficients (Discrete Cosine Transform)
-        for (int j = 0; j < n; j++) {
-            double sum = 0;
-            for (int k = 1; k <= n; k++) {
-                sum += fx[k - 1] * Math.cos(Math.PI * j * (2.0 * k - 1.0) / (2.0 * n));
+        // 2. Compute coefficients using DCT-I logic
+        for (int j = 0; j <= N; j++) {
+            double sum = 0.5 * (sampledValues[0] + (j % 2 == 0 ? 1.0 : -1.0) * sampledValues[N]);
+            for (int k = 1; k < N; k++) {
+                sum += sampledValues[k] * Math.cos((j * k * Math.PI) / N);
             }
-            this.coefficients[j] = (j == 0 ? 1.0 / n : 2.0 / n) * sum;
+            this.coefficients[j] = (j == 0 || j == N ? 1.0 / N : 2.0 / N) * sum;
         }
     }
 
@@ -153,20 +164,22 @@ public class MappedExpander {
         return sum;
     }
 
+    /**
+     * O(N) Integration: Direct sum using pre-sampled values and CC weights.
+     */
     public double integrateFinal(double[] ccWeights) {
+        if (ccWeights.length != sampledValues.length) {
+            throw new IllegalArgumentException("Weight array size must match node count N+1");
+        }
+
         double sum = 0.0;
         double compensation = 0.0; // Kahan Summation
 
-        for (int k = 0; k < ccWeights.length; k++) {
-            // u ranges from 1 to -1 as k goes from 0 to N
-            double u = Math.cos((k * Math.PI) / (ccWeights.length - 1));
+        for (int k = 0; k <= N; k++) {
+            double u = Math.cos((k * Math.PI) / N);
 
-            double x = map.toPhysical(u);
-            double stretch = map.dx_du(u);
-            double fx = evaluate(x);
-
-            // Standard CC Rule: Area = Sum(f(x) * weight * stretch)
-            double term = fx * stretch * ccWeights[k];
+            // Direct access to sampledValues[k] eliminates the O(N) evaluate() call
+            double term = sampledValues[k] * map.dx_du(u) * ccWeights[k];
 
             // Kahan Summation Logic
             double y = term - compensation;
@@ -178,16 +191,10 @@ public class MappedExpander {
     }
 
     public double integrateAdaptive(Function f, DomainMap map, double tol, int depth) {
-        // 1. Create an expander for the current mapped domain
         MappedExpander expander = new MappedExpander(f, map, 256);
-
-        // 2. Estimate error using the "Tail Decay" of Chebyshev coefficients
-        // If the last few coefficients are large, the function is too "busy" for this degree
         double errorEstimate = expander.getTailError();
 
         if (errorEstimate > tol && depth < MAX_DEPTH) {
-            // 3. Hardened Move: Subdivide the Chebyshev domain [-1, 1] 
-            // into two new sub-maps: [-1, 0] and [0, 1]
             DomainMap leftHalf = new SubDomainMap(map, -1.0, 0.0);
             DomainMap rightHalf = new SubDomainMap(map, 0.0, 1.0);
 
@@ -195,8 +202,8 @@ public class MappedExpander {
                     + integrateAdaptive(f, rightHalf, tol / 2.0, depth + 1);
         }
 
-        // 4. If converged, use the high-precision weights
-        return expander.integrateFinal(CCWeightGenerator.CACHED_WEIGHTS_255);
+        // UPDATED REFERENCE
+        return expander.integrateFinal(CCWeightGenerator.getCachedWeights());
     }
 
     public boolean isAliasing() {
@@ -437,6 +444,95 @@ public class MappedExpander {
             return 1.0 / (s * x);
         }
     }
+/**
+ * A DomainMap that clusters nodes tightly at BOTH the lower bound (a) 
+ * and the upper bound (b). Uses a Hyperbolic Tangent transformation.
+ */
+public static class DoubleLogarithmicMap implements MappedExpander.DomainMap {
+    private final double a, b, c, m, s, tanhS;
+
+    /**
+     * @param s Sensitivity. For a tanh map, a value between 3.0 and 5.0 is ideal.
+     * s = 4.0 creates extreme clustering at the boundaries.
+     */
+    public DoubleLogarithmicMap(double a, double b, double s) {
+        this.a = a;
+        this.b = b;
+        this.c = (a + b) / 2.0;          // Midpoint
+        this.m = (b - a) / 2.0;          // Half-width
+        this.s = s;
+        this.tanhS = Math.tanh(s);       // Cache for performance
+    }
+
+    @Override
+    public double toPhysical(double u) {
+        // Map u [-1, 1] to x [a, b] using tanh
+        return c + m * (Math.tanh(s * u) / tanhS);
+    }
+
+    @Override
+    public double toChebyshev(double x) {
+        // Inverse mapping: x to u
+        double val = (x - c) / m * tanhS;
+        
+        // HARDENING: Clamp to prevent NaN from floating-point overshoot near boundaries
+        val = Math.max(-0.999999999999999, Math.min(0.999999999999999, val));
+        
+        // arctanh(val) = 0.5 * ln((1 + val) / (1 - val))
+        return Math.log((1.0 + val) / (1.0 - val)) / (2.0 * s); 
+    }
+
+    @Override
+    public double dx_du(double u) {
+        // The Jacobian: How much the space is stretched.
+        // Derivative of tanh(su) is s * sech^2(su)
+        double coshSU = Math.cosh(s * u);
+        return (m * s) / (tanhS * coshSU * coshSU);
+    }
+
+    @Override
+    public double derivativeFactor(double u) {
+        return 1.0 / dx_du(u);
+    }
+}
+    /**
+     * Logarithmic map that clusters nodes near the upper bound B.
+     */
+    public static class ReversedLogarithmicMap implements MappedExpander.DomainMap {
+
+        private final double a, b, L, s;
+
+        public ReversedLogarithmicMap(double a, double b, double s) {
+            this.a = a;
+            this.b = b;
+            this.L = b - a;
+            this.s = s;
+        }
+
+        @Override
+        public double toPhysical(double u) {
+            // u = -1 (left) -> x = a
+            // u = 1  (right) -> x = b (Singularity point)
+            return b - L * Math.exp(s * (-u - 1.0));
+        }
+
+        @Override
+        public double toChebyshev(double x) {
+            return -1.0 - (Math.log((b - x) / L) / s);
+        }
+
+        @Override
+        public double dx_du(double u) {
+            // Jacobian for integration: clusters points where u -> 1
+            return s * (b - toPhysical(u));
+        }
+
+        @Override
+        public double derivativeFactor(double u) {
+            double dist = b - toPhysical(u);
+            return (dist < 1e-300) ? 1e300 : 1.0 / (s * dist);
+        }
+    }
 
     public static final class SubDomainMap implements DomainMap {
 
@@ -476,47 +572,59 @@ public class MappedExpander {
     }
 
     public static final class CCWeightGenerator {
-        // Standard size for high-resolution segments
+        // Standard size for high-resolution segments. 
+        // N=256 creates an array of length 257 (0 to 256).
 
-        private static final int DEFAULT_N = 255;
-        private static final double[] CACHED_WEIGHTS_255 = generateWeights(DEFAULT_N);
+        private static final int DEFAULT_N = 256;
+        private static final double[] CACHED_WEIGHTS_256 = generateWeights(DEFAULT_N);
 
         /**
-         * Public accessor for the pre-computed weights. Prevents redundant CPU
-         * cycles during deep recursion.
+         * Public accessor for the pre-computed weights.
          */
         public static double[] getCachedWeights() {
-            return CACHED_WEIGHTS_255;
+            return CACHED_WEIGHTS_256;
         }
 
         /**
-         * Generates Clenshaw-Curtis weights for N+1 nodes. Hardened to maintain
-         * 16-digit precision using explicit moment mapping.
+         * Generates Clenshaw-Curtis weights for N+1 nodes. Hardened for
+         * 16-digit precision and symmetry.
          */
         public static double[] generateWeights(int N) {
-            double[] weights = new double[N + 1];
+            if (N % 2 != 0) {
+                throw new IllegalArgumentException("N must be even for standard Clenshaw-Curtis symmetry.");
+            }
 
-            // 1. Initialize moments (Integral of Chebyshev polynomials)
-            // Only even indices are non-zero: Integral(T_2k) = 2 / (1 - 4k^2)
+            double[] weights = new double[N + 1];
             double[] moments = new double[N + 1];
+
+            // 1. Initialize moments: Integral(T_k) = 2 / (1 - k^2)
+            // Only even indices are non-zero.
             for (int k = 0; k <= N; k += 2) {
-                moments[k] = 2.0 / (1.0 - k * k);
+                moments[k] = 2.0 / (1.0 - (double) k * k);
             }
 
             // 2. Compute weights via Inverse DCT-I
-            // For n=256, this is nearly instantaneous.
-            for (int i = 0; i <= N; i++) {
-                double sum = 0.5 * (moments[0] + Math.pow(-1, i) * moments[N]);
+            // We calculate half and use symmetry (weights[i] == weights[N-i])
+            int half = N / 2;
+            for (int i = 0; i <= half; i++) {
+                double theta = (i * Math.PI) / N;
+
+                // Initialization for k=0 and k=N endpoints of the DCT
+                // Cos(0) = 1, Cos(i*PI) = (-1)^i
+                double sum = 0.5 * (moments[0] + ((i % 2 == 0) ? 1.0 : -1.0) * moments[N]);
+
                 for (int k = 2; k < N; k += 2) {
-                    sum += moments[k] * Math.cos((i * k * Math.PI) / N);
+                    sum += moments[k] * Math.cos(k * theta);
                 }
-                weights[i] = (2.0 / N) * sum;
+
+                double w = (2.0 / N) * sum;
+                weights[i] = w;
+                weights[N - i] = w;
             }
 
-            // 3. Hardening: Adjust boundary weights (w0 and wN)
-            // These are mathematically 1/(N^2 - 1) for even N
+            // 3. Hardening: Theoretical Boundary Weights
+            // For even N, the endpoints must be exactly 1 / (N^2 - 1)
             double boundary = 1.0 / (N * N - 1.0);
- 
             weights[0] = boundary;
             weights[N] = boundary;
 
