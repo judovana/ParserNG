@@ -12,12 +12,13 @@ import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.LISTS;
 import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.Operator;
-import com.github.gbenroscience.parser.turbo.tools.ScalarTurboCompiler;
 import java.util.InputMismatchException;
 import static java.lang.Math.*;
 import java.util.List;
 import com.github.gbenroscience.util.VariableManager;
 import java.lang.invoke.MethodHandle;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Objects of this class are able to perform numerical integration of a curve
@@ -429,13 +430,17 @@ public class NumericalIntegral {
 
     }
 
+    private final int normalizedIterations() {
+        return iterations < 500 ? iterations : 500;
+    }
+
     /**
      *
      * @return the integral of the function using the polynomial rule.
      */
     public double findPolynomialIntegral() {
 
-        FunctionExpander expander = new FunctionExpander(xLower, xUpper, iterations, FunctionExpander.DOUBLE_PRECISION, function);
+        FunctionExpanderOld expander = new FunctionExpanderOld(xLower, xUpper, normalizedIterations(), FunctionExpanderOld.DOUBLE_PRECISION, function);
         //System.out.printf("xLower = %4.2f, xUpper = %4.2f\n",xLower,xUpper);
         MathExpression approxFunction = new MathExpression(expander.getPolynomialIntegral());
 
@@ -452,7 +457,7 @@ public class NumericalIntegral {
     }
 
     public double findPolynomialIntegralTurbo() {
-        FunctionExpander expander = new FunctionExpander(xLower, xUpper, iterations, FunctionExpander.DOUBLE_PRECISION, function);
+        FunctionExpanderOld expander = new FunctionExpanderOld(xLower, xUpper, normalizedIterations(), FunctionExpanderOld.DOUBLE_PRECISION, function);
         MethodHandle approxIntglHandle = expander.getPolynomialIntegralHandle();
 
         double[] dataFrame = new double[256];
@@ -653,21 +658,16 @@ public class NumericalIntegral {
         // Metadata passed to maintain variable slot mapping
         NumericalIntegral integral = new NumericalIntegral(function, targetHandle, this.vars, this.slots);
         /**
-         * This try-catch block is necessary because sometimes,
-            } else {
-                double sum = 0.0;
-                if (xLower <= xUpper) {
-                    double x = xLower;
-                    for (; x < (xUpper - dx); x += dx) {
-                        integral.xLower = x;
-                        integral.xUpper = x + dx;
-                        // Keep using Gaussian for th x and xUpper are
-         * so close and in the case of the polynomial integral, computing it
-         * uses matrices which means that row-reduction will fail if the
-         * coefficients of the matrices are too close due to the computational
-         * values of x and y..which are close. If such an exception occurs we
-         * can safely neglect it since it means that the area we are considering
-         * is almost infinitesimal
+         * This try-catch block is necessary because sometimes, } else { double
+         * sum = 0.0; if (xLower <= xUpper) { double x = xLower; for (; x <
+         * (xUpper - dx); x += dx) { integral.xLower = x; integral.xUpper = x +
+         * dx; // Keep using Gaussian for the x and xUpper are so close and in
+         * the case of the polynomial integral, computing it uses matrices which
+         * means that row-reduction will fail if the coefficients of the
+         * matrices are too close due to the computational values of x and
+         * y..which are close. If such an exception occurs we can safely neglect
+         * it since it means that the area we are considering is almost
+         * infinitesimal
          */
         try {
             if (Math.abs(xUpper - xLower) < dx) {
@@ -705,9 +705,17 @@ public class NumericalIntegral {
                 return sum;
             }
         } catch (Exception e) {
+            e.printStackTrace();
             // Fallback to the more robust advanced polynomial if Gaussian fails (e.g. NaN)
-            return findHighRangeIntegralWithAdvancedPolynomial();
-        } 
+            FunctionExpander.ChebyshevForest forest = new FunctionExpander.ChebyshevForest();
+            try {
+                forest.build(targetHandle, xLower, xUpper);
+                return forest.integrate();
+            } catch (Throwable ex) {
+                Logger.getLogger(NumericalIntegral.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        return Double.NaN;
     }
 
     /**
@@ -716,12 +724,12 @@ public class NumericalIntegral {
      */
     public double findGaussianQuadrature() {
         if (targetHandle == null) {
-            return Integration.gaussQuad(function, xLower, xUpper, 8);
+            return Integration.gaussQuad(function, xLower, xUpper, 64);
         } else {
             // Resolve which slot 'x' or 't' belongs to
             int vIdx = getIndependentVariableSlot();
             // Call the updated static method in the Integration class
-            return Integration.gaussQuad(targetHandle, vIdx, function, xLower, xUpper, 8);
+            return Integration.gaussQuad(targetHandle, vIdx, function, xLower, xUpper, 64);
         }
     }
 
@@ -749,7 +757,7 @@ public class NumericalIntegral {
 
     public double findAdvancedPolynomialIntegral() {
         double dx = (xUpper - xLower) / (iterations);
-        FunctionExpander expander = new FunctionExpander(xLower, xUpper, iterations, FunctionExpander.DOUBLE_PRECISION, function);
+        FunctionExpanderOld expander = new FunctionExpanderOld(xLower, xUpper, iterations, FunctionExpanderOld.DOUBLE_PRECISION, function);
 
         // Get the analytic integral for the base sum
         double sum1 = (targetHandle == null) ? this.findPolynomialIntegral() : this.findPolynomialIntegralTurbo();
@@ -1069,6 +1077,21 @@ public class NumericalIntegral {
 
     public String getVariable() {
         return function.getIndependentVariables().get(0).getName();
+    }
+
+    public double integrate(Function f) throws Throwable {
+        ComplexityAnalyst.Strategy strategy = ComplexityAnalyst.selectStrategy(f.getMathExpression());
+        System.out.println("SELECTED: "+strategy.name());
+
+        if (strategy == ComplexityAnalyst.Strategy.GAUSSIAN) {
+            // Fast path: Fixed nodes, no coefficients to store
+            return findHighRangeIntegralTurbo();
+        } else {
+            // Robust path: Adaptive splitting and Kahan Summation
+            FunctionExpander.ChebyshevForest forest = new FunctionExpander.ChebyshevForest();
+            forest.build(targetHandle, xLower, xUpper);
+            return forest.integrate();
+        }
     }
 
     public static void main(String args[]) {

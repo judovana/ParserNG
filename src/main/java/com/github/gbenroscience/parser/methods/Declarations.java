@@ -106,6 +106,8 @@ public class Declarations {
     public static final String QUADRATIC = "quadratic";
     public static final String TARTAGLIA_ROOTS = "t_root";
     public static final String GENERAL_ROOT = "root";
+    public static final String NOW = "now";
+    public static final String NANOS = "nanos";
     /**
      * May take its input matrix as a list or as an anonymous function or as a
      * Matrix variable. e.g linear_sys(3,2,-1,4,5,-8) [returns the raw matrix
@@ -292,7 +294,7 @@ public class Declarations {
             ECHELON_MATRIX, MATRIX_MULTIPLY, MATRIX_DIVIDE, MATRIX_ADD,
             MATRIX_SUBTRACT, MATRIX_POWER, MATRIX_TRANSPOSE, MATRIX_EDIT,
             MATRIX_COFACTORS, MATRIX_ADJOINT, MATRIX_EIGENVEC, MATRIX_EIGENVALUES,
-            MATRIX_EIGENPOLY, HELP
+            MATRIX_EIGENPOLY, HELP, NOW, NANOS
         };
 
         List<String> rest = Arrays.asList(functionConstants);
@@ -514,6 +516,10 @@ public class Declarations {
                 return TYPE.MATRIX.toString();
             case MATRIX_EIGENVALUES:
                 return TYPE.MATRIX.toString();
+            case NOW:
+                return TYPE.NUMBER.toString();
+            case NANOS:
+                return TYPE.NUMBER.toString();
             default:
                 return TYPE.NUMBER.toString();
         }
@@ -524,9 +530,10 @@ public class Declarations {
      * @return all the statistical methods used by the parser.
      */
     static String[] getStatsMethods() {
-        return new String[]{LIST_SUM, PROD, MEDIAN, MODE, RANGE, MID_RANGE, ROOT_MEAN_SQUARED, COEFFICIENT_OF_VARIATION, MIN, MAX, STD_DEV, VARIANCE, STD_ERR, RANDOM, SORT};
-
+        return new String[]{LIST_SUM, PROD, MEDIAN, MODE, RANGE, MID_RANGE, ROOT_MEAN_SQUARED, COEFFICIENT_OF_VARIATION, MIN, MAX, STD_DEV, VARIANCE, STD_ERR, 
+            RANDOM, SORT, NANOS, NOW};
     }
+    
 
     public static boolean isBasicNumericalFunction(String op) {
         for (BasicNumericalMethod basicNumericalMethod : Declarations.getBasicNumericalMethods()) {

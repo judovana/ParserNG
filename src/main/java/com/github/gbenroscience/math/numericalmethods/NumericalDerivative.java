@@ -83,7 +83,7 @@ public class NumericalDerivative {
      * derivative very near the given point.
      */
     public double findDerivativeByPolynomialExpander(){
-        FunctionExpander expander = new FunctionExpander(xPoint-0.0001, xPoint+0.1, 20,FunctionExpander.DOUBLE_PRECISION, function );
+        FunctionExpanderOld expander = new FunctionExpanderOld(xPoint-0.0001, xPoint+0.1, 20,FunctionExpanderOld.DOUBLE_PRECISION, function );
         MathExpression polyDerivative = new MathExpression( expander.getPolynomialDerivative() );
  
         polyDerivative.updateArgs(xPoint);

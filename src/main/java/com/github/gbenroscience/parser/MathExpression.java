@@ -97,6 +97,7 @@ public class MathExpression implements Savable, Solvable {
      * The expression to evaluate.
      */
     private String expression;
+    private MathExpressionTreeDepth.Result treeStats;
     protected boolean correctFunction = true;//checks if the function is valid.
     protected int noOfListReturningOperators;
     protected List<String> scanner = new ArrayList<>();//the ArrayList that stores the scanner input function
@@ -428,7 +429,7 @@ public class MathExpression implements Savable, Solvable {
     }
 
     private void initializing(String expression) {
-
+        computeTreeDepth();
         setCorrectFunction(true);
         setHasListReturningOperators(false);
         setNoOfListReturningOperators(0);
@@ -705,6 +706,16 @@ public class MathExpression implements Savable, Solvable {
         return lastResult;
     }
 
+    private void computeTreeDepth() {
+        treeStats = new MathExpressionTreeDepth(expression).calculate();
+    }
+
+    public MathExpressionTreeDepth.Result getTreeStats() {
+        return treeStats;
+    }
+
+  
+
     /**
      * Sometimes, after evaluation the evaluation list which is a local
      * variable, is reduced to a function name(or other object as time goes on)
@@ -746,13 +757,12 @@ public class MathExpression implements Savable, Solvable {
     public String[] getVariablesNames() {
         return registry.getVariables();
     }
-    
-    
+
     public Integer[] getSlots() {
         return registry.getSlots();
     }
-    
-    public Pair<String[],Integer[]> getVariables(){
+
+    public Pair<String[], Integer[]> getVariables() {
         return registry.getVarsAndSlots();
     }
 
@@ -842,9 +852,11 @@ public class MathExpression implements Savable, Solvable {
     }
 
     /**
-     * test and see if it produces same output as {@link MathExpression#getSlots() }
-     * @return an array of ints which are the frame index of
-     * variables in the expression
+     * test and see if it produces same output as {@link MathExpression#getSlots()
+     * }
+     *
+     * @return an array of ints which are the frame index of variables in the
+     * expression
      */
     public int[] getSlotsAlt() {
         ArrayList<Integer> slots = new ArrayList<>();
@@ -1560,16 +1572,16 @@ public class MathExpression implements Savable, Solvable {
         public EvalResult evaluate() {
             // Just use the pre-allocated stack - no allocation per call
             int ptr = -1;
-     
+
             for (int i = 0; i < cachedPostfix.length; i++) {
                 Token t = cachedPostfix[i];
-                    /*          System.out.println("\n=== Evaluating token: "
+                /*          System.out.println("\n=== Evaluating token: "
                         + (t.kind == Token.NUMBER ? "NUM(" + t.value + ") OR VAR("+t.name+"), "
                                 : t.kind == Token.OPERATOR ? "OP(" + t.opChar + ")"
                                         : t.kind == Token.FUNCTION ? "FUNC(" + t.name + ",arity=" + t.arity + ")"
                                                 : "METHOD(" + t.name + ",arity=" + t.arity + ")")
                         + " | Stack ptr before = " + ptr);*/
-                 
+
                 switch (t.kind) {
                     case Token.NUMBER:
                         if (t.name != null && !t.name.isEmpty()) {
@@ -2787,9 +2799,9 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
         System.out.println(tartRoots.solve());
 
         System.out.println(new MathExpression("M=@(x)7*x^2;M(2)").solve());
-        System.out.println("FUNCTIONS: "+FunctionManager.FUNCTIONS);
+        System.out.println("FUNCTIONS: " + FunctionManager.FUNCTIONS);
         MathExpression printer = new MathExpression("print(anon9,C)");
-        System.out.println("anon9: "+FunctionManager.lookUp("anon9"));
+        System.out.println("anon9: " + FunctionManager.lookUp("anon9"));
         System.out.println(printer.solve());
 
         //   double N = 100; 

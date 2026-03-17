@@ -266,6 +266,14 @@ public class Method {
         return op.equals(PRINT);
     }
 
+    public static boolean isPureStatsMethod(String name){
+        for(String s: getStatsMethods()){
+            if(s.equals(name)){
+                return true;
+            }
+        }
+        return false;
+    }
     /**
      * @param op the String to check
      * @return true if the operator is a statistical operator..basically any

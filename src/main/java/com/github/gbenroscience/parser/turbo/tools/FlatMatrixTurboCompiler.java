@@ -594,6 +594,9 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
                 return cache.result.wrap(args[0].matrix.inverse());
             case Declarations.MATRIX_TRANSPOSE:
                 return cache.result.wrap(args[0].matrix.transpose());
+             case Declarations.TRIANGULAR_MATRIX:
+                 args[0].matrix.reduceToTriangularMatrixInPlace();
+                return cache.result.wrap(args[0].matrix);
             case Declarations.MATRIX_EIGENVALUES:
                 // 1. Get raw data and dimensions
                 double[] inputData = args[0].matrix.getFlatArray();

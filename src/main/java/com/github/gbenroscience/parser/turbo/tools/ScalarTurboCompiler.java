@@ -17,19 +17,21 @@ package com.github.gbenroscience.parser.turbo.tools;
 
 import com.github.gbenroscience.math.Maths;
 import com.github.gbenroscience.math.differentialcalculus.Derivative;
-import com.github.gbenroscience.math.numericalmethods.FunctionExpander;
+import com.github.gbenroscience.math.numericalmethods.FunctionExpanderOld;
 import com.github.gbenroscience.math.numericalmethods.NumericalIntegral;
-import com.github.gbenroscience.math.numericalmethods.RootFinder;
 import com.github.gbenroscience.math.numericalmethods.TurboRootFinder;
 import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.TYPE;
 import com.github.gbenroscience.parser.Variable;
+import com.github.gbenroscience.parser.methods.Declarations;
+import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.util.FunctionManager;
 import java.lang.invoke.*;
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Turbo compiler optimized for PURE SCALAR expressions.
@@ -51,6 +53,29 @@ import java.util.*;
  * @author GBEMIRO
  */
 public class ScalarTurboCompiler implements TurboExpressionCompiler {
+
+    public static final MethodHandle SCALAR_GATEKEEPER_HANDLE;
+    public static final MethodHandle VECTOR_GATEKEEPER_HANDLE;
+
+    static {
+        try {
+            MethodHandles.Lookup lookup = MethodHandles.lookup();
+
+            // Define the method types: (String, double[]) -> double/double[]
+            MethodType scalarType = MethodType.methodType(double.class, String.class, double[].class);
+            MethodType vectorType = MethodType.methodType(double[].class, String.class, double[].class);
+
+            // Find the static methods
+            SCALAR_GATEKEEPER_HANDLE = lookup.findStatic(
+                    ScalarTurboCompiler.class, "scalarStatsGatekeeper", scalarType);
+
+            VECTOR_GATEKEEPER_HANDLE = lookup.findStatic(
+                    ScalarTurboCompiler.class, "vectorStatsGatekeeper", vectorType);
+
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            throw new ExceptionInInitializerError("Failed to initialize Stats Gatekeepers: " + e.getMessage());
+        }
+    }
 
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
@@ -97,7 +122,7 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
             "cos-¹_grad", "lg-¹", "plot", "root",
             "cot_rad", "atan_grad", "sin_grad", "cot_grad",
             "csc-¹_grad", "length", "csc-¹_deg", "cosh-¹", "cosh",
-            "csc-¹_rad", "sin_rad", "csch", "asinh"
+            "csc-¹_rad", "sin_rad", "csch", "asinh", "now", "nanos"
     
 
     ///////////////////////////////////////////////////////
@@ -155,32 +180,41 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
      */
     @Override
     public FastCompositeExpression compile() throws Throwable {
-
-        // Compile to scalar MethodHandle
+        // This now yields a handle with signature (double[])Object
         MethodHandle scalarHandle = compileScalar(postfix);
 
-        // Wrap scalar result in EvalResult
         return new FastCompositeExpression() {
             @Override
             public MathExpression.EvalResult apply(double[] variables) {
                 try {
-                    double value = (double) scalarHandle.invokeExact(variables);
-                    return new MathExpression.EvalResult().wrap(value);
+                    // invoke() now returns Double (boxed) or double[]
+                    Object result = scalarHandle.invoke(variables);
+
+                    if (result instanceof double[]) {
+                        return new MathExpression.EvalResult().wrap((double[]) result);
+                    }
+                    return new MathExpression.EvalResult().wrap(((Number) result).doubleValue());
                 } catch (Throwable t) {
-                    throw new RuntimeException("Turbo scalar execution failed", t);
+                    throw new RuntimeException("Turbo evaluation failed", t);
                 }
             }
 
             @Override
             public double applyScalar(double[] variables) {
                 try {
-                    // invokeExact is key: no casting, no boxing, no overhead.
-                    return (double) scalarHandle.invokeExact(variables);
+                    Object result = scalarHandle.invoke(variables);
+
+                    if (result instanceof Number) {
+                        return ((Number) result).doubleValue();
+                    }
+                    // Coercion: If the user calls a vector function in a scalar context,
+                    // we return the first element to prevent a crash.
+                    double[] arr = (double[]) result;
+                    return (arr != null && arr.length > 0) ? arr[0] : Double.NaN;
                 } catch (Throwable t) {
                     throw new RuntimeException("Turbo primitive execution failed", t);
                 }
             }
-
         };
     }
 
@@ -248,7 +282,35 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                 case MathExpression.Token.FUNCTION:
                 case MathExpression.Token.METHOD:
                     String name = t.name.toLowerCase();
-                    if (name.equals("root")) {
+                    if (Method.isPureStatsMethod(name)) {
+                        int arity = t.arity;
+                        String[] rawArgs = t.getRawArgs();
+                        double[] data = new double[arity];
+
+                        for (int i = 0; i < arity; i++) {
+                            stack.pop();
+                            data[i] = Double.parseDouble(rawArgs[i]);
+                        }
+
+                        // Inside the switch case for Stats methods
+                        // Inside the switch case for Stats methods
+                        MethodHandle finalOp;
+                        if (name.equals(Declarations.SORT) || name.equals(Declarations.MODE)) {
+                            finalOp = MethodHandles.insertArguments(VECTOR_GATEKEEPER_HANDLE, 0, name, data);
+                        } else {
+                            finalOp = MethodHandles.insertArguments(SCALAR_GATEKEEPER_HANDLE, 0, name, data);
+                        }
+
+// CRITICAL: You must change the return type to Object.class.
+// This prevents the unboxing logic from being triggered at the call site.
+                        finalOp = finalOp.asType(finalOp.type().changeReturnType(Object.class));
+
+// Now add the variables parameter: (double[]) -> Object
+                        finalOp = MethodHandles.dropArguments(finalOp, 0, double[].class);
+
+                        stack.push(finalOp);
+                        break;
+                    } else if (name.equals("root")) {
                         int arity = t.arity;
                         for (int i = 0; i < arity; i++) {
                             stack.pop();
@@ -301,6 +363,7 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
 
                         // The handle is now ready to be pushed to the compiler's compilation stack
                         stack.push(currentHandle);
+                        break;
                     } else if (name.equals("intg")) {
                         //[F, 2.0, 3.0, 10000]
                         int arity = t.arity;
@@ -324,7 +387,7 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
 
                         double lower = Double.parseDouble(rawArgs[1]);
                         double upper = Double.parseDouble(rawArgs[2]);
-                        int iterations = (int) ((arity == 4) ? (int) Double.parseDouble(rawArgs[3]) : (int)((upper-lower)/0.05));
+                        int iterations = (int) ((arity == 4) ? (int) Double.parseDouble(rawArgs[3]) : (int) ((upper - lower) / 0.05));
                         String[] vars = innerExpr.getVariablesNames();
                         Integer[] slots = innerExpr.getSlots();
 
@@ -363,7 +426,7 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                         double evalPoint = -1;
                         int order = -1;
                         // 1. Resolve Expression/Handle
-                        String targetExpr = args[0]; 
+                        String targetExpr = args[0];
 
                         // 3. Symbolic Derivation
                         MathExpression.EvalResult solution = null;
@@ -414,8 +477,6 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
      * diff(F,v,n) Evaluate F's grad func n times and store the result in a function pointer called v 
      * diff(F,x,n) Evaluate F's grad func n times and calculate the result at x
                          */
-
-                      
 
                         // 4. Recursive Compilation into the MethodHandle Tree
                         if (solution.getType() == TYPE.NUMBER) {
@@ -472,7 +533,11 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
         MethodHandle resultHandle = stack.pop();
 
         // Ensure type is (double[]) -> double
-        return resultHandle.asType(MT_SAFE_WRAP);
+        // return resultHandle.asType(MT_SAFE_WRAP);
+// THE FIX: Explicitly cast the handle's return type to Object.
+// This effectively "blinds" the JVM's auto-unboxing logic so it 
+// just hands you the raw reference (whether it's a Double or a double[]).
+        return resultHandle.asType(MethodType.methodType(Object.class, double[].class));
     }
 
     private static MethodHandle compileFunction(MathExpression.Token t, List<MethodHandle> argumentHandles) throws Throwable {
@@ -542,12 +607,263 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                 throw new IllegalArgumentException("Unsupported binary operator: " + op);
         }
     }
+// For things like SUM, MEAN, VAR
 
-  
+    public static double executeTurboIntegral(Function f, MethodHandle handle, double lower, double upper, int iterations, String[] vars, Integer[] slots) throws Throwable{
+        MethodHandle primitiveHandle = handle.asType(
+                MethodType.methodType(double.class, double[].class)
+        );
+        NumericalIntegral intg = new NumericalIntegral(f, lower, upper, iterations, primitiveHandle, vars, slots);
+        //return intg.findHighRangeIntegralTurbo();
+        return intg.integrate(f);
+    }
 
-    public static double executeTurboIntegral(Function f, MethodHandle handle, double lower, double upper, int iterations, String[] vars, Integer[] slots) {
-        NumericalIntegral intg = new NumericalIntegral(f, lower, upper, iterations, handle, vars, slots);
-        return intg.findHighRangeIntegralTurbo();
+    public static double scalarStatsGatekeeper(String method, double[] data) {
+        return executeScalarReturningStatsMethod(null, data, method);
+    }
+
+// For things like SORT, MODE
+    public static double[] vectorStatsGatekeeper(String method, double[] data) {
+        return executeVectorReturningStatsMethod(null, data, method);
+    }
+
+    private static double executeScalarReturningStatsMethod(MethodHandle handle, double[] args, String method) {
+        int n = args.length;
+        if (n == 0 && !method.equals(Declarations.RANDOM)) {
+            return Double.NaN; // Safety guard for empty arrays
+        }
+
+        switch (method) {
+            case Declarations.LIST_SUM:
+            case Declarations.SUM: {
+                double total = 0.0;
+                // The JIT compiler will aggressively unroll this primitive loop
+                for (int i = 0; i < n; i++) {
+                    total += args[i];
+                }
+                return total;
+            }
+
+            case Declarations.PROD: {
+                double prod = 1.0;
+                for (int i = 0; i < n; i++) {
+                    prod *= args[i];
+                }
+                return prod;
+            }
+
+            case Declarations.AVG:
+            case Declarations.MEAN: {
+                double mTotal = 0.0;
+                for (int i = 0; i < n; i++) {
+                    mTotal += args[i];
+                }
+                return mTotal / n;
+            }
+
+            case Declarations.MEDIAN: {
+                // In-place sort is incredibly fast for small arrays and avoids allocation
+                Arrays.sort(args);
+                int mid = n / 2;
+                if (n % 2 == 0) {
+                    return (args[mid - 1] + args[mid]) * 0.5;
+                }
+                return args[mid];
+            }
+
+            case Declarations.MIN: {
+                double min = args[0];
+                for (int i = 1; i < n; i++) {
+                    if (args[i] < min) {
+                        min = args[i];
+                    }
+                }
+                return min;
+            }
+
+            case Declarations.MAX: {
+                double max = args[0];
+                for (int i = 1; i < n; i++) {
+                    if (args[i] > max) {
+                        max = args[i];
+                    }
+                }
+                return max;
+            }
+            case Declarations.NOW: {
+                return System.currentTimeMillis();
+            }
+            case Declarations.NANOS: {
+                return System.nanoTime();
+            }
+            case Declarations.RANGE: {
+                double rMin = args[0];
+                double rMax = args[0];
+                for (int i = 1; i < n; i++) {
+                    if (args[i] < rMin) {
+                        rMin = args[i];
+                    } else if (args[i] > rMax) {
+                        rMax = args[i];
+                    }
+                }
+                return rMax - rMin;
+            }
+
+            case Declarations.MID_RANGE: {
+                double mrMin = args[0];
+                double mrMax = args[0];
+                for (int i = 1; i < n; i++) {
+                    if (args[i] < mrMin) {
+                        mrMin = args[i];
+                    } else if (args[i] > mrMax) {
+                        mrMax = args[i];
+                    }
+                }
+                return (mrMax + mrMin) * 0.5;
+            }
+
+            case Declarations.VARIANCE: {
+                if (n < 2) {
+                    return 0.0;
+                }
+                // Welford's Algorithm: One-pass, cache-friendly, numerically stable
+                double mean = 0.0;
+                double M2 = 0.0;
+                for (int i = 0; i < n; i++) {
+                    double delta = args[i] - mean;
+                    mean += delta / (i + 1);
+                    M2 += delta * (args[i] - mean);
+                }
+                return M2 / (n - 1); // Sample variance
+            }
+
+            case Declarations.STD_DEV: {
+                if (n < 2) {
+                    return 0.0;
+                }
+                double mean = 0.0;
+                double M2 = 0.0;
+                for (int i = 0; i < n; i++) {
+                    double delta = args[i] - mean;
+                    mean += delta / (i + 1);
+                    M2 += delta * (args[i] - mean);
+                }
+                return Math.sqrt(M2 / (n - 1));
+            }
+
+            case Declarations.STD_ERR: {
+                if (n < 2) {
+                    return 0.0;
+                }
+                double mean = 0.0;
+                double M2 = 0.0;
+                for (int i = 0; i < n; i++) {
+                    double delta = args[i] - mean;
+                    mean += delta / (i + 1);
+                    M2 += delta * (args[i] - mean);
+                }
+                double stdDev = Math.sqrt(M2 / (n - 1));
+                return stdDev / Math.sqrt(n);
+            }
+
+            case Declarations.COEFFICIENT_OF_VARIATION: {
+                if (n < 2) {
+                    return Double.NaN;
+                }
+                double mean = 0.0;
+                double M2 = 0.0;
+                for (int i = 0; i < n; i++) {
+                    double delta = args[i] - mean;
+                    mean += delta / (i + 1);
+                    M2 += delta * (args[i] - mean);
+                }
+                if (mean == 0.0) {
+                    return Double.NaN; // Guard against /0
+                }
+                double stdDev = Math.sqrt(M2 / (n - 1));
+                return stdDev / mean;
+            }
+
+            case Declarations.ROOT_MEAN_SQUARED: {
+                double sumSq = 0.0;
+                for (int i = 0; i < n; i++) {
+                    sumSq += (args[i] * args[i]);
+                }
+                return Math.sqrt(sumSq / n);
+            }
+
+            case Declarations.RANDOM:
+                // ThreadLocalRandom is vastly superior to Math.random() for high-throughput calls
+                return ThreadLocalRandom.current().nextDouble();
+
+            default:
+                return Double.NaN;
+        }
+    }
+
+    private static double[] executeVectorReturningStatsMethod(MethodHandle handle, double[] args, String method) {
+        int n = args.length;
+
+        switch (method) {
+            case Declarations.MODE: {
+                Arrays.sort(args); // Sort first to group identical values
+
+                // First pass: Find the maximum frequency
+                int maxCount = 0;
+                int currentCount = 1;
+                for (int i = 1; i < n; i++) {
+                    if (args[i] == args[i - 1]) {
+                        currentCount++;
+                    } else {
+                        if (currentCount > maxCount) {
+                            maxCount = currentCount;
+                        }
+                        currentCount = 1;
+                    }
+                }
+                if (currentCount > maxCount) {
+                    maxCount = currentCount;
+                }
+
+                // Second pass: Collect all values that match maxCount
+                // We use a temporary list or a precisely sized array
+                double[] tempModes = new double[n];
+                int modeIdx = 0;
+                currentCount = 1;
+
+                // Handle single element case
+                if (n == 1) {
+                    return new double[]{args[0]};
+                }
+
+                for (int i = 1; i < n; i++) {
+                    if (args[i] == args[i - 1]) {
+                        currentCount++;
+                    } else {
+                        if (currentCount == maxCount) {
+                            tempModes[modeIdx++] = args[i - 1];
+                        }
+                        currentCount = 1;
+                    }
+                }
+                if (currentCount == maxCount) {
+                    tempModes[modeIdx++] = args[n - 1];
+                }
+
+                // Return a trimmed array containing only the modes
+                return Arrays.copyOf(tempModes, modeIdx);
+            }
+            case Declarations.SORT: {
+                // Arrays.sort mutates the array in-place extremely fast.
+                Arrays.sort(args);
+                // Since this method strictly returns a double, returning the array itself isn't possible here.
+                // Returning args[0] gives the caller the first element, while the array remains sorted in memory.
+                return args;
+            }
+
+            default:
+                return null;
+        }
     }
 
     /**
@@ -887,14 +1203,14 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
 
     // Inside ScalarTurboCompiler class
     public static MethodHandle createHornerHandle(double[] coeffs) throws NoSuchMethodException, IllegalAccessException {
-        MethodHandle base = LOOKUP.findStatic(FunctionExpander.class, "evaluateHorner",
+        MethodHandle base = LOOKUP.findStatic(FunctionExpanderOld.class, "evaluateHorner",
                 MethodType.methodType(double.class, double[].class, double[].class));
         // Currying: Bind the first argument (coeffs)
         return MethodHandles.insertArguments(base, 0, (Object) coeffs);
     }
 
     public static MethodHandle createHornerBigDecimalHandle(BigDecimal[] coeffs) throws NoSuchMethodException, IllegalAccessException {
-        MethodHandle base = LOOKUP.findStatic(FunctionExpander.class, "evaluateHornerBigDecimal",
+        MethodHandle base = LOOKUP.findStatic(FunctionExpanderOld.class, "evaluateHornerBigDecimal",
                 MethodType.methodType(double.class, BigDecimal[].class, double[].class));
         // Currying: Bind the first argument (coeffs)
         return MethodHandles.insertArguments(base, 0, (Object) coeffs);
@@ -943,4 +1259,6 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
     public static double modulo(double a, double b) {
         return a % b;
     }
+    
+    
 }
