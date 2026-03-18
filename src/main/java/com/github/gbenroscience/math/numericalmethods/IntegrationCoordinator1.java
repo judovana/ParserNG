@@ -15,13 +15,10 @@
  */
 package com.github.gbenroscience.math.numericalmethods;
 
-import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.Function;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -38,23 +35,24 @@ public class IntegrationCoordinator1 {
     private static final int MAX_DEPTH = 22;
     private static final double TOLERANCE = 1e-13;
     private static final long TIMEOUT_MS = 1500L;
+    private static final long TIMEOUT_LARGE_MS = 2500L;
     private static final int POLE_SCAN_SAMPLES = 100;
-
-    // Cache for pole detection (keyed by expression hash)
-    private final java.util.Map<String, List<Double>> poleCache = new java.util.HashMap<>();
+    private static final int DEEP_SCAN_SAMPLES = 500;  // For high-frequency spikes
+    private static final double DEEP_SCAN_THRESHOLD = 1e6;  // Trigger if tail error is huge
 
     private long startTime;
     private boolean timedOut = false;
+    private double intervalSize;  // Track for deduplication
 
+    /**
+     * Main entry point for integration.
+     */
     public double integrate(Function f, double a, double b) throws TimeoutException {
         startTime = System.currentTimeMillis();
         timedOut = false;
+        intervalSize = b - a;
 
-        // Heuristic: Very large intervals get more time
-        long timeoutForThisCall = TIMEOUT_MS;
-        if (b - a > 100) {
-            timeoutForThisCall = 3000L;  // 3 seconds for huge oscillatory integrals
-        }
+        long timeoutForThisCall = (b - a > 100) ? TIMEOUT_LARGE_MS : TIMEOUT_MS;
 
         try {
             List<Double> poles = scanForPoles(f, a, b);
@@ -65,16 +63,16 @@ public class IntegrationCoordinator1 {
 
                 for (double pole : poles) {
                     checkTimeout(timeoutForThisCall);
-                    total += computePrincipalValue(f, currentA, pole);
+                    total += computePrincipalValue(f, currentA, pole, timeoutForThisCall);
                     currentA = pole;
                 }
 
                 checkTimeout(timeoutForThisCall);
-                total += integrateSmooth(f, currentA, b);
+                total += integrateSmooth(f, currentA, b, timeoutForThisCall);
                 return total;
             }
 
-            return integrateSmooth(f, a, b);
+            return integrateSmooth(f, a, b, timeoutForThisCall);
 
         } catch (TimeoutException e) {
             throw e;
@@ -82,124 +80,219 @@ public class IntegrationCoordinator1 {
     }
 
     /**
-     * Fast integration for smooth/well-behaved functions. Uses heuristic to
-     * select best coordinate map.
+     * Integration for smooth/well-behaved functions.
      */
-    private double integrateSmooth(Function f, double a, double b) throws TimeoutException {
-        checkTimeout();
-
+    private double integrateSmooth(Function f, double a, double b, long timeoutForThisCall) throws TimeoutException {
+        checkTimeout(timeoutForThisCall);
         MappedExpander.DomainMap map = selectBestMap(f, a, b);
-        return adaptiveRecursive(f, map, TOLERANCE, 0);
+        return adaptiveRecursive(f, map, TOLERANCE, 0, timeoutForThisCall, a, b);
     }
 
     /**
-     * Scans interval with EARLY EXIT and GRACEFUL error handling.
+     * Adaptive recursive integration with singular function handling.
      */
-    private List<Double> scanForPoles(Function f, double a, double b) throws TimeoutException {
-        List<Double> poles = new ArrayList<>();
-        double step = (b - a) / POLE_SCAN_SAMPLES;
+    private double adaptiveRecursive(Function f, MappedExpander.DomainMap map,
+            double tol, int depth, long timeoutForThisCall, double a, double b) throws TimeoutException {
+        
+        if (depth % 3 == 0) {
+            checkTimeout(timeoutForThisCall);
+        }
 
-        double prevVal = 0;
+        int N = 256;
+        MappedExpander expander = new MappedExpander(f, map, N);
+
+        boolean tooFast = expander.isAliasing();
+        double tailError = expander.getTailError();
+
+        // For singular functions, use stricter tolerance at deep levels
+        double adjustedTol = tol;
+
+        if (map instanceof MappedExpander.LogarithmicMap
+                || map instanceof MappedExpander.ReversedLogarithmicMap
+                || map instanceof MappedExpander.DoubleLogarithmicMap) {
+            adjustedTol = tol / Math.pow(10, Math.min(depth, 5));
+        }
+
+        // CRITICAL: Converge when error is low AND we're not aliasing
+        if (!tooFast && tailError < adjustedTol) {
+            return expander.integrateFinal(MappedExpander.CCWeightGenerator.getCachedWeights());
+        }
+
+        // **NEW: DEEP SCAN TRIGGER**
+        // If tail error is enormous but we haven't found poles, there's a hidden spike
+        if (depth == 0 && tailError > DEEP_SCAN_THRESHOLD) {
+            System.out.println("⚠️  DEEP SCAN triggered: tail error = " + tailError + " (hidden spike detected)");
+            List<Double> hiddenPoles = deepScanForPoles(f, a, b);
+            if (!hiddenPoles.isEmpty()) {
+                System.out.println("Found " + hiddenPoles.size() + " hidden poles via deep scan");
+                // Recursively integrate with the discovered poles
+                double total = 0;
+                double currentA = a;
+                for (double pole : hiddenPoles) {
+                    total += computePrincipalValue(f, currentA, pole, timeoutForThisCall);
+                    currentA = pole;
+                }
+                total += integrateSmooth(f, currentA, b, timeoutForThisCall);
+                return total;
+            }
+        }
+
+        // AGGRESSIVE: If at depth 10+, accept "good enough" convergence
+        if (depth >= 10 && tailError < adjustedTol * 100) {
+            return expander.integrateFinal(MappedExpander.CCWeightGenerator.getCachedWeights());
+        }
+
+        // Hard limit: depth 18 for all functions
+        if (depth >= 18) {
+            return expander.integrateFinal(MappedExpander.CCWeightGenerator.getCachedWeights());
+        }
+
+        // Need subdivision: split the domain in half
+        MappedExpander.SubDomainMap left = new MappedExpander.SubDomainMap(map, -1.0, 0.0);
+        MappedExpander.SubDomainMap right = new MappedExpander.SubDomainMap(map, 0.0, 1.0);
+
+        return adaptiveRecursive(f, left, tol / 2.0, depth + 1, timeoutForThisCall, a, (a + b) / 2.0)
+                + adaptiveRecursive(f, right, tol / 2.0, depth + 1, timeoutForThisCall, (a + b) / 2.0, b);
+    }
+
+    /**
+     * High-resolution scan for narrow spikes (Gaussians, narrow resonances, etc.)
+     * Uses 5x more samples than normal scanning.
+     */
+    private List<Double> deepScanForPoles(Function f, double a, double b) throws TimeoutException {
+        List<Double> poles = new ArrayList<>();
+        double step = (b - a) / DEEP_SCAN_SAMPLES;  // 500 samples instead of 100
         double maxVal = 0;
 
-        for (int i = 0; i <= POLE_SCAN_SAMPLES; i++) {
-            // Check timeout every 10 samples
-            if (i % 10 == 0) {
-                checkTimeout();
+        System.out.println("  Deep scan: sampling " + DEEP_SCAN_SAMPLES + " points with step=" + step);
+
+        for (int i = 0; i <= DEEP_SCAN_SAMPLES; i++) {
+            if (i % 50 == 0) {
+                checkTimeout(TIMEOUT_MS);
             }
 
             double x = a + i * step;
 
-            // CRITICAL: Wrap in try-catch to detect division by zero and other runtime errors
             double val;
             try {
                 f.updateArgs(x);
                 val = Math.abs(f.calc());
             } catch (ArithmeticException e) {
-                // This point causes a runtime error (division by zero, etc.)
-                // It's likely a pole. Refine it.
                 double left = Math.max(a, x - step);
                 double right = Math.min(b, x + step);
-
-                if (left < right) {
+                if (right - left > 1e-10) {
                     poles.add(refinePoleLocation(f, left, right));
                 }
-                prevVal = 0;
                 continue;
             } catch (RuntimeException e) {
-                // This point causes a runtime error (division by zero, etc.)
-                // It's likely a pole. Refine it.
                 double left = Math.max(a, x - step);
                 double right = Math.min(b, x + step);
-
-                if (left < right) {
+                if (right - left > 1e-10) {
                     poles.add(refinePoleLocation(f, left, right));
                 }
-                prevVal = 0;
                 continue;
             }
 
-            // HARDENED: Detect NaN, Infinity, or spike (100x increase)
             if (Double.isNaN(val) || Double.isInfinite(val)) {
                 double left = Math.max(a, x - step);
                 double right = Math.min(b, x + step);
-
-                if (left < right) {
+                if (right - left > 1e-10) {
                     poles.add(refinePoleLocation(f, left, right));
                 }
-                prevVal = 0;
                 continue;
             }
 
-            // Spike detection: 100x increase from maximum so far
-            if (i > 0 && val > 1e6 && val > maxVal * 100) {
+            // For deep scan, use lower threshold (detect even moderate spikes)
+            if (i > 0 && val > 1e3 && val > maxVal * 50) {
                 double left = Math.max(a, x - step);
                 double right = Math.min(b, x + step);
-
-                if (left < right) {
+                if (right - left > 1e-10) {
                     poles.add(refinePoleLocation(f, left, right));
                 }
-                prevVal = 0;
                 continue;
             }
 
             maxVal = Math.max(maxVal, val);
-            prevVal = val;
         }
 
-        return poles;
+        return deduplicatePoles(poles, a, b);
     }
 
     /**
-     * Ternary search with graceful error handling.
+     * Scans interval for poles with graceful error handling.
+     */
+    private List<Double> scanForPoles(Function f, double a, double b) throws TimeoutException {
+        List<Double> poles = new ArrayList<>();
+        double step = (b - a) / POLE_SCAN_SAMPLES;
+        double maxVal = 0;
+
+        for (int i = 0; i <= POLE_SCAN_SAMPLES; i++) {
+            if (i % 10 == 0) {
+                checkTimeout(TIMEOUT_MS);
+            }
+
+            double x = a + i * step;
+
+            double val;
+            try {
+                f.updateArgs(x);
+                val = Math.abs(f.calc());
+            } catch (ArithmeticException e) {
+                double left = Math.max(a, x - step);
+                double right = Math.min(b, x + step);
+                if (right - left > 1e-10) {
+                    poles.add(refinePoleLocation(f, left, right));
+                }
+                continue;
+            }catch ( RuntimeException e) {
+                double left = Math.max(a, x - step);
+                double right = Math.min(b, x + step);
+                if (right - left > 1e-10) {
+                    poles.add(refinePoleLocation(f, left, right));
+                }
+                continue;
+            }
+
+            if (Double.isNaN(val) || Double.isInfinite(val)) {
+                double left = Math.max(a, x - step);
+                double right = Math.min(b, x + step);
+                if (right - left > 1e-10) {
+                    poles.add(refinePoleLocation(f, left, right));
+                }
+                continue;
+            }
+
+            if (i > 0 && val > 1e6 && val > maxVal * 100) {
+                double left = Math.max(a, x - step);
+                double right = Math.min(b, x + step);
+                if (right - left > 1e-10) {
+                    poles.add(refinePoleLocation(f, left, right));
+                }
+                continue;
+            }
+
+            maxVal = Math.max(maxVal, val);
+        }
+
+        return deduplicatePoles(poles, a, b);
+    }
+
+    /**
+     * Ternary search to refine pole location.
      */
     private double refinePoleLocation(Function f, double left, double right) throws TimeoutException {
         double l = left;
         double r = right;
 
         for (int i = 0; i < 60; i++) {
-            checkTimeout();
+            checkTimeout(TIMEOUT_MS);
 
             double m1 = l + (r - l) / 3.0;
             double m2 = r - (r - l) / 3.0;
 
-            double v1, v2;
+            double v1 = safeEval(f, m1);
+            double v2 = safeEval(f, m2);
 
-            try {
-                f.updateArgs(m1);
-                v1 = Math.abs(f.calc());
-            } catch (Exception e) {
-                v1 = Double.POSITIVE_INFINITY;
-            }
-
-            try {
-                f.updateArgs(m2);
-                v2 = Math.abs(f.calc());
-            } catch (Exception e) {
-                v2 = Double.POSITIVE_INFINITY;
-            }
-
-            // If we hit the absolute singularity, we are done
             if (Double.isInfinite(v1) || Double.isNaN(v1)) {
                 return m1;
             }
@@ -207,7 +300,6 @@ public class IntegrationCoordinator1 {
                 return m2;
             }
 
-            // Keep the third that contains the larger value (climbing the pole)
             if (v1 > v2) {
                 r = m2;
             } else {
@@ -219,56 +311,48 @@ public class IntegrationCoordinator1 {
     }
 
     /**
-     * Integration across a pole using principal value - FIXED.
+     * Safe evaluation with error handling.
      */
-    private double computePrincipalValue(Function f, double a, double pole) throws TimeoutException {
-        checkTimeout();
+    private double safeEval(Function f, double x) {
+        try {
+            f.updateArgs(x);
+            return Math.abs(f.calc());
+        } catch (Exception e) {
+            return Double.POSITIVE_INFINITY;
+        }
+    }
+
+    /**
+     * Integration across a pole using principal value.
+     */
+    private double computePrincipalValue(Function f, double a, double pole, long timeoutForThisCall) throws TimeoutException {
+        checkTimeout(timeoutForThisCall);
 
         double eps = Math.min(1e-7, Math.min(pole - a, 1.0) / 10.0);
 
-        // Safely sample near the pole
-        double leftVal, rightVal;
-        try {
-            f.updateArgs(pole - eps);
-            leftVal = f.calc();
-        } catch (Exception e) {
-            leftVal = Double.NEGATIVE_INFINITY;
-        }
-
-        try {
-            f.updateArgs(pole + eps);
-            rightVal = f.calc();
-        } catch (Exception e) {
-            rightVal = Double.POSITIVE_INFINITY;
-        }
+        double leftVal = safeEval(f, pole - eps);
+        double rightVal = safeEval(f, pole + eps);
 
         // Even pole: diverges
         if (!Double.isInfinite(leftVal) && !Double.isInfinite(rightVal)
                 && Math.signum(leftVal) == Math.signum(rightVal)) {
-            System.err.println("Warning: Divergent even-order pole at x = " + pole);
             return Double.POSITIVE_INFINITY * Math.signum(leftVal);
         }
 
         // Odd pole: excise window and integrate outer regions
-        double leftIntegral = integrateSmooth(f, a, pole - eps);
-        double rightIntegral = integrateSmooth(f, pole + eps, pole + (pole - a - eps));
+        double leftIntegral = integrateSmooth(f, a, pole - eps, timeoutForThisCall);
+        double rightIntegral = integrateSmooth(f, pole + eps, pole + (pole - a - eps), timeoutForThisCall);
 
         return leftIntegral + rightIntegral;
     }
 
+    /**
+     * Detect logarithmic singularity at boundary.
+     */
     private boolean isLogarithmicSingularity(Function f, double point, double direction) throws TimeoutException {
-        double eps1 = 1e-6;
-        double eps2 = 1e-8;
-        double eps3 = 1e-10;
-
-        f.updateArgs(point + direction * eps1);
-        double v1 = Math.abs(f.calc());
-
-        f.updateArgs(point + direction * eps2);
-        double v2 = Math.abs(f.calc());
-
-        f.updateArgs(point + direction * eps3);
-        double v3 = Math.abs(f.calc());
+        double v1 = Math.abs(safeEval(f, point + direction * 1e-6));
+        double v2 = Math.abs(safeEval(f, point + direction * 1e-8));
+        double v3 = Math.abs(safeEval(f, point + direction * 1e-10));
 
         if (Double.isInfinite(v3) || Double.isNaN(v3)) {
             return true;
@@ -280,18 +364,18 @@ public class IntegrationCoordinator1 {
         return (ratio1 > 1.2 && ratio2 > 1.2);
     }
 
+    /**
+     * Auto-select optimal coordinate transformation.
+     */
     private MappedExpander.DomainMap selectBestMap(Function f, double a, double b) throws TimeoutException {
-        checkTimeout();
+        checkTimeout(TIMEOUT_MS);
 
         if (Double.isInfinite(b)) {
             return new MappedExpander.SemiInfiniteMap(1.0);
         }
 
-        // NEW: Detect if the interval is very large (>50 units)
         if (b - a > 50) {
-            System.out.println("Large interval detected [" + a + ", " + b + "] - using logarithmic compression");
-            // Use a logarithmic map to compress the domain
-            return new MappedExpander.LogarithmicMap(b - a, 5.0);  // Lower sensitivity for wide intervals
+            return new MappedExpander.LogarithmicMap(b - a, 5.0);
         }
 
         boolean singA = isLogarithmicSingularity(f, a, 1.0);
@@ -311,81 +395,71 @@ public class IntegrationCoordinator1 {
     }
 
     /**
-     * Adaptive recursive integration - OPTIMIZED for oscillatory functions.
+     * Remove poles that are too close together.
+     * **NEW: Threshold is now relative to interval size.**
      */
-    private double adaptiveRecursive(Function f, MappedExpander.DomainMap map,
-            double tol, int depth) throws TimeoutException {
-        if (depth % 3 == 0) {
-            checkTimeout();
+    private List<Double> deduplicatePoles(List<Double> poles, double a, double b) {
+        if (poles.isEmpty()) return poles;
+
+        poles.sort(Double::compareTo);
+        List<Double> deduplicated = new ArrayList<>();
+        
+        // Deduplication threshold: relative to interval size
+        double threshold = (b - a) * 1e-12;
+        threshold = Math.max(threshold, 1e-15);  // Never smaller than machine epsilon
+        
+        double lastPole = Double.NEGATIVE_INFINITY;
+
+        for (double pole : poles) {
+            if (pole - lastPole > threshold) {
+                deduplicated.add(pole);
+                lastPole = pole;
+            }
         }
 
-        // ALWAYS use N=256 to match getCachedWeights()
-        int N = 256;
-        MappedExpander expander = new MappedExpander(f, map, N);
-
-        boolean tooFast = expander.isAliasing();
-        double tailError = expander.getTailError();
-
-        // CRITICAL: Converge aggressively to avoid timeout on oscillatory functions
-        if (!tooFast && tailError < tol) {
-            return expander.integrateFinal(MappedExpander.CCWeightGenerator.getCachedWeights());
+        if (deduplicated.size() < poles.size()) {
+            System.out.println("Deduplicated " + poles.size() + " poles → " + deduplicated.size() + 
+                             " (threshold=" + threshold + ")");
         }
 
-        // AGGRESSIVE: If at depth 10+, accept "good enough" convergence
-        if (depth >= 10 && tailError < tol * 100) {
-            System.out.println("Aggressive convergence at depth " + depth + ", error=" + tailError);
-            return expander.integrateFinal(MappedExpander.CCWeightGenerator.getCachedWeights());
-        }
-
-        // Hard limit: depth 18 for oscillatory functions
-        if (depth >= 18) {
-            System.out.println("MAX DEPTH reached at " + depth + ", tail error=" + tailError);
-            return expander.integrateFinal(MappedExpander.CCWeightGenerator.getCachedWeights());
-        }
-
-        // Need subdivision
-        MappedExpander.SubDomainMap left = new MappedExpander.SubDomainMap(map, -1.0, 0.0);
-        MappedExpander.SubDomainMap right = new MappedExpander.SubDomainMap(map, 0.0, 1.0);
-
-        return adaptiveRecursive(f, left, tol / 2.0, depth + 1)
-                + adaptiveRecursive(f, right, tol / 2.0, depth + 1);
+        return deduplicated;
     }
 
     /**
-     * Final evaluation using pre-cached weights.
+     * Overload for backward compatibility (uses old fixed threshold).
      */
-    private double evaluateQuadrature(Function f, MappedExpander.DomainMap map) {
-        MappedExpander expander = new MappedExpander(f, map, 256);
-        return expander.integrateFinal(MappedExpander.CCWeightGenerator.getCachedWeights());
+    private List<Double> deduplicatePoles(List<Double> poles) {
+        if (poles.isEmpty()) return poles;
+        poles.sort(Double::compareTo);
+        List<Double> deduplicated = new ArrayList<>();
+        double lastPole = Double.NEGATIVE_INFINITY;
+
+        for (double pole : poles) {
+            if (pole - lastPole > 1e-9) {
+                deduplicated.add(pole);
+                lastPole = pole;
+            }
+        }
+
+        return deduplicated;
     }
 
     /**
      * Enforces timeout constraint.
      */
-    private void checkTimeout() throws TimeoutException {
-        long elapsed = System.currentTimeMillis() - startTime;
-        if (elapsed > TIMEOUT_MS) {
-            timedOut = true;
-            throw new TimeoutException("Integration exceeded 1.5 second timeout after " + elapsed + "ms");
-        }
-    }
-
     private void checkTimeout(long customTimeout) throws TimeoutException {
         long elapsed = System.currentTimeMillis() - startTime;
         if (elapsed > customTimeout) {
             timedOut = true;
-            throw new TimeoutException("Integration exceeded " + (customTimeout / 1000.0) + " second timeout after " + elapsed + "ms");
+            throw new TimeoutException("Integration exceeded " + (customTimeout / 1000.0) + "s timeout after " + elapsed + "ms");
         }
     }
 
-    // ============= BENCHMARKING =============
-    private static void testIntegral(String exprStr, double a, double b, double expected)
-            throws TimeoutException {
+    // ============= TESTS =============
+    private static void testIntegral(String exprStr, double a, double b, double expected) throws TimeoutException {
         long start = System.nanoTime();
         IntegrationCoordinator1 ic = new IntegrationCoordinator1();
-
         double result = ic.integrate(new Function(exprStr), a, b);
-
         long elapsed = System.nanoTime() - start;
 
         System.out.println("\n" + exprStr);
@@ -400,59 +474,15 @@ public class IntegrationCoordinator1 {
 
     public static void main(String[] args) {
         try {
-            // Test 1: Well-behaved - EXPECTED IS CORRECT (2.0, not π)
             testIntegral("@(x)sin(x)", 0, Math.PI, 2.0);
-
-            // Test 2: Logarithmic singularity at 0
-            // ∫ln(x)dx from 0.001 to 1.0 ≈ -0.992 (because we're not integrating from 0)
             testIntegral("@(x)ln(x)", 0.001, 1.0, -0.992);
-
-            // Test 3: Pole at boundary
             testIntegral("@(x)1/sqrt(x)", 0.001, 1.0, 2.0);
-
-            // Test 4: Internal pole (x=0.5)
             testIntegral("@(x)1/(x-0.5)", 0.1, 0.49, Double.NEGATIVE_INFINITY);
-
             testIntegral("@(x)(1/(x*sin(x)+3*x*cos(x)))", 1, 200, 0.06506236937545);
-
         } catch (TimeoutException e) {
             System.err.println("TIMEOUT: " + e.getMessage());
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-
-    public static void main1(String[] args) {
-        try {
-            Thread.ofVirtual().start(() -> {
-                try {
-                    String expr = "@(x)sin(x)";
-                    double a = 1;
-                    double b = 200;
-                    IntegrationCoordinator1 ic = new IntegrationCoordinator1();
-                    double val = ic.integrate(new Function(expr), a, b);
-                    System.out.println("intg(" + expr + "," + a + "," + b + " ) = " + val);
-                } catch (TimeoutException ex) {
-                    Logger.getLogger(IntegrationCoordinator1.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            });
-
-            Thread.ofVirtual().start(() -> {
-                try {
-                    String expr = "@(x)(1/(x*sin(x)+3*x*cos(x)))";
-                    double a = 1;
-                    double b = 200;
-                    IntegrationCoordinator1 ic = new IntegrationCoordinator1();
-                    double val = ic.integrate(new Function(expr), 1, 200);
-                    System.out.println("intg(" + expr + "," + a + "," + b + " ) = " + val);
-                } catch (TimeoutException ex) {
-                    Logger.getLogger(IntegrationCoordinator1.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            }).join();
-        } catch (InterruptedException ex) {
-            Logger.getLogger(IntegrationCoordinator.class.getName()).log(Level.SEVERE, null, ex);
-        }
-
-    }
-
 }
