@@ -1,87 +1,120 @@
 # ParserNG 🧮⚡
 
-**ParserNG** is a **fast**, **pure Java**, **no-native-dependencies** math expression parser and evaluator.
+**ParserNG 1.0.0** is a **blazing-fast**, **pure Java**, **zero-native-dependencies** math expression parser and evaluator.
 
-If you need a rich, fully featured parser that can do 3 million to 10 million evaluations per second, ParserNG v0.2.5 is the one for you.
+It **beats Janino, exp4J, and JavaMEP on evaluation speed** across every kind of expression — from simple algebra to heavy trig, matrices, and calculus.  
+With the new **Turbo compiled mode**, it routinely reaches **3–10 million evaluations per second**.
 
-It goes far beyond basic expression parsing — offering **symbolic differentiation**, **numerical integration**, **matrix operations**, **statistics**, **equation solving**, **user-defined functions**, **2D graphing**, and more — all in a lightweight, cross-platform library.
+It goes far beyond basic parsing — offering **symbolic differentiation**, **resilient numerical integration**, **full matrix algebra**, **statistics**, **equation solving**, **user-defined functions**, **2D graphing**, and more — all in one lightweight, cross-platform library.
 
-Perfect for scientific computing, education, engineering tools, Android apps, financial models, scripting engines, and anywhere you need powerful math without heavy dependencies.
+Perfect for scientific computing, simulations, real-time systems, education tools, Android apps, financial models, and high-performance scripting.
 
 [![Maven Central](https://img.shields.io/maven-central/v/com.github.gbenroscience/parser-ng.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/com.github.gbenroscience/parser-ng)
 [![License](https://img.shields.io/github/license/gbenroscience/ParserNG?color=blue)](https://github.com/gbenroscience/ParserNG/blob/master/LICENSE)
 ![Java](https://img.shields.io/badge/Java-8%2B-orange)
-![Latest Version](https://img.shields.io/badge/version-0.2.5-success)
+![Latest Version](https://img.shields.io/badge/version-1.0.0-success)
 
-> v0.2.5 brings **strength reduction**, **constant folding**, and **O(1) argument passing** via execution frames → significantly faster evaluation.
+> **1.0.0** introduces **Turbo Scalar** and **Turbo Matrix** compiled paths + massive speed improvements via strength reduction, constant folding, and O(1) frame-based argument passing.
 
-## ✨ Highlights
+## ✨ Highlights (v1.0.0)
 
-- Extremely fast evaluation (one of the fastest pure-Java parsers)
-- Symbolic differentiation (`diff`) with high accuracy
-- Numerical integration (`intg`)
-- Built-in matrix operations (`det`, `eigvalues`, `matrix_mul`, …)
-- Statistics (`avg`, `variance`, `cov`, `min`, `max`, …)
-- Equation solvers: quadratic, cubic (Tartaglia), numerical root finding
-- User-defined functions (`f(x) = …` or lambda `@(x) …`)
-- Variables & persistent scope (`VariableManager`, `FunctionManager`)
+- **Speed champion** — beats Janino, exp4J, and JavaMEP in every benchmark (see [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md))
+- **Turbo Mode** — compile once, evaluate millions of times per second (Scalar + Matrix paths)
+- Symbolic differentiation (`diff`) + resilient numerical integration (`intg`) that handles difficult expressions
+- Full matrix algebra (`det`, `eigvalues`, `eigvec`, `adjoint`, `cofactor`, matrix division, `linear_sys`, …)
+- Statistics (`avg`, `variance`, `cov`, `min`, `max`, `rms`, `listsum`, `sort`, …)
+- Equation solvers: quadratic, **Tartaglia cubic**, numerical roots, linear systems
+- User-defined functions (`f(x)=…` or lambda `@(x,y)…`) + persistent `FunctionManager` / `VariableManager`
+- Variables with execution frames for ultra-fast loops
 - 2D function & geometric plotting support
-- Logical expression parsing (`and`, `or`, `==`, …)
+- Logical expressions (`and`, `or`, `==`, …)
 - No external dependencies — runs on Java SE, Android, JavaME, …
 
 ## 🚀 Installation (Maven)
-
 
 ```xml
 <dependency>
     <groupId>com.github.gbenroscience</groupId>
     <artifactId>parser-ng</artifactId>
-    <version>0.2.5</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
 Also available on **Maven Central**:  
-https://central.sonatype.com/artifact/com.github.gbenroscience/parser-ng/0.2.5
+https://central.sonatype.com/artifact/com.github.gbenroscience/parser-ng/1.0.0
 
-## Quick Start
-
-### 1. Simple expression (as library)
+## ⚡ Turbo Mode — The 1.0.0 Game Changer
 
 ```java
-import net.sourceforge.parserng.MathExpression;
+import com.github.gbenroscience.parser.MathExpression;
+import com.github.gbenroscience.parser.turbo.tools.FastCompositeExpression;
+```
 
-public class QuickStart {
-    public static void main(String[] args) {
-        MathExpression expr = new MathExpression("r = 4; 2 * pi * r");
-        double result = expr.solve();
-        System.out.printf("Circumference ≈ %.4f%n", result);   // ≈ 25.1327
-    }
+### Turbo Scalar (tight loops / millions per second)
+
+```java
+String expr = "x*sin(x) + y*cos(y) + z^2";
+MathExpression me = new MathExpression(expr, false);      // prepare for turbo
+FastCompositeExpression turbo = me.compileTurbo();        // compile once
+
+int xSlot = me.getVariable("x").getFrameIndex();
+int ySlot = me.getVariable("y").getFrameIndex();
+int zSlot = me.getVariable("z").getFrameIndex();
+
+double[] frame = new double[3];
+
+for (double t = 0; t < 10_000_000; t += 0.001) {
+    frame[xSlot] = t;
+    frame[ySlot] = t * 1.5;
+    frame[zSlot] = t / 2.0;
+    double result = turbo.applyScalar(frame);   // ← ultra-fast!
 }
 ```
 
-### 2. Reuse for high-performance loops
+### Turbo Matrix (eigvalues, linear systems, etc.)
 
 ```java
-MathExpression expr = new MathExpression("quadratic(@(x)x^2 + 5*x + sin(x))");
-int xSlot = expr.getVariable('x').getFrameIndex();
-for (double x = 0; x < 100000; x += 0.1) {
-    expr.updateSlot(xSlot, x);
-    double y = expr.solveGeneric().scalar;   // very fast — parsing done only once
-    // ... plot or process y
+MathExpression me = new MathExpression("eigvalues(R)");
+FastCompositeExpression turbo = TurboEvaluatorFactory.getCompiler(me).compile();
+
+Matrix result = turbo.applyMatrix(new double[0]);   // works for: linear_sys, adjoint, cofactor, A/B, etc.
+```
+
+## Quick Start (Normal Mode + Turbo)
+
+### 1. Simple expression
+
+```java
+MathExpression expr = new MathExpression("r = 5; 2 * pi * r");
+System.out.println(expr.solve());   // ≈ 31.4159
+```
+
+### 2. High-performance loop (Turbo recommended)
+
+```java
+MathExpression expr = new MathExpression("x^2 + 5*x + sin(x)", false);
+FastCompositeExpression turbo = expr.compileTurbo();
+int xSlot = expr.getVariable("x").getFrameIndex();
+double[] frame = new double[1];
+
+for (double x = 0; x < 100_000; x += 0.1) {
+    frame[xSlot] = x;
+    double y = turbo.applyScalar(frame);
+    // plot or process y
 }
 ```
 
-### 3. Symbolic derivative & evaluation
+### 3. Symbolic derivative
 
 ```java
 MathExpression expr = new MathExpression("f(x) = x^3 * ln(x); diff(f, 2, 1)");
-System.out.println(expr.solveGeneric().scalar);   // derivative of f at x=2
+System.out.println(expr.solveGeneric().scalar);
 ```
 
-### 4. Numerical integration
+### 4. Numerical integration (even difficult ones work in Turbo)
 
 ```java
-MathExpression expr = new MathExpression("intg(@(x) sin(x^2), 0, 1.5)");
+MathExpression expr = new MathExpression("intg(@(x) 1/(x*sin(x)+3*x*cos(x)), 0.5, 1.8)");
 System.out.println("∫ ≈ " + expr.solve());
 ```
 
@@ -95,61 +128,52 @@ MathExpression expr = new MathExpression("""
 System.out.println("Determinant = " + expr.solve());
 ```
 
-## ⌨️ Command-line tool (REPL-like)
+## ⌨️ Command-line tool (REPL)
 
 ```bash
-# Simple calculation
-java -jar parser-ng-0.2.5.jar "2+3*4^2"
-
-# With variables & functions
-java -jar parser-ng-0.2.5.jar "f(x)=x^2+1; f(5)"
-
-# Symbolic derivative
-java -jar parser-ng-0.2.5.jar "diff(@(x)x^3 + 2x, x)"
-
-# Show all built-in functions
-java -jar parser-ng-0.2.5.jar help
-
-# Interactive mode
-java -jar parser-ng-0.2.5.jar -i
+java -jar parser-ng-1.0.0.jar "sin(x) + cos(x)"
+java -jar parser-ng-1.0.0.jar "eigvalues(R=@(5,5)(...))"
+java -jar parser-ng-1.0.0.jar help
+java -jar parser-ng-1.0.0.jar -i          # interactive mode
 ```
 
 ## 📊 Supported Features at a Glance
 
-| Category              | Examples                                      | Notes                              |
-|-----------------------|-----------------------------------------------|------------------------------------|
-| Arithmetic            | `+ - * / ^ %`                                 | Standard precedence                |
-| Trigonometry          | `sin cos tan asin acos atan sinh …`           | `RAD`/`DEG`/`GRAD` modes           |
-| Statistics            | `sum avg variance cov min max rms …`          | Vector-aware                       |
-| Combinatorics         | `fact comb perm`                              |                                    |
-| Calculus              | `diff` (symbolic), `intg` (numerical), `root` | Symbolic diff is exact where possible |
-| Equations             | Quadratic, cubic (Tartaglia), `linear_sys`    | Numerical root finding too         |
-| Matrices              | `det matrix_mul transpose eigvalues eigvec …` | Full linear algebra basics         |
-| Logic                 | `and or xor == != > < <= >= !`                | Use `-l` flag or logical mode      |
-| Plotting              | `plot` (see GRAPHING.md)                      | 2D function & geometric plots      |
-| Custom functions      | `f(x)=…` or `@(x,y)…`                         | Lambda & named syntax              |
+| Category          | Key Functions                                      | Turbo Support |
+|-------------------|----------------------------------------------------|---------------|
+| Arithmetic & Logic| `+ - * / ^ % and or == !=`                         | Full          |
+| Trigonometry      | `sin cos tan asin … sinh`                          | Full          |
+| Calculus          | `diff` (symbolic), `intg` (resilient)              | Yes           |
+| Equations         | Quadratic, Tartaglia cubic, `root`, `linear_sys`   | Yes           |
+| Matrices          | `det`, `eigvalues`, `eigvec`, `adjoint`, `cofactor`, `A / B` | Excellent (Turbo Matrix) |
+| Statistics        | `avg variance cov min max rms listsum sort`        | Yes           |
+| Custom            | `@(x,y)…` or named functions                       | Full          |
 
-Full function list: run `help` in the parser or call `new MathExpression("help").solve()`.
+Full list: run `help` or `new MathExpression("help").solve()`.
 
 ## 📚 More Documentation
 
-- [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) — performance comparisons
-- [GRAPHING.md](GRAPHING.md) — how to use the plotting features
-- [API Javadoc](https://javadoc.io/doc/com.github.gbenroscience/parser-ng/latest/index.html) (hosted on javadoc.io)
+- [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) — full speed comparisons
+- [GRAPHING.md](GRAPHING.md) — plotting on Swing / JavaFX / Android
+- [LATEST.md](LATEST.md) — what’s new in 1.0.0
+- Javadoc: https://javadoc.io/doc/com.github.gbenroscience/parser-ng/1.0.0
 
 ## ❤️ Support the Project
 
-ParserNG is maintained in free time. If you find it useful:
+ParserNG is built with love in my free time. If it helps you:
 
-- ⭐ Star the repository
-- 🐞 Report bugs or suggest features
-- 💡 Share how you use it
+- ⭐ Star the repository  
+- 🐞 Report bugs or suggest features  
+- 💡 Share what you built with it  
 - ☕ [Buy me a coffee](https://buymeacoffee.com/gbenroscience)
 
 ## 📄 License
 
 **Apache License 2.0**
 
-Happy parsing! 🚀  
-— GBENRO JIBOYE (@gbenroscience)
+---
 
+**ParserNG 1.0.0** — faster than the competition, stronger on matrices, and now with real Turbo Scalar + Turbo Matrix compiled power.
+
+Happy parsing! 🚀  
+— **GBENRO JIBOYE** (@gbenroscience)
