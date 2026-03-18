@@ -301,11 +301,11 @@ public class NumericalIntegrator {
         // If the function is a simple polynomial or smooth curve, 
         // bypass the expensive pole-scanning and mapping.
         if (strategy == GAUSSIAN_STRATEGY) {
-            System.out.println("USING GAUSSIAN");
+           // System.out.println("USING GAUSSIAN");
             return new NumericalIntegral(f, a, b, 21, gaussianHandle, vars, slots).findHighRangeIntegralTurbo();
         }
         
-            System.out.println("USING NUMERICAL_INTEGRATOR");
+            //System.out.println("USING NUMERICAL_INTEGRATOR");
 
         this.startTime = System.currentTimeMillis();
         long currentTimeout = (Math.abs(b - a) > 100) ? TIMEOUT_LARGE_MS : timeoutMs;

@@ -31,7 +31,6 @@ import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.Utils;
 import com.github.gbenroscience.util.io.TextFileWriter;
 import java.io.File;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map; 
 import java.util.Arrays; 

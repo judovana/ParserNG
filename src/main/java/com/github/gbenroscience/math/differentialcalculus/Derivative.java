@@ -220,7 +220,7 @@ public class Derivative {
                     }//end for loop
                     expr = expr.substring(5, expr.length() - 1);
                     MathExpression me = new MathExpression(baseVariable + "=" + evalPoint + ";" + expr);
-                    System.out.println(baseVariable + "=" + evalPoint + ";" + expr);
+                    //System.out.println(baseVariable + "=" + evalPoint + ";" + expr);
                     me.updateArgs(evalPoint);
                     return me.solveGeneric();
                 } else {
