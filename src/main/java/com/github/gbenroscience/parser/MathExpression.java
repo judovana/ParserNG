@@ -39,9 +39,8 @@ import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.parser.turbo.FastExpression;
 import com.github.gbenroscience.parser.turbo.TurboCompiler;
 import com.github.gbenroscience.parser.turbo.tools.FastCompositeExpression;
-import com.github.gbenroscience.parser.turbo.tools.FlatMatrixTurboCompiler;
-import com.github.gbenroscience.parser.turbo.tools.ScalarTurboCompiler;
-import com.github.gbenroscience.parser.turbo.tools.TurboExpressionCompiler;
+import com.github.gbenroscience.parser.turbo.tools.MatrixTurboEvaluator;
+import com.github.gbenroscience.parser.turbo.tools.ScalarTurboEvaluator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -49,6 +48,7 @@ import java.util.Stack;
 import static com.github.gbenroscience.parser.TYPE.VECTOR;
 import java.util.Collection;
 import java.util.Collections;
+import com.github.gbenroscience.parser.turbo.tools.TurboExpressionEvaluator;
 
 /**
  *
@@ -534,15 +534,15 @@ public class MathExpression implements Savable, Solvable {
             // Analyze expression to determine best compiler
             boolean hasMatrixOps = hasMatrixOperations(cachedPostfix);
 
-            TurboExpressionCompiler compiler;
+            TurboExpressionEvaluator compiler;
             if (!hasMatrixOps) {
                 System.out.println("SELECTED ScalarTurboCompiler");
                 // Pure scalar expressions: use ultra-fast scalar compiler (~5ns)
-                compiler = new ScalarTurboCompiler(cachedPostfix);
+                compiler = new ScalarTurboEvaluator(cachedPostfix);
             } else {
                 System.out.println("SELECTED FlatMatrixTurboCompiler");
                 // Any matrix operations: use flat-array optimized compiler (~50-1000ns)
-                compiler = new FlatMatrixTurboCompiler(cachedPostfix);
+                compiler = new MatrixTurboEvaluator(cachedPostfix);
             }
             compiledTurbo = compiler.compile();
             turboCompiled = true;

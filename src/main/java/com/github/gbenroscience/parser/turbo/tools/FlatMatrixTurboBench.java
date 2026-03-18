@@ -46,7 +46,7 @@ public class FlatMatrixTurboBench {
         String ex = "2*x^8 + 3*sin(y^3) - 5*x+2";
         MathExpression expr = new MathExpression(ex);
         //  TurboExpressionCompiler tec = TurboCompilerFactory.getCompiler(expr);
-        FlatMatrixTurboCompiler fmtc = new FlatMatrixTurboCompiler(expr.getCachedPostfix());
+        MatrixTurboEvaluator fmtc = new MatrixTurboEvaluator(expr.getCachedPostfix());
         FastCompositeExpression fec = fmtc.compile();
         double[] vars = {3, 2, -1};
 

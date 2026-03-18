@@ -22,7 +22,7 @@ import java.util.*;
  * implementation. Uses compile-time bound ResultCaches to eliminate object and
  * array allocations during execution.
  */
-public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
+public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
@@ -97,7 +97,7 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
 
     private MathExpression.Token[] postfix;
 
-    public FlatMatrixTurboCompiler(MathExpression.Token[] postfix) {
+    public MatrixTurboEvaluator(MathExpression.Token[] postfix) {
         this.postfix = postfix;
     }
 
@@ -163,7 +163,7 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
                         }
 
                         // 2. Resolve the bridge to executeMatrixPrint
-                        MethodHandle bridge = LOOKUP.findStatic(FlatMatrixTurboCompiler.class, "executeMatrixPrint",
+                        MethodHandle bridge = LOOKUP.findStatic(MatrixTurboEvaluator.class, "executeMatrixPrint",
                                 MethodType.methodType(EvalResult.class, String[].class));
 
                         // 3. Bind the raw string arguments into the handle
@@ -322,7 +322,7 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
 
     private MethodHandle compileBinaryOpOnEvalResult(char op, MethodHandle left, MethodHandle right) throws Throwable {
         // 1. Match the exact signature: (char, EvalResult, EvalResult, ResultCache)
-        MethodHandle dispatcher = LOOKUP.findStatic(FlatMatrixTurboCompiler.class, "dispatchBinaryOp",
+        MethodHandle dispatcher = LOOKUP.findStatic(MatrixTurboEvaluator.class, "dispatchBinaryOp",
                 MethodType.methodType(EvalResult.class, char.class, EvalResult.class, EvalResult.class, ResultCache.class));
 
         // 2. Create the unique cache for this node
@@ -346,7 +346,7 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
 
     private MethodHandle compileUnaryOpOnEvalResult(char op, MethodHandle operand) throws Throwable {
         // 1. Signature: (char, EvalResult, ResultCache) -> EvalResult
-        MethodHandle dispatcher = LOOKUP.findStatic(FlatMatrixTurboCompiler.class, "dispatchUnaryOp",
+        MethodHandle dispatcher = LOOKUP.findStatic(MatrixTurboEvaluator.class, "dispatchUnaryOp",
                 MethodType.methodType(EvalResult.class, char.class, EvalResult.class, ResultCache.class));
 
         // 2. Node-specific cache
@@ -370,7 +370,7 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
      */
     public static EvalResult executeMatrixPrint(String[] args) throws Throwable {
         // Call your existing logic
-        double result = ScalarTurboCompiler.executePrint(args);
+        double result = ScalarTurboEvaluator.executePrint(args);
         // Wrap the -1.0 (or whatever double) into a scalar result
         return new EvalResult().wrap(result);
     }
@@ -378,13 +378,13 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
     private MethodHandle compileMatrixFunction(MathExpression.Token t, MethodHandle[] args) throws Throwable {
         String funcName = t.name.toLowerCase();
 
-        MethodHandle dispatcher = LOOKUP.findStatic(FlatMatrixTurboCompiler.class, "dispatchMatrixFunction",
+        MethodHandle dispatcher = LOOKUP.findStatic(MatrixTurboEvaluator.class, "dispatchMatrixFunction",
                 MethodType.methodType(EvalResult.class, EvalResult[].class, String.class, ResultCache.class));
 
         ResultCache nodeCache = new ResultCache();
         dispatcher = MethodHandles.insertArguments(dispatcher, 1, funcName, nodeCache);
 
-        MethodHandle collector = LOOKUP.findStatic(FlatMatrixTurboCompiler.class, "collectArgsArray",
+        MethodHandle collector = LOOKUP.findStatic(MatrixTurboEvaluator.class, "collectArgsArray",
                 MethodType.methodType(EvalResult[].class, EvalResult[].class)).asVarargsCollector(EvalResult[].class);
         collector = collector.asType(MethodType.methodType(EvalResult[].class,
                 Collections.nCopies(t.arity, EvalResult.class).toArray(new Class[0])));

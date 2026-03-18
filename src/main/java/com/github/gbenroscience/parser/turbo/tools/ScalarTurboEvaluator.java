@@ -17,9 +17,12 @@ package com.github.gbenroscience.parser.turbo.tools;
 
 import com.github.gbenroscience.math.Maths;
 import com.github.gbenroscience.math.differentialcalculus.Derivative;
-import com.github.gbenroscience.math.numericalmethods.NumericalIntegral;
 import com.github.gbenroscience.math.numericalmethods.NumericalIntegrator;
 import com.github.gbenroscience.math.numericalmethods.TurboRootFinder;
+import com.github.gbenroscience.math.quadratic.QuadraticSolver;
+import com.github.gbenroscience.math.quadratic.Quadratic_Equation;
+import com.github.gbenroscience.math.tartaglia.Tartaglia_Equation;
+import com.github.gbenroscience.parser.Bracket;
 import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.TYPE;
@@ -32,7 +35,6 @@ import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.VariableManager;
 import java.lang.invoke.*;
-import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -55,10 +57,11 @@ import java.util.concurrent.ThreadLocalRandom;
  *
  * @author GBEMIRO
  */
-public class ScalarTurboCompiler implements TurboExpressionCompiler {
+public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
 
     public static final MethodHandle SCALAR_GATEKEEPER_HANDLE;
     public static final MethodHandle VECTOR_GATEKEEPER_HANDLE;
+    public static final MethodHandle VECTOR_2_GATEKEEPER_HANDLE;
 
     static {
         try {
@@ -67,14 +70,24 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
             // Define the method types: (String, double[]) -> double/double[]
             MethodType scalarType = MethodType.methodType(double.class, String.class, double[].class);
             MethodType vectorType = MethodType.methodType(double[].class, String.class, double[].class);
+            MethodType vector2Type = MethodType.methodType(double[].class, String.class, String.class);
 
             // Find the static methods
-            SCALAR_GATEKEEPER_HANDLE = lookup.findStatic(
-                    ScalarTurboCompiler.class, "scalarStatsGatekeeper", scalarType);
+            /**
+             * For non stats methods that return a double array
+             */
+            SCALAR_GATEKEEPER_HANDLE = lookup.findStatic(ScalarTurboEvaluator.class, "scalarStatsGatekeeper", scalarType);
 
-            VECTOR_GATEKEEPER_HANDLE = lookup.findStatic(
-                    ScalarTurboCompiler.class, "vectorStatsGatekeeper", vectorType);
+            /**
+             * For stats methods that return a double array
+             */
+            VECTOR_GATEKEEPER_HANDLE = lookup.findStatic(ScalarTurboEvaluator.class, "vectorStatsGatekeeper", vectorType);
 
+            /**
+             * For non stats methods that return a double array
+             */
+            VECTOR_2_GATEKEEPER_HANDLE = lookup.findStatic(ScalarTurboEvaluator.class, "vectorNonStatsGatekeeper", vector2Type);
+//public static double[] vectorNonStatsGatekeeper(String method, String funcHandle)
         } catch (NoSuchMethodException | IllegalAccessException e) {
             throw new ExceptionInInitializerError("Failed to initialize Stats Gatekeepers: " + e.getMessage());
         }
@@ -111,7 +124,7 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
             "st_err", "coth-¹", "min", "log-¹",
             "cot-¹_grad", "sech-¹", "pow",
             "csc_deg", "cos-¹_rad", "tan_rad", "max",
-            "sin-¹_deg", "intg", "cot-¹_deg", "quadratic",
+            "sin-¹_deg", "intg", "cot-¹_deg",
             "alog", "acsc_rad", "abs",
             "sin-¹_rad", "tan_deg", "lg", "sec_deg", "atan_deg", "ln",
             "sinh-¹", "asin_rad", "acos_deg", "cov", "mode",
@@ -132,7 +145,7 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
 
     ));
 
-    public ScalarTurboCompiler(MathExpression.Token[] postfix) {
+    public ScalarTurboEvaluator(MathExpression.Token[] postfix) {
         this.postfix = postfix;
     }
 
@@ -255,7 +268,7 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                         // Variable: load from array at frameIndex
                         int frameIndex = t.frameIndex;
                         // 1. Get the base method handle for our helper
-                        MethodHandle getter = LOOKUP.findStatic(ScalarTurboCompiler.class, "getVar",
+                        MethodHandle getter = LOOKUP.findStatic(ScalarTurboEvaluator.class, "getVar",
                                 MethodType.methodType(double.class, double[].class, int.class));
 
                         // 2. BAKE the index into the handle (Currying)
@@ -313,7 +326,24 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
 
                         stack.push(finalOp);
                         break;
-                    } else if (name.equals("root")) {
+                    } else if (name.equals(Declarations.QUADRATIC) || name.equals(Declarations.TARTAGLIA_ROOTS)) {
+                        int arity = t.arity;
+                        String[] rawArgs = t.getRawArgs();
+                        stack.pop();
+
+ 
+                        MethodHandle finalOp = MethodHandles.insertArguments(VECTOR_2_GATEKEEPER_HANDLE, 0, name, rawArgs[0]);
+
+// CRITICAL: You must change the return type to Object.class.
+// This prevents the unboxing logic from being triggered at the call site.
+                        finalOp = finalOp.asType(finalOp.type().changeReturnType(Object.class));
+
+// Now add the variables parameter: (double[]) -> Object
+                        finalOp = MethodHandles.dropArguments(finalOp, 0, double[].class);
+
+                        stack.push(finalOp);
+                        break;
+                    } else if (name.equals(Declarations.GENERAL_ROOT)) {
                         int arity = t.arity;
                         for (int i = 0; i < arity; i++) {
                             stack.pop();
@@ -344,16 +374,17 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                         // 2. Symbolic derivative for Newtonian acceleration
                         MethodHandle derivHandle = null;
                         try {
-                            String derivString = Derivative.eval("diff(" + fNameOrExpr + "," + varName + ",1)").textRes;
-                            derivHandle = compileScalar(new MathExpression(derivString).getCachedPostfix());
+                            String diffExpr = "diff(" + fNameOrExpr + ",1)";
+                            String derivString = Derivative.eval(diffExpr).textRes;
+                            derivHandle = compileScalar(FunctionManager.lookUp(derivString).getMathExpression().getCachedPostfix());
                         } catch (Exception e) {
-                            // Fallback: TurboRootFinder handles null derivativeHandle by skipping Newtonian
+                            e.printStackTrace();
                             derivHandle = null;
                         }
 
                         // 3. Bind the execution bridge
                         // Signature: (MethodHandle, MethodHandle, int, double, double) -> double
-                        MethodHandle bridge = LOOKUP.findStatic(ScalarTurboCompiler.class, "executeTurboRoot",
+                        MethodHandle bridge = LOOKUP.findStatic(ScalarTurboEvaluator.class, "executeTurboRoot",
                                 MethodType.methodType(double.class, MethodHandle.class, MethodHandle.class,
                                         int.class, double.class, double.class, int.class));
 
@@ -363,7 +394,7 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
 
                         // 5. Adapt the handle to accept the standard (double[]) input frame
                         currentHandle = MethodHandles.dropArguments(currentHandle, 0, double[].class);
-
+//double executeTurboRoot(MethodHandle baseHandle, MethodHandle derivHandle, int xSlot, double lower, double upper, int iterations)
                         // The handle is now ready to be pushed to the compiler's compilation stack
                         stack.push(currentHandle);
                         break;
@@ -384,7 +415,7 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
 
                         try {
                             // 3. Resolve the bridge method: matches double executePrint(String[])
-                            MethodHandle bridge = LOOKUP.findStatic(ScalarTurboCompiler.class, "executePrint",
+                            MethodHandle bridge = LOOKUP.findStatic(ScalarTurboEvaluator.class, "executePrint",
                                     MethodType.methodType(double.class, String[].class));
 
                             // 4. Bind the String array as the ONLY argument (index 0)
@@ -428,7 +459,7 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                         Integer[] slots = innerExpr.getSlots();
 
                         // 2. Resolve a bridge method that takes the PRE-COMPILED handle
-                        MethodHandle bridge = LOOKUP.findStatic(ScalarTurboCompiler.class, "executeTurboIntegral",
+                        MethodHandle bridge = LOOKUP.findStatic(ScalarTurboEvaluator.class, "executeTurboIntegral",
                                 MethodType.methodType(double.class, Function.class, MethodHandle.class, double.class, double.class, int.class,
                                         String[].class, Integer[].class));
                         //executeTurboIntegral(Function f, MethodHandle handle, double lower, double upper, int iterations, String[] vars, Integer[] slots)
@@ -581,7 +612,7 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
         int methodId = MethodRegistry.getMethodID(t.name);
 
         // 2. Setup the bridge handle: (int methodId, double[] args) -> double
-        MethodHandle bridge = LOOKUP.findStatic(ScalarTurboCompiler.class, "invokeRegistryMethod",
+        MethodHandle bridge = LOOKUP.findStatic(ScalarTurboEvaluator.class, "invokeRegistryMethod",
                 MethodType.methodType(double.class, int.class, double[].class));
 
         // 3. Bind the methodId so the resulting handle only needs the double[]
@@ -624,15 +655,15 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
     private static MethodHandle getBinaryOpHandle(char op) throws Throwable {
         switch (op) {
             case '+':
-                return LOOKUP.findStatic(ScalarTurboCompiler.class, "add", MT_DOUBLE_DD);
+                return LOOKUP.findStatic(ScalarTurboEvaluator.class, "add", MT_DOUBLE_DD);
             case '-':
-                return LOOKUP.findStatic(ScalarTurboCompiler.class, "subtract", MT_DOUBLE_DD);
+                return LOOKUP.findStatic(ScalarTurboEvaluator.class, "subtract", MT_DOUBLE_DD);
             case '*':
-                return LOOKUP.findStatic(ScalarTurboCompiler.class, "multiply", MT_DOUBLE_DD);
+                return LOOKUP.findStatic(ScalarTurboEvaluator.class, "multiply", MT_DOUBLE_DD);
             case '/':
-                return LOOKUP.findStatic(ScalarTurboCompiler.class, "divide", MT_DOUBLE_DD);
+                return LOOKUP.findStatic(ScalarTurboEvaluator.class, "divide", MT_DOUBLE_DD);
             case '%':
-                return LOOKUP.findStatic(ScalarTurboCompiler.class, "modulo", MT_DOUBLE_DD);
+                return LOOKUP.findStatic(ScalarTurboEvaluator.class, "modulo", MT_DOUBLE_DD);
             case '^':
                 return LOOKUP.findStatic(Math.class, "pow", MT_DOUBLE_DD);
             case 'P':
@@ -693,6 +724,15 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
 // For things like SORT, MODE
     public static double[] vectorStatsGatekeeper(String method, double[] data) {
         return executeVectorReturningStatsMethod(null, data, method);
+    }
+
+    public static double[] vectorNonStatsGatekeeper(String method, String funcHandle) {
+        if (method.equals(Declarations.QUADRATIC)) {
+            return executeQuadraticRoot(funcHandle);
+        } else if (method.equals(Declarations.TARTAGLIA_ROOTS)) {
+            return executeTartagliaRoot(funcHandle);
+        }
+        return new double[]{};
     }
 
     private static double executeScalarReturningStatsMethod(MethodHandle handle, double[] args, String method) {
@@ -937,12 +977,54 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
     /**
      * Execution bridge for the TurboRootFinder. This is invoked by the compiled
      * MethodHandle chain.
+     * @param baseHandle
+     * @param derivHandle
+     * @param xSlot
+     * @param iterations
+     * @param lower
+     * @param upper
+     * @return 
      */
     public static double executeTurboRoot(MethodHandle baseHandle, MethodHandle derivHandle,
             int xSlot, double lower, double upper, int iterations) {
         // We use a default iteration cap of 1000 for the turbo version
-        TurboRootFinder trf = new TurboRootFinder(baseHandle, derivHandle, xSlot, lower, upper, iterations);
+        TurboRootFinder trf = new TurboRootFinder(baseHandle, derivHandle, xSlot, lower, upper, iterations); 
         return trf.findRoots();
+    }
+
+    public static double[] executeQuadraticRoot(String funcHandle) {
+        Function f = FunctionManager.lookUp(funcHandle);
+        String input = f.expressionForm();
+        input = input.substring(1);//remove the @
+        int closeBracOfAt = Bracket.getComplementIndex(true, 0, input);
+        input = input.substring(closeBracOfAt + 1);
+        if (input.startsWith("(")) {
+            input = input.substring(1, input.length() - 1);
+            input = input.concat("=0");
+        }
+        Quadratic_Equation solver = new Quadratic_Equation(input);
+        QuadraticSolver alg = solver.getAlgorithm();
+        if (alg.isComplex()) {
+            return alg.solutions;
+        } else { 
+            return new double[]{alg.solutions[0],alg.solutions[2]};
+        }
+    }
+
+    public static double[] executeTartagliaRoot(String funcHandle) {
+        Function f = FunctionManager.lookUp(funcHandle);
+        String input = f.expressionForm();
+        input = input.substring(1);//remove the @
+        int closeBracOfAt = Bracket.getComplementIndex(true, 0, input);
+        input = input.substring(closeBracOfAt + 1);
+        if (input.startsWith("(")) {
+            input = input.substring(1, input.length() - 1);
+            input = input.concat("=0");
+        }
+        Tartaglia_Equation solver = new Tartaglia_Equation(input);
+        solver.getAlgorithm().solve();
+        double[] solns = solver.getAlgorithm().solutions;
+        return solns;
     }
 
     // ========== UNARY OPERATORS ==========
@@ -1055,26 +1137,26 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                 mh = LOOKUP.findStatic(Math.class, "atan", MT_DOUBLE_D);
                 break;
             case "sec":
-                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "sec", MT_DOUBLE_D);
+                mh = LOOKUP.findStatic(ScalarTurboEvaluator.class, "sec", MT_DOUBLE_D);
                 break;
             case "csc":
-                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "csc", MT_DOUBLE_D);
+                mh = LOOKUP.findStatic(ScalarTurboEvaluator.class, "csc", MT_DOUBLE_D);
                 break;
             case "cot":
-                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "cot", MT_DOUBLE_D);
+                mh = LOOKUP.findStatic(ScalarTurboEvaluator.class, "cot", MT_DOUBLE_D);
                 break;
 
             case "asec":
             case "sec-¹":
-                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "asec", MT_DOUBLE_D);
+                mh = LOOKUP.findStatic(ScalarTurboEvaluator.class, "asec", MT_DOUBLE_D);
                 break;
             case "acsc":
             case "csc-¹":
-                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "acsc", MT_DOUBLE_D);
+                mh = LOOKUP.findStatic(ScalarTurboEvaluator.class, "acsc", MT_DOUBLE_D);
                 break;
             case "acot":
             case "cot-¹":
-                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "acot", MT_DOUBLE_D);
+                mh = LOOKUP.findStatic(ScalarTurboEvaluator.class, "acot", MT_DOUBLE_D);
                 break;
             case "sinh":
                 mh = LOOKUP.findStatic(Math.class, "sinh", MT_DOUBLE_D);
@@ -1124,13 +1206,13 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
 // --- ADDITIONAL LOG / EXP ---
             case "log":
             case "alg": // Anti-log base 10
-                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "alg", MT_DOUBLE_D);
+                mh = LOOKUP.findStatic(ScalarTurboEvaluator.class, "alg", MT_DOUBLE_D);
                 break;
             case "ln-¹":
                 mh = LOOKUP.findStatic(Math.class, "exp", MT_DOUBLE_D); // ln-¹ is just e^x
                 break;
             case "lg-¹":
-                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "alg", MT_DOUBLE_D);
+                mh = LOOKUP.findStatic(ScalarTurboEvaluator.class, "alg", MT_DOUBLE_D);
                 break;
 
 // --- ROUNDING / MISC ---
@@ -1163,10 +1245,10 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                 mh = LOOKUP.findStatic(Maths.class, "fact", MT_DOUBLE_D);
                 break;
             case "square":
-                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "square", MT_DOUBLE_D);
+                mh = LOOKUP.findStatic(ScalarTurboEvaluator.class, "square", MT_DOUBLE_D);
                 break;
             case "cube":
-                mh = LOOKUP.findStatic(ScalarTurboCompiler.class, "cube", MT_DOUBLE_D);
+                mh = LOOKUP.findStatic(ScalarTurboEvaluator.class, "cube", MT_DOUBLE_D);
                 break;
             default:
                 throw new UnsupportedOperationException("No fast-path for: " + base);
@@ -1225,7 +1307,7 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                 0, MethodHandles.constant(double.class, Math.PI / 200.0)
         );
         // Simplified: Just use a helper method for clarity
-        MethodHandle gradToRad = LOOKUP.findStatic(ScalarTurboCompiler.class, "gradToRad", MT_DOUBLE_D);
+        MethodHandle gradToRad = LOOKUP.findStatic(ScalarTurboEvaluator.class, "gradToRad", MT_DOUBLE_D);
         return MethodHandles.filterArguments(trigOp, 0, gradToRad);
     }
 

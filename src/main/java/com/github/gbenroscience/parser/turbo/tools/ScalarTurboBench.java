@@ -34,6 +34,9 @@ public class ScalarTurboBench {
         System.out.println("SCALAR TURBO COMPILER BENCHMARKS");
         System.out.println("=".repeat(80));
 
+        testQuadratic();
+        testTartaglia();
+        testGeneralRoot();
         benchmarkBasicArithmetic();
         benchmarkSum();
         benchmarkSort();
@@ -71,6 +74,7 @@ public class ScalarTurboBench {
         MathExpression.EvalResult evr = compiled.apply(vars);
 
     }
+      
 
     private static void benchmarkIntegralCalculus() throws Throwable {
         System.out.println("\n=== INTEGRAL CALCULUS; FOLDING OFF===\n");
@@ -432,7 +436,60 @@ public class ScalarTurboBench {
         System.out.printf("Speedup:     %.1fx%n", (double) intDur / turboDur);
         System.out.println("values=" + Arrays.toString(res));
     }
+    
+     
+    static public void testQuadratic() throws Throwable {//-1.8719243686213027618871370090528, -3.2052577019546360952204703423861
+        System.out.println("\n=== QUADRATIC ROOTS: SIMPLE; ===\n");
 
+        String expr = "quadratic(@(x)3*x^2-4*x-18)";
+
+        MathExpression interpreted = new MathExpression(expr, false);
+
+        double[] vars = new double[0];
+
+        double[] v = interpreted.solveGeneric().vector;
+        TurboExpressionEvaluator tee = TurboEvaluatorFactory.getCompiler(interpreted);
+        FastCompositeExpression fce = tee.compile();
+        double[] v1 = fce.apply(vars).vector;
+        System.out.println("v = "+Arrays.toString(v));
+        System.out.println("v1 = "+Arrays.toString(v1));
+    }
+    
+        
+    static public void testTartaglia() throws Throwable {//-1.8719243686213027618871370090528, -3.2052577019546360952204703423861
+        System.out.println("\n=== TARTAGLIA ROOTS: SIMPLE; ===\n");
+
+        String expr = "t_root(@(x)3*x^3-4*x-18)";
+
+        MathExpression interpreted = new MathExpression(expr, false);
+
+        double[] vars = new double[0];
+
+        double[] v = interpreted.solveGeneric().vector;
+        TurboExpressionEvaluator tee = TurboEvaluatorFactory.getCompiler(interpreted);
+        FastCompositeExpression fce = tee.compile();
+        double[] v1 = fce.apply(vars).vector;
+        System.out.println("v = "+Arrays.toString(v));
+        System.out.println("v1 = "+Arrays.toString(v1));
+    }
+   static public void testGeneralRoot() throws Throwable {//-1.8719243686213027618871370090528, -3.2052577019546360952204703423861
+        System.out.println("\n=== GENERAL ROOTS: SIMPLE; ===\n");
+
+        String expr = "root(@(x)3*x^3-4*x-18,2)";
+          
+
+
+        MathExpression interpreted = new MathExpression(expr, false);
+
+        double[] vars = new double[0];
+
+        double v = interpreted.solveGeneric().scalar;
+        TurboExpressionEvaluator tee = TurboEvaluatorFactory.getCompiler(interpreted);
+        FastCompositeExpression fce = tee.compile();
+        double v1 = fce.applyScalar(vars);
+        System.out.println("v = "+v);
+        System.out.println("v1 = "+v1);
+    }
     private static void benchmarkConstantFolding() throws Throwable {
         System.out.println("\n=== CONSTANT FOLDING; FOLDING OFF ===\n");
 

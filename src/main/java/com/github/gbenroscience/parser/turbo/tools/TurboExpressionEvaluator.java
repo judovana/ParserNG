@@ -22,7 +22,7 @@ import com.github.gbenroscience.parser.MathExpression;
  * Interface for turbo compilers that generate optimized bytecode expressions.
  * Different implementations can be used for scalar, matrix, or hybrid operations.
  */
-public interface TurboExpressionCompiler {
+public interface TurboExpressionEvaluator {
     
     /**
      * Compile a postfix token array into a fast-executing expression.

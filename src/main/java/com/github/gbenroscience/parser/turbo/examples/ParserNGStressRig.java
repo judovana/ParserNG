@@ -21,11 +21,11 @@ package com.github.gbenroscience.parser.turbo.examples;
  */
 import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.turbo.tools.FastCompositeExpression;
-import com.github.gbenroscience.parser.turbo.tools.TurboCompilerFactory;
-import com.github.gbenroscience.parser.turbo.tools.TurboExpressionCompiler;
+import com.github.gbenroscience.parser.turbo.tools.TurboEvaluatorFactory;
 import java.util.concurrent.*; 
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import com.github.gbenroscience.parser.turbo.tools.TurboExpressionEvaluator;
 
 public class ParserNGStressRig {
     private static final int THREADS = Runtime.getRuntime().availableProcessors();
@@ -53,7 +53,7 @@ public class ParserNGStressRig {
         long[] latencies = new long[THREADS * 1000]; // Sample every 1000th op for jitter analysis
 
         System.out.printf("Starting Stress Test: %d threads, %d ops each...%n", THREADS, ITERATIONS_PER_THREAD);
-        TurboExpressionCompiler compiler = TurboCompilerFactory.getCompiler(new MathExpression(TEST_EXPR));
+        TurboExpressionEvaluator compiler = TurboEvaluatorFactory.getCompiler(new MathExpression(TEST_EXPR));
         for (int t = 0; t < THREADS; t++) {
             final int threadIdx = t;
             executor.submit(() -> {

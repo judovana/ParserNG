@@ -37,6 +37,7 @@ public class TurboRootFinder {
     private int iterations = DEFAULT_ITERATIONS;
     public static final int DEFAULT_ITERATIONS = 2000;
     private final double[] dataFrame = new double[256];
+    private static final double tolerances[] = {5e-16,1e-15,5e-15,1e-14,5e-14,1e-13,5e-13,1e-12,5e-12,1e-11};
 
     public TurboRootFinder(MethodHandle targetHandle, MethodHandle derivativeHandle, 
                            int varIndex, double x1, double x2, int iterations) {
@@ -50,12 +51,12 @@ public class TurboRootFinder {
 
     private double eval(double x) throws Throwable {
         dataFrame[varIndex] = x;
-        return (double) targetHandle.invokeExact(dataFrame);
+        return (double) targetHandle.invoke(dataFrame);
     }
 
     private double evalDeriv(double x) throws Throwable {
         dataFrame[varIndex] = x;
-        return (double) derivativeHandle.invokeExact(dataFrame);
+        return (double) derivativeHandle.invoke(dataFrame);
     }
 
     private boolean verifyRoot(double ans) {
@@ -92,7 +93,7 @@ public class TurboRootFinder {
         // 5. Self-Evaluator (Final Resort)
         ans = runSelfEvaluator();
         if (verifyRoot(ans)) return ans;
-
+         
         return Double.NaN;
     }
 
@@ -150,14 +151,15 @@ public class TurboRootFinder {
                 else b += Math.copySign(tol, xm);
                 fb = eval(b);
             }
-        } catch (Throwable t) {}
-        return Double.NaN;
+        } catch (Throwable t) {  }
+          return Double.NaN;
     }
 
     
 
     private double runNewtonian() {
         double x = x1;
+        
         try {
             for (int i = 0; i < iterations; i++) {
                 double fx = eval(x);
@@ -167,8 +169,10 @@ public class TurboRootFinder {
                 x -= ratio;
                 if (abs(ratio) <= 5.0e-16) return x;
             }
-        } catch (Throwable t) {}
-        return Double.NaN;
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+            return Double.NaN;
     }
 
     private double runSecant() {
@@ -182,8 +186,9 @@ public class TurboRootFinder {
                 f1 = f2; f2 = eval(xTwo);
                 if (abs(f2) <= 5.0e-16) return xTwo;
             }
-        } catch (Throwable t) {}
+        } catch (Throwable t) { }  
         return Double.NaN;
+   
     }
 
     private double runBisection() {
@@ -199,7 +204,7 @@ public class TurboRootFinder {
                 else { b = mid; }
             }
         } catch (Throwable t) {}
-        return Double.NaN;
+          return Double.NaN;
     }
 
     private double runSelfEvaluator() {
@@ -221,6 +226,6 @@ public class TurboRootFinder {
             }
             return currentX;
         } catch (Throwable t) {}
-        return Double.NaN;
+          return Double.NaN;
     }
 }

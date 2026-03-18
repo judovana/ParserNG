@@ -21,11 +21,10 @@ package com.github.gbenroscience.parser.turbo;
  */
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.parser.Function;
-import com.github.gbenroscience.parser.MathExpression; 
+import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.turbo.tools.FastCompositeExpression;
-import com.github.gbenroscience.parser.turbo.tools.TurboCompilerFactory;
+import com.github.gbenroscience.parser.turbo.tools.TurboEvaluatorFactory;
 import com.github.gbenroscience.util.FunctionManager;
-import java.util.Arrays;
 import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -34,7 +33,7 @@ import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class ParserNGTurboMatrixTest {
+public class MatrixTurboEvaluatorTest {
 
     private final Random rand = new Random();
     private final double[] emptyFrame = new double[0];
@@ -55,18 +54,19 @@ public class ParserNGTurboMatrixTest {
         testEigenvalues(size);
     }
 
-    private void testLinearSolver(int n) throws Throwable {
+    @ParameterizedTest
+    @ValueSource(ints = {3, 5, 10, 50}) // Test with multiple matrix sizes
+    public void testLinearSolver(int n) throws Throwable {
         double[] data = generateRandomArray(n * (n + 1));
         // Create function and embed the matrix
         Matrix m = new Matrix(data, n, n + 1);
         m.setName("M");
-        Function f = new Function(m); 
-    
+        Function f = new Function(m);
+
         MathExpression expr = new MathExpression("linear_sys(M)");
-      
-        FastCompositeExpression turbo = TurboCompilerFactory.getCompiler(expr)
+
+        FastCompositeExpression turbo = TurboEvaluatorFactory.getCompiler(expr)
                 .compile();
- 
 
         Matrix res = turbo.applyMatrix(emptyFrame);
 
@@ -75,27 +75,31 @@ public class ParserNGTurboMatrixTest {
         assertEquals(1, res.getCols());
     }
 
-    private void testCofactorAndAdjoint(int n) throws Throwable {
+    @ParameterizedTest
+    @ValueSource(ints = {3, 5, 10, 50}) // Test with multiple matrix sizes
+    public void testCofactorAndAdjoint(int n) throws Throwable {
         Matrix m = new Matrix(generateRandomArray(n * n), n, n);
         m.setName("A");
         FunctionManager.add(new Function(m));
 
         // Adjoint test
         MathExpression adjExpr = new MathExpression("adjoint(A)");
-        FastCompositeExpression turboAdj = TurboCompilerFactory.getCompiler(adjExpr)
+        FastCompositeExpression turboAdj = TurboEvaluatorFactory.getCompiler(adjExpr)
                 .compile();
 
         assertEquals(n, turboAdj.applyMatrix(emptyFrame).getRows());
 
         // Cofactors test
         MathExpression cofExpr = new MathExpression("cofactor(A)");
-        FastCompositeExpression turboCof = TurboCompilerFactory.getCompiler(cofExpr)
+        FastCompositeExpression turboCof = TurboEvaluatorFactory.getCompiler(cofExpr)
                 .compile();
 
         assertEquals(n, turboCof.applyMatrix(emptyFrame).getRows());
     }
 
-    private void testMatrixDivision(int n) throws Throwable {
+    @ParameterizedTest
+    @ValueSource(ints = {3, 5, 10, 50}) // Test with multiple matrix sizes
+    public void testMatrixDivision(int n) throws Throwable {
         Matrix a = new Matrix(generateRandomArray(n * n), n, n);
         a.setName("A");
         Matrix b = new Matrix(generateRandomArray(n * n), n, n);
@@ -104,27 +108,29 @@ public class ParserNGTurboMatrixTest {
         FunctionManager.add(new Function(b));
 
         MathExpression divExpr = new MathExpression("A / B");
-        FastCompositeExpression turboDiv = TurboCompilerFactory.getCompiler(divExpr)
+        FastCompositeExpression turboDiv = TurboEvaluatorFactory.getCompiler(divExpr)
                 .compile();
 
         assertEquals(n, turboDiv.applyMatrix(emptyFrame).getRows());
     }
 
-    private void testEigenvalues(int n) throws Throwable {
+    @ParameterizedTest
+    @ValueSource(ints = {3, 5, 10, 50}) // Test with multiple matrix sizes
+    public void testEigenvalues(int n) throws Throwable {
         Matrix e = new Matrix(generateRandomArray(n * n), n, n);
         e.setName("R");
         FunctionManager.add(new Function(e));
- 
+
         MathExpression eigenExpr = new MathExpression("eigvalues(R)");
-        FastCompositeExpression turbo = TurboCompilerFactory.getCompiler(eigenExpr)
+        FastCompositeExpression turbo = TurboEvaluatorFactory.getCompiler(eigenExpr)
                 .compile();
 
-        Matrix res = turbo.applyMatrix(emptyFrame); 
+        Matrix res = turbo.applyMatrix(emptyFrame);
         assertEquals(n, res.getRows());
         assertEquals(2, res.getCols());
     }
 
-    private double[] generateRandomArray(int size) {
+    public double[] generateRandomArray(int size) {
         double[] arr = new double[size];
         for (int i = 0; i < size; i++) {
             arr[i] = 1.0 + (rand.nextDouble() * 10.0);
@@ -132,7 +138,7 @@ public class ParserNGTurboMatrixTest {
         return arr;
     }
 
-  //  @Test
+    //  @Test
     public void testEigenval() {
 
         MathExpression me = new MathExpression("R=@(5,5)(3.6960389979858523  ,10.656660507703922  ,8.250361808124694  ,1.2864528025782198  ,9.735431283674686,"
@@ -140,23 +146,19 @@ public class ParserNGTurboMatrixTest {
                 + "8.701609027359616  ,7.689979890725766  ,3.9690824306208285  ,3.664071779088659  ,5.514556971406468,"
                 + "1.7165078288826077  ,8.089363716212478  ,8.651319052236992  ,4.1374739688508955  ,1.234189853093153,"
                 + "1.2567034692845471  ,2.0793007773147147  ,7.254190558589741  ,7.715028903257325  ,2.8009022598677604 );eigvalues(R)");
-        
-        System.out.println("FUNCTIONS: "+FunctionManager.FUNCTIONS );
-        System.out.println("MATRIX: "+FunctionManager.lookUp("R").getMatrix() );
-        System.out.println("EIGENVALUES: "+Arrays.toString(FunctionManager.lookUp("R").getMatrix().computeEigenValues()));
-        System.out.println("EIGENVECTOR: "+FunctionManager.lookUp("R").getMatrix().getEigenVectorMatrix());
+ 
 
         FastCompositeExpression turbo = null;
         try {
             MathExpression eigenExpr = new MathExpression("eigvalues(R)");
-            turbo = TurboCompilerFactory.getCompiler(eigenExpr)
+            turbo = TurboEvaluatorFactory.getCompiler(eigenExpr)
                     .compile();
             Matrix res = turbo.applyMatrix(emptyFrame);
             System.out.println("eigValues-----------------------\n " + res);
             assertEquals(5, res.getRows());
             assertEquals(2, res.getCols());
         } catch (Throwable ex) {
-            Logger.getLogger(ParserNGTurboMatrixTest.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MatrixTurboEvaluatorTest.class.getName()).log(Level.SEVERE, null, ex);
         }
 
     }

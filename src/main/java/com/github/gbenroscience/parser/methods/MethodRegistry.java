@@ -863,7 +863,7 @@ public class MethodRegistry {
             if (alg.isComplex()) {
                 return ctx.wrap(alg.solutions);
             } else {
-                return ctx.wrap(new double[]{alg.solutions[0], alg.solutions[1]});
+                return ctx.wrap(new double[]{alg.solutions[0], alg.solutions[2]});
             }
         });
 
@@ -879,8 +879,8 @@ public class MethodRegistry {
             }
 
             Tartaglia_Equation solver = new Tartaglia_Equation(input);
-
-            return ctx.wrap(solver.solutions());
+            solver.solutions();
+            return ctx.wrap(solver.getAlgorithm().solutions);
         });
 
         registerMethod(Declarations.HELP, (ctx, arity, args) -> {
