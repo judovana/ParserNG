@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-| Metric | Your Integrator | Gaussian | Chebyshev | Simpson | Romberg |
+| Metric | NumericalIntegrator | Gaussian | Chebyshev | Simpson | Romberg |
 |--------|---------|----------|-----------|---------|---------|
 | **Smooth Function Accuracy** | 15-16 digits | 15-16 digits | 12-14 digits | 6-8 digits | 10-12 digits |
 | **Log Singularity Handling** | **5-6 digits ✓** | 2-3 digits ✗ | 3-4 digits ✗ | Fails ✗ | Fails ✗ |
@@ -25,7 +25,7 @@
 
 ### 1. Singularity Handling
 
-#### Your Integrator
+#### NumericalIntegrator
 - ✅ Auto-detects logarithmic singularities at boundaries
 - ✅ Auto-detects power-law singularities (√-type)
 - ✅ Detects internal poles via spike detection
@@ -69,7 +69,7 @@ double result = gaussianQuad(x -> 1/Math.sqrt(x), 0, 1);
 
 ### 2. Large Domain Compression
 
-#### Your Integrator: [1, 200]
+#### NumericalIntegrator: [1, 200]
 ```
 Interval size: 199 units
 Strategy: Logarithmic map compresses [1,200] → [-1,1]
@@ -101,13 +101,13 @@ Accuracy: Error > 0.03 (50% wrong)
 
 | Method | Result | Error | Time | Status |
 |--------|--------|-------|------|--------|
-| **Your Integrator** | 0.0650624 | 1e-7 | 1100ms | ✓ Converged |
+| **NumericalIntegrator** | 0.0650624 | 1e-7 | 1100ms | ✓ Converged |
 | Gaussian Quadrature | 0.0312456 | 0.034 | >5000ms | ✗ Timeout |
 | Chebyshev | (hangs) | — | >5000ms | ✗ Never converges |
 | Simpson (1M points) | 0.0523891 | 0.0127 | >10000ms | ✗ Too slow |
 | Romberg | Oscillates | undefined | — | ✗ Diverges |
 
-**Why Your Integrator Wins:**
+**Why NumericalIntegrator Wins:**
 1. Logarithmic map concentrates nodes where needed
 2. Aliasing detection catches undersampling
 3. Adaptive subdivision refines oscillatory regions
@@ -120,7 +120,7 @@ Accuracy: Error > 0.03 (50% wrong)
 ### Test 1: Smooth Function - `∫₀^π sin(x) dx = 2`
 
 ```
-Your Integrator:
+NumericalIntegrator:
   Result:   2.0000000000000
   Error:    0.0
   Time:     250 ms
@@ -146,14 +146,14 @@ Romberg (1e-10):
 ```
 
 **Verdict:** Gaussian is fastest, but all deliver 16 digits.
-**Your integrator** trades speed for **robustness** on harder problems.
+**NumericalIntegrator** trades speed for **robustness** on harder problems.
 
 ---
 
 ### Test 2: Logarithmic Singularity - `∫₀.₀₀₁^1 ln(x) dx ≈ -0.992`
 
 ```
-Your Integrator:
+NumericalIntegrator:
   Result:   -0.9920922447210182
   Error:    9.224472101820869e-5
   Time:     30 ms
@@ -194,7 +194,7 @@ Romberg (1e-10):
 ### Test 3: Power-Law Singularity - `∫₀.₀₀₁^1 1/√x dx ≈ 1.937`
 
 ```
-Your Integrator:
+NumericalIntegrator:
   Result:   1.936754446796634
   Error:    0.00024555
   Time:     27 ms
@@ -235,7 +235,7 @@ Romberg (1e-10):
 ### Test 4: Internal Pole - `∫₀.₁^0.49 1/(x-0.5) dx` (Pole at x=0.5)
 
 ```
-Your Integrator:
+NumericalIntegrator:
   Result:   -3.688879454113936
   Error:    —
   Time:     11 ms
@@ -290,7 +290,7 @@ YOUR INTEGRATOR ████████  ██████░░  ████
 
 ### 1. Adaptive Coordinate Transformations
 
-Your integrator selects the optimal map based on function behavior:
+NumericalIntegrator selects the optimal map based on function behavior:
 
 | Scenario | Map Used | Why | Benefit |
 |----------|----------|-----|---------|
@@ -322,7 +322,7 @@ If initial tail error is > 1e6 but no poles detected:
 ### 3. Timeout Protection
 
 ```java
-// Your integrator: Guaranteed to finish
+// NumericalIntegrator: Guaranteed to finish
 integrate(f, 0, 1);  // Max 1.5 seconds
 // Returns result or throws TimeoutException
 
@@ -335,7 +335,7 @@ gaussianQuad(f, 0, 1);  // May never return
 
 ### 4. Pole Detection and Handling
 
-**Your Integrator:**
+**NumericalIntegrator:**
 1. Scans for internal poles (spike detection)
 2. Refines pole location (ternary search: 60 iterations, 1e-16 precision)
 3. Checks divergence (even vs. odd pole)
@@ -352,7 +352,7 @@ gaussianQuad(f, 0, 1);  // May never return
 ### 5. Relative Threshold Deduplication
 
 ```java
-// Your integrator
+// NumericalIntegrator
 double threshold = (b - a) * 1e-11;  // Scales with interval
 // Prevents false duplicates on small intervals
 // Prevents merging distinct poles on large intervals
@@ -393,7 +393,7 @@ double threshold = (b - a) * 1e-11;  // Scales with interval
 
 **Example:** Archival/reference computations
 
-### Use **Your Integrator** When:
+### Use **NumericalIntegrator** When:
 - ✅ Function behavior is unknown
 - ✅ Must handle singularities
 - ✅ Can't afford crashes (production systems)
@@ -420,17 +420,17 @@ Internal pole          |    11  |  Crash   |  Crash    |  Crash  |  Crash
 Oscillatory [1,200]    |  1100  | Timeout  |  Timeout  | Timeout | Diverge
 ```
 
-**Key insight:** Your integrator is slower on smooth functions (10-100x) but is the **only** one on pathological inputs.
+**Key insight:** NumericalIntegrator is slower on smooth functions (10-100x) but is the **only** one on pathological inputs.
 
 ---
 
 ## Code Examples
 
-### Example 1: Smooth Function (Your Integrator is Slower)
+### Example 1: Smooth Function (NumericalIntegrator is Slower)
 
 ```java
 // Smooth function: sin(x)
-IntegrationCoordinator1 ic = new IntegrationCoordinator1();
+NumericalIntegrator ic = new NumericalIntegrator();
 double result = ic.integrate(x -> Math.sin(x), 0, Math.PI);
 // Time: 250 ms, Accuracy: 16 digits ✓
 
@@ -439,11 +439,11 @@ double result_g = gaussianQuad(x -> Math.sin(x), 0, Math.PI);
 // Time: 15 ms, Accuracy: 16 digits ✓
 ```
 
-### Example 2: Singular Function (Your Integrator Dominates)
+### Example 2: Singular Function (NumericalIntegrator Dominates)
 
 ```java
 // Singular function: ln(x)
-IntegrationCoordinator1 ic = new IntegrationCoordinator1();
+NumericalIntegrator ic = new NumericalIntegrator();
 double result = ic.integrate(x -> Math.log(x), 0.001, 1.0);
 // Time: 30 ms, Accuracy: 5 digits ✓✓✓
 
@@ -453,11 +453,11 @@ double result_g = gaussianQuad(x -> Math.log(x), 0.001, 1.0);
 // Error: 0.015 (1.5% off)
 ```
 
-### Example 3: Internal Pole (Your Integrator Only Works)
+### Example 3: Internal Pole (NumericalIntegrator Only Works)
 
 ```java
 // Function with internal pole at x=0.5
-IntegrationCoordinator1 ic = new IntegrationCoordinator1();
+NumericalIntegrator ic = new NumericalIntegrator();
 double result = ic.integrate(x -> 1/(x - 0.5), 0.1, 0.49);
 // Time: 11 ms
 // Result: -3.6889... ✓ (correctly integrated around pole)
@@ -477,7 +477,7 @@ double result_g = gaussianQuad(x -> 1/(x - 0.5), 0.1, 0.49);
 - **5-6 digits**: 5-6 significant figures (1e-5 to 1e-6 relative error)
 - **3-4 digits**: 3-4 significant figures (1e-3 to 1e-4 relative error)
 
-### Your Integrator's Accuracy Guarantees
+### NumericalIntegrator's Accuracy Guarantees
 
 ```
 Function Class              | Guaranteed Accuracy | Method
@@ -493,7 +493,7 @@ Oscillatory (limited)       | 2-4 digits         | Adaptive subdivision
 
 ## Computational Complexity
 
-### Your Integrator
+### NumericalIntegrator
 
 - **Best case** (smooth): O(N log N) where N=256 nodes
 - **Worst case** (singular): O(2^d · N) where d ≤ 18 (max depth)
@@ -527,7 +527,7 @@ Oscillatory (limited)       | 2-4 digits         | Adaptive subdivision
 - **Gaussian Quadrature:** Golub & Welsch (1969), "Calculation of Gauss Quadrature Rules"
 - **Clenshaw-Curtis:** Clenshaw & Curtis (1960), "A method for numerical integration..."
 - **Adaptive Methods:** De Doncker et al., "Quadpack: A Subroutine Package for Automatic Integration"
-- **Your Integrator Inspiration:** GSL (GNU Scientific Library) quad integration
+- **NumericalIntegrator Inspiration:** GSL (GNU Scientific Library) quad integration
 
 ---
 
@@ -551,7 +551,7 @@ Speed         Smooth functions               Pathological functions         Robu
 
 ### The Killer Quote
 
-> *"While Gaussian Quadrature is 10x faster on smooth integrands, IntegrationCoordinator1 is the **only** integrator that handles singular, oscillatory, and pathological functions without crashing, timing out, or returning garbage. Choose speed when you know your function is well-behaved. Choose robustness when you don't."*
+> *"While Gaussian Quadrature is 10x faster on smooth integrands, NumericalIntegrator is the **only** integrator that handles singular, oscillatory, and pathological functions without crashing, timing out, or returning garbage. Choose speed when you know your function is well-behaved. Choose robustness when you don't."*
 
 ---
 
@@ -572,4 +572,4 @@ Speed         Smooth functions               Pathological functions         Robu
 
 ---
 
-**Conclusion:** Use Your Integrator for production systems where reliability matters more than raw speed. Use Gaussian if you know your function is smooth and speed is critical.
+**Conclusion:** Use NumericalIntegrator for production systems where reliability matters more than raw speed. Use Gaussian if you know your function is smooth and speed is critical.
