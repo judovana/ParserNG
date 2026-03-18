@@ -17,17 +17,20 @@ package com.github.gbenroscience.parser.turbo.tools;
 
 import com.github.gbenroscience.math.Maths;
 import com.github.gbenroscience.math.differentialcalculus.Derivative;
-import com.github.gbenroscience.math.numericalmethods.FunctionExpanderOld;
 import com.github.gbenroscience.math.numericalmethods.NumericalIntegral;
+import com.github.gbenroscience.math.numericalmethods.NumericalIntegrator;
 import com.github.gbenroscience.math.numericalmethods.TurboRootFinder;
 import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.TYPE;
+import static com.github.gbenroscience.parser.TYPE.ALGEBRAIC_EXPRESSION;
+import static com.github.gbenroscience.parser.TYPE.MATRIX;
 import com.github.gbenroscience.parser.Variable;
 import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.util.FunctionManager;
+import com.github.gbenroscience.util.VariableManager;
 import java.lang.invoke.*;
 import java.math.BigDecimal;
 import java.util.*;
@@ -364,6 +367,39 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                         // The handle is now ready to be pushed to the compiler's compilation stack
                         stack.push(currentHandle);
                         break;
+                    } else if (name.equals("print")) {
+                        int arity = t.arity;
+
+                        // 1. Pop args from stack to maintain RPN integrity
+                        for (int i = 0; i < arity; i++) {
+                            stack.pop();
+                        }
+
+                        // 2. Retrieve the raw arguments (variable names/constants)
+                        String[] rawArgs = t.getRawArgs();
+
+                        if (rawArgs == null || rawArgs.length != arity) {
+                            throw new RuntimeException("Compile Error: Print arity mismatch.");
+                        }
+
+                        try {
+                            // 3. Resolve the bridge method: matches double executePrint(String[])
+                            MethodHandle bridge = LOOKUP.findStatic(ScalarTurboCompiler.class, "executePrint",
+                                    MethodType.methodType(double.class, String[].class));
+
+                            // 4. Bind the String array as the ONLY argument (index 0)
+                            // We cast rawArgs to Object so insertArguments treats the array as a single value
+                            MethodHandle finalPrintHandle = MethodHandles.insertArguments(bridge, 0, (Object) rawArgs);
+
+                            // 5. Adapt to Turbo signature: double(double[])
+                            // The double[] input is ignored since executePrint uses lookups
+                            stack.push(MethodHandles.dropArguments(finalPrintHandle, 0, double[].class));
+
+                        } catch (Exception e) {
+                            // Log the actual cause to help debugging
+                            throw new RuntimeException("Failed to bind print handle: " + e.getMessage(), e);
+                        }
+                        break;
                     } else if (name.equals("intg")) {
                         //[F, 2.0, 3.0, 10000]
                         int arity = t.arity;
@@ -395,7 +431,7 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                         MethodHandle bridge = LOOKUP.findStatic(ScalarTurboCompiler.class, "executeTurboIntegral",
                                 MethodType.methodType(double.class, Function.class, MethodHandle.class, double.class, double.class, int.class,
                                         String[].class, Integer[].class));
-                        //executeTurboIntegral(MethodHandle handle, double lower, double upper, int iterations,String[]vars, Integer[]slots)
+                        //executeTurboIntegral(Function f, MethodHandle handle, double lower, double upper, int iterations, String[] vars, Integer[] slots)
 
                         // 3. Bind the constants (The Compiled Handle and the Bounds)
                         MethodHandle finalIntgHandle = MethodHandles.insertArguments(bridge, 0, f, compiledInner, lower, upper, iterations, vars, slots);
@@ -607,15 +643,47 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
                 throw new IllegalArgumentException("Unsupported binary operator: " + op);
         }
     }
-// For things like SUM, MEAN, VAR
 
-    public static double executeTurboIntegral(Function f, MethodHandle handle, double lower, double upper, int iterations, String[] vars, Integer[] slots) throws Throwable{
+    public static double executePrint(String[] args) throws Throwable {
+        double defReturnType = -1.0;
+        for (String arg : args) {
+            Function v = FunctionManager.lookUp(arg);
+            if (v != null) {
+                switch (v.getType()) {
+                    case ALGEBRAIC_EXPRESSION:
+                        System.out.println(v.toString());
+                        return defReturnType;
+                    case MATRIX:
+                        System.out.println(v.getName() + "=" + v.getMatrix().toString());
+                        return defReturnType;
+                    default:
+                        System.out.println(v.toString());
+                        return defReturnType;
+                }
+            }
+            Variable myVar = VariableManager.lookUp(arg);
+            if (myVar != null) {
+                System.out.println(myVar);
+                return defReturnType;
+            } else if (com.github.gbenroscience.parser.Number.isNumber(arg)) {
+                System.out.println(arg);
+                return defReturnType;
+            } else {
+                System.out.println("null");
+                return defReturnType;
+            }
+        }
+        return defReturnType;
+    }
+
+    public static double executeTurboIntegral(Function f, MethodHandle handle, double lower, double upper, int iterations, String[] vars, Integer[] slots) throws Throwable {
         MethodHandle primitiveHandle = handle.asType(
                 MethodType.methodType(double.class, double[].class)
         );
-        NumericalIntegral intg = new NumericalIntegral(f, lower, upper, iterations, primitiveHandle, vars, slots);
-        //return intg.findHighRangeIntegralTurbo();
-        return intg.integrate(f);
+        // NumericalIntegral intg = new NumericalIntegral(f, lower, upper, iterations, primitiveHandle, vars, slots);
+        //  return intg.findHighRangeIntegralTurbo();
+        NumericalIntegrator numericalIntegrator = new NumericalIntegrator(f, primitiveHandle, lower, upper, vars, slots);
+        return numericalIntegrator.integrate(f);
     }
 
     public static double scalarStatsGatekeeper(String method, double[] data) {
@@ -1201,21 +1269,6 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
         }
     }
 
-    // Inside ScalarTurboCompiler class
-    public static MethodHandle createHornerHandle(double[] coeffs) throws NoSuchMethodException, IllegalAccessException {
-        MethodHandle base = LOOKUP.findStatic(FunctionExpanderOld.class, "evaluateHorner",
-                MethodType.methodType(double.class, double[].class, double[].class));
-        // Currying: Bind the first argument (coeffs)
-        return MethodHandles.insertArguments(base, 0, (Object) coeffs);
-    }
-
-    public static MethodHandle createHornerBigDecimalHandle(BigDecimal[] coeffs) throws NoSuchMethodException, IllegalAccessException {
-        MethodHandle base = LOOKUP.findStatic(FunctionExpanderOld.class, "evaluateHornerBigDecimal",
-                MethodType.methodType(double.class, BigDecimal[].class, double[].class));
-        // Currying: Bind the first argument (coeffs)
-        return MethodHandles.insertArguments(base, 0, (Object) coeffs);
-    }
-
     public static MethodHandle createConstantHandle(double value) {
         MethodHandle c = MethodHandles.constant(double.class, value);
         return MethodHandles.dropArguments(c, 0, double[].class);
@@ -1259,6 +1312,5 @@ public class ScalarTurboCompiler implements TurboExpressionCompiler {
     public static double modulo(double a, double b) {
         return a % b;
     }
-    
-    
+
 }

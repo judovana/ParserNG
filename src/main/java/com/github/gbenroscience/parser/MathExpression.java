@@ -2471,6 +2471,14 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
         }
     }
 
+    @Override
+    public MathExpression clone() throws CloneNotSupportedException {
+        return (MathExpression) super.clone();
+    }
+    
+    
+    
+
     public static void main1(String... args) {
         String in = Main.joinArgs(Arrays.asList(args), true);
         if (Main.isVerbose()) {

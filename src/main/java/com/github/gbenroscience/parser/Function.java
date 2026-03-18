@@ -78,7 +78,6 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         FunctionManager.update();
     }
 
-  
     /**
      *
      * @param input The user input into the system, usually of the form:
@@ -98,7 +97,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
     }//end constructor
 
-      /**
+    /**
      * Takes a string in the format: F(args)=expr and rewrites it as
      * F=@(args)expr
      *
@@ -173,7 +172,6 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
     }
 
-    
     public void setType(TYPE type) {
         this.type = type;
     }
@@ -425,7 +423,6 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             throw new InputMismatchException("Function Syntax error! " + input);
         }
         String funcName = equalsIndex == -1 ? null : input.substring(0, equalsIndex);//may be null for a anonymous function input
-      
 
         Function anonFn = null;
 
@@ -526,16 +523,14 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             anonFn.setDependentVariable(new Variable(dependentVar));
             anonFn.matrix = m;
             anonFn.type = TYPE.VECTOR;
-           // FunctionManager.update(anonFn);
+            // FunctionManager.update(anonFn);
 
         } else {
             throw new InputMismatchException("SYNTAX ERROR IN FUNCTION");
         }
 
         //DONE PROCESSIING anon function side of F=@(args)expr
-        
         //Now deal with normal function assignments e.g F=@(x,y,z,...)expr, Use a recursive hack!
-
         this.dependentVariable = anonFn.dependentVariable;
         this.independentVariables = anonFn.independentVariables;
         this.mathExpression = anonFn.mathExpression;
@@ -547,7 +542,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         if (funcName != null) {
             FunctionManager.update(anonFn.getName(), funcName);
         }
-      
+
     }//end method
 
     public void setDependentVariable(Variable dependentVariable) {
@@ -1239,6 +1234,41 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         }
 
         return str.substring(0, str.length() - 1);
+    }
+
+    /**
+     * Creates a deep copy of this Function instance. Essential for thread-safe
+     * parallel integration.
+     *
+     * Each thread gets an independent Function with: - Same expression and
+     * parsed structure - Independent state variables - No shared mutable
+     * references
+     *
+     * @return A new Function instance safe for concurrent use
+     */
+    public Function copy() {
+        try {
+            // Create new instance from expression
+            Function copy = new Function();
+            copy.independentVariables = new ArrayList<>(independentVariables);
+            copy.dependentVariable = new Variable(dependentVariable.getName(), dependentVariable.getValue());
+            copy.mathExpression = mathExpression.clone();
+
+            copy.matrix = matrix == null ? null : new Matrix(matrix.getFlatArray(), matrix.getRows(), matrix.getCols());
+            if (copy.matrix != null) {
+                copy.matrix.setName(matrix.getName());
+            }
+            copy.type = this.type;
+ 
+            // Do NOT copy:
+            // - this.x (thread-local state)
+            // - this.lastResult (evaluation cache)
+            // - Any other mutable temporary state
+            return copy;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to copy Function: " + e.getMessage(), e);
+        }
     }
 
     public static Function parse(String enc) {

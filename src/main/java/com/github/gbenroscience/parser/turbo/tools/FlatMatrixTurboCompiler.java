@@ -154,14 +154,33 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
                         stack.push(compileBinaryOpOnEvalResult(t.opChar, left, right));
                     }
                     break;
-
                 case MathExpression.Token.FUNCTION:
                 case MathExpression.Token.METHOD:
-                    MethodHandle[] args = new MethodHandle[t.arity];
-                    for (int i = t.arity - 1; i >= 0; i--) {
-                        args[i] = stack.pop();
+                    if (t.name.equalsIgnoreCase("print")) {
+                        // 1. Pop the evaluated handles off the stack (we don't need them for printing raw names)
+                        for (int i = 0; i < t.arity; i++) {
+                            stack.pop();
+                        }
+
+                        // 2. Resolve the bridge to executeMatrixPrint
+                        MethodHandle bridge = LOOKUP.findStatic(FlatMatrixTurboCompiler.class, "executeMatrixPrint",
+                                MethodType.methodType(EvalResult.class, String[].class));
+
+                        // 3. Bind the raw string arguments into the handle
+                        String[] rawArgs = t.getRawArgs();
+                        MethodHandle finalPrintHandle = MethodHandles.insertArguments(bridge, 0, (Object) rawArgs);
+
+                        // 4. Adapt to the required signature: EvalResult(double[])
+                        // This makes it compatible with your matrix stack
+                        stack.push(MethodHandles.dropArguments(finalPrintHandle, 0, double[].class));
+                    } else {
+                        // Standard matrix function logic
+                        MethodHandle[] args = new MethodHandle[t.arity];
+                        for (int i = t.arity - 1; i >= 0; i--) {
+                            args[i] = stack.pop();
+                        }
+                        stack.push(compileMatrixFunction(t, args));
                     }
-                    stack.push(compileMatrixFunction(t, args));
                     break;
                 default:
                     System.out.println("Unknown Token Kind: " + t.kind + " Name: " + t.name);
@@ -189,9 +208,9 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
 
             @Override
             public double applyScalar(double[] variables) {
-               return -1.0;
+                return -1.0;
             }
-            
+
         };
     }
 
@@ -342,6 +361,18 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
         // This pipes the output of the operand handle into the dispatcher.
         // Resulting signature: (double[]) -> EvalResult
         return MethodHandles.collectArguments(dispatcher, 0, operand);
+    }
+
+    /**
+     * Bridge for the matrix compiler to call the scalar print logic.
+     *
+     * @param args
+     */
+    public static EvalResult executeMatrixPrint(String[] args) throws Throwable {
+        // Call your existing logic
+        double result = ScalarTurboCompiler.executePrint(args);
+        // Wrap the -1.0 (or whatever double) into a scalar result
+        return new EvalResult().wrap(result);
     }
 
     private MethodHandle compileMatrixFunction(MathExpression.Token t, MethodHandle[] args) throws Throwable {
@@ -594,8 +625,8 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
                 return cache.result.wrap(args[0].matrix.inverse());
             case Declarations.MATRIX_TRANSPOSE:
                 return cache.result.wrap(args[0].matrix.transpose());
-             case Declarations.TRIANGULAR_MATRIX:
-                 args[0].matrix.reduceToTriangularMatrixInPlace();
+            case Declarations.TRIANGULAR_MATRIX:
+                args[0].matrix.reduceToTriangularMatrixInPlace();
                 return cache.result.wrap(args[0].matrix);
             case Declarations.MATRIX_EIGENVALUES:
                 // 1. Get raw data and dimensions
@@ -626,7 +657,7 @@ public final class FlatMatrixTurboCompiler implements TurboExpressionCompiler {
                     input = args[0].matrix;
                 } else {
                     // Inline mode: coefficients passed as individual arguments
-                      n = (int) ((-1 + Math.sqrt(1 + 4 * args.length)) / 2.0);
+                    n = (int) ((-1 + Math.sqrt(1 + 4 * args.length)) / 2.0);
                     input = cache.getMatrixBuffer(n, n + 1);
                     double[] flat = input.getFlatArray();
                     for (int i = 0; i < args.length; i++) {

@@ -17,6 +17,7 @@ import static java.lang.Math.*;
 import java.util.List;
 import com.github.gbenroscience.util.VariableManager;
 import java.lang.invoke.MethodHandle;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -434,124 +435,10 @@ public class NumericalIntegral {
         return iterations < 500 ? iterations : 500;
     }
 
-    /**
-     *
-     * @return the integral of the function using the polynomial rule.
-     */
-    public double findPolynomialIntegral() {
-
-        FunctionExpanderOld expander = new FunctionExpanderOld(xLower, xUpper, normalizedIterations(), FunctionExpanderOld.DOUBLE_PRECISION, function);
-        //System.out.printf("xLower = %4.2f, xUpper = %4.2f\n",xLower,xUpper);
-        MathExpression approxFunction = new MathExpression(expander.getPolynomialIntegral());
-
-        String variable = function.getIndependentVariables().get(0).getName();
-        approxFunction.updateArgs(xLower);
-
-        double lower = approxFunction.solveGeneric().scalar;
-
-        approxFunction.updateArgs(xUpper);
-
-        double upper = approxFunction.solveGeneric().scalar;
-
-        return upper - lower;
-    }
-
-    public double findPolynomialIntegralTurbo() {
-        FunctionExpanderOld expander = new FunctionExpanderOld(xLower, xUpper, normalizedIterations(), FunctionExpanderOld.DOUBLE_PRECISION, function);
-        MethodHandle approxIntglHandle = expander.getPolynomialIntegralHandle();
-
-        double[] dataFrame = new double[256];
-        int vIdx = getIndependentVariableSlot();
-        try {
-            dataFrame[vIdx] = xLower;
-            double lower = (double) approxIntglHandle.invokeExact(dataFrame);
-
-            dataFrame[vIdx] = xUpper;
-            double upper = (double) approxIntglHandle.invokeExact(dataFrame);
-
-            return upper - lower;
-        } catch (Throwable t) {
-            return 0.0;
-        }
-    }
+    
 //≤≤≤≥
 
-    /**
-     *
-     * Determines the integral in a given range by splitting the range into
-     * sub-ranges of width that are at most 0.1 units along x, and finding the
-     * polynomial curve for each sub-range.
-     *
-     * @return the integral of the function using the trapezoidal rule.
-     */
-    public double findHighRangeIntegralWithAdvancedPolynomial() {
-        double dx = 0.5;
-
-        String fName = function.getName();
-
-        if (Math.abs(xUpper - xLower) < dx) {
-            return findAdvancedPolynomialIntegral();
-        } else {
-            double sum = 0.0;
-            if (xLower <= xUpper) {
-                double x = xLower;
-                for (; x < (xUpper - dx); x += dx) {
-                    NumericalIntegral integral = new NumericalIntegral(x, x + dx, iterations, fName);
-                    integral.targetHandle = targetHandle;
-                    sum += integral.findAdvancedPolynomialIntegral();
-                }//end for
-
-                if (x < xUpper) {
-                    /**
-                     * This try-catch block is necessary because sometimes, x
-                     * and xUpper are so close and in the case of the polynomial
-                     * integral, computing it uses matrices which means that
-                     * row-reduction will fail if the coefficients of the
-                     * matrices are too close due to the computational values of
-                     * x and y..which are close. If such an exception occurs we
-                     * can safely neglect it since it means that the area we are
-                     * considering is almost infinitesimal
-                     */
-                    try {
-                        NumericalIntegral integral = new NumericalIntegral(x, xUpper, iterations, fName);
-                        integral.targetHandle = targetHandle;
-                        sum += integral.findAdvancedPolynomialIntegral();
-                    } catch (Exception e) {
-                    }
-                }
-            } else if (xUpper < xLower) {
-                double x = xLower;
-                for (; x > (xUpper + dx); x -= dx) {
-                    NumericalIntegral integral = new NumericalIntegral(x, x - dx, iterations, fName);
-                    integral.targetHandle = targetHandle;
-                    sum += integral.findAdvancedPolynomialIntegral();
-                }//end for
-
-                if (x > xUpper) {
-                    /**
-                     * This try-catch block is necessary because sometimes, x
-                     * and xUpper are so close and in the case of the polynomial
-                     * integral, computing it uses matrices which means that
-                     * row-reduction will fail if the coefficients of the
-                     * matrices are too close due to the computational values of
-                     * x and y..which are close. If such an exception occurs we
-                     * can safely neglect it since it means that the area we are
-                     * considering is almost infinitesimal
-                     */
-                    try {
-                        NumericalIntegral integral = new NumericalIntegral(x, xUpper, iterations, fName);
-                        integral.targetHandle = targetHandle;
-                        sum += integral.findAdvancedPolynomialIntegral();
-                    } catch (Exception e) {
-                    }
-                }
-
-            }
-
-            return sum;
-        }
-    }//end method
-
+    
     /**
      *
      * Determines the integral in a given range by splitting the range into
@@ -561,7 +448,7 @@ public class NumericalIntegral {
      * @return the integral of the function using the trapezoidal rule.
      */
     public double findHighRangeIntegral() {
-
+              System.out.println("USING GAUSSIAN");
         NumericalIntegral integral = new NumericalIntegral(function, targetHandle, vars, slots);
 
         try {
@@ -635,13 +522,20 @@ public class NumericalIntegral {
                 }
 
                 if (sum == Double.POSITIVE_INFINITY || sum == Double.NEGATIVE_INFINITY || sum == Double.NaN) {
-                    return findHighRangeIntegralWithAdvancedPolynomial();
+                    System.out.println("FALLING BACK TO NUMERICAL_INTEGRATOR");
+                    return new NumericalIntegrator(xLower, xUpper).integrate(function);
                 }
                 return sum;
             }
         } catch (Exception e) {
             e.printStackTrace();
-            return findHighRangeIntegralWithAdvancedPolynomial();
+            try {
+                System.out.println("FALLING BACK TO NUMERICAL_INTEGRATOR");
+                return new NumericalIntegrator(xLower, xUpper).integrate(function);
+            } catch (TimeoutException ex) {
+                Logger.getLogger(NumericalIntegral.class.getName()).log(Level.SEVERE, null, ex);
+                return Double.NaN;
+            }
         }
     }//end method
 
@@ -755,54 +649,7 @@ public class NumericalIntegral {
         return 0; // Default to first slot if not found
     }
 
-    public double findAdvancedPolynomialIntegral() {
-        double dx = (xUpper - xLower) / (iterations);
-        FunctionExpanderOld expander = new FunctionExpanderOld(xLower, xUpper, iterations, FunctionExpanderOld.DOUBLE_PRECISION, function);
-
-        // Get the analytic integral for the base sum
-        double sum1 = (targetHandle == null) ? this.findPolynomialIntegral() : this.findPolynomialIntegralTurbo();
-        double sum2 = 0.0;
-
-        if (targetHandle != null) {
-            // --- TURBO PATH ---
-            MethodHandle approxHandle = expander.getPolynomialHandle();
-            double[] dataFrame = new double[256];
-            int vIdx = getIndependentVariableSlot();
-
-            for (int i = 0; i < iterations; i++) {
-                double mid = xLower + (i + 0.5) * dx;
-                dataFrame[vIdx] = mid; // Update the specific variable slot
-
-                try {
-                    // invokeExact provides native-like performance for your SFU/Radio logic
-                    double yApprox = (double) approxHandle.invokeExact(dataFrame);
-                    double yActual = (double) targetHandle.invokeExact(dataFrame);
-                    sum2 += (yApprox - yActual);
-                } catch (Throwable t) {
-                    // Ignore infinitesimal errors
-                }
-            }
-        } else {
-            // --- LEGACY PATH ---
-            MathExpression approxFunction = new MathExpression(expander.getPolynomial());
-            MathExpression fun = new MathExpression(function.getMathExpression().getExpression());
-
-            for (int i = 0; i < iterations; i++) {
-                double mid = xLower + (i + 0.5) * dx;
-                fun.updateArgs(mid);
-                approxFunction.updateArgs(mid);
-                try {
-                    sum2 += (approxFunction.solveGeneric().scalar - fun.solveGeneric().scalar);
-                } catch (NumberFormatException numErr) {
-                }
-            }
-        }
-
-        // Apply the correction factor: Area = Integral(Approx) - 2/3 * Sum(Error) * dx
-        sum1 -= ((2.0 / 3.0) * sum2 * dx);
-        return sum1;
-    }
-
+    
     /**
      * Analyzes the list and extracts the Function string from it.
      *
@@ -1114,7 +961,7 @@ public class NumericalIntegral {
 //System.out.println("AdvancedPolynomialIntegral:  "+numericalIntegral.findAdvancedPolynomialIntegral());
 //System.out.println("GaussianQuadrature: "+numericalIntegral.findGaussianQuadrature());
 
-        double numericalValue = numericalIntegral.findHighRangeIntegralWithAdvancedPolynomial();
+        double numericalValue = numericalIntegral.findHighRangeIntegralTurbo();
         Function f = FunctionManager.lookUp("I");
 
         f.updateArgs(x2);

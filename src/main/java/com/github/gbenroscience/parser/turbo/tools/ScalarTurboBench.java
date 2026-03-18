@@ -15,7 +15,9 @@
  */
 package com.github.gbenroscience.parser.turbo.tools;
 
+import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
+import com.github.gbenroscience.util.FunctionManager;
 import java.util.Arrays;
 
 /**
@@ -38,12 +40,36 @@ public class ScalarTurboBench {
         benchmarkDiffCalculus();
         benchmarkIntegralCalculus();
         benchmarkComplexIntegralCalculus();
+        benchmarkPrinting();
         benchmarkTrigonometric();
         benchmarkComplexExpression(false);
         benchmarkComplexExpression(true);
         benchmarkWithVariablesSimple();
         benchmarkWithVariablesAdvanced();
         benchmarkConstantFolding();
+    }
+    
+    
+    
+      private static void benchmarkPrinting() throws Throwable {
+        System.out.println("\n=== TEST PRINTING===\n");
+        String expr = "F=@(x,y,z)3*x+y-z^2";
+          Function f = FunctionManager.add(expr);
+          
+
+          String ex = "A=@(2,2)(4,2,-1,9);print(A,F,x,y,z)";
+        System.out.printf("Expression: %s%n", ex); 
+        // Warm up JIT
+        MathExpression interpreted = new MathExpression(ex, false);
+        MathExpression.EvalResult ev = interpreted.solveGeneric();
+     
+
+        // Compile to turbo
+        FastCompositeExpression compiled = interpreted.compileTurbo();
+        // Warm up turbo JIT
+        double[] vars = new double[0]; 
+        MathExpression.EvalResult evr = compiled.apply(vars);
+
     }
 
     private static void benchmarkIntegralCalculus() throws Throwable {
@@ -76,7 +102,7 @@ public class ScalarTurboBench {
       private static void benchmarkComplexIntegralCalculus() throws Throwable {
         System.out.println("\n=== COMPLEX INTEGRAL CALCULUS; FOLDING OFF===\n");
         //String expr = "diff(@(x)cos(x)+sin(x),2,1)";
-        String expr = "intg(@(x)(1/(x*sin(x)+3*x*cos(x))), 1, 200)";
+        String expr = "intg(@(x)(1/(x*sin(x)+3*x*cos(x))), 0.5, 1.8)";
 
         // Warm up JIT
         MathExpression interpreted = new MathExpression(expr, false);

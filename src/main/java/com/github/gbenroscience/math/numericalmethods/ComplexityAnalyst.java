@@ -24,7 +24,7 @@ import com.github.gbenroscience.parser.MathExpressionTreeDepth;
  */
 public class ComplexityAnalyst {
     
-    public enum Strategy { GAUSSIAN, CHEBYSHEV_FOREST }
+    public enum Strategy { GAUSSIAN, CHEBYSHEV_FOREST, MACHINE }
 
     public static Strategy selectStrategy(MathExpression expr) {
         
