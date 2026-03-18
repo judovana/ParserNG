@@ -18,10 +18,8 @@ import com.github.gbenroscience.util.VariableManager;
 import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.Method;
 
-import com.github.gbenroscience.math.numericalmethods.RootFinder;
 import java.util.*;
 
-import com.github.gbenroscience.math.numericalmethods.NumericalIntegral;
 import static com.github.gbenroscience.parser.STRING.*;
 import static com.github.gbenroscience.parser.Operator.*;
 import static com.github.gbenroscience.parser.Variable.*;
@@ -645,7 +643,7 @@ public class MathScanner {
 
                 int close = Bracket.getComplementIndex(true, i + 1, scanner);
                 List<String> list = scanner.subList(i, close + 1);
-                NumericalIntegral.extractFunctionStringFromExpression(list);
+                //IF THINGS GO BAD, UNCOMMENT HERE---1 NumericalIntegral.extractFunctionStringFromExpression(list);
                 if (list.isEmpty()) {
                     parser_Result = ParserResult.INCOMPLETE_PARAMS;
                     setRunnable(false);
@@ -656,7 +654,7 @@ public class MathScanner {
 // matrix_mul,(,@,(x),log(x,2),4,8)
                 int close = Bracket.getComplementIndex(true, i + 1, scanner);
                 List<String> list = scanner.subList(i, close + 1);
-                extractFunctionStringFromExpressionForMatrixMethods(list);
+                //IF THINGS GO BAD, UNCOMMENT HERE---2 extractFunctionStringFromExpressionForMatrixMethods(list);
                 if (list.isEmpty()) {
                     parser_Result = ParserResult.INCOMPLETE_PARAMS;
                     setRunnable(false);
@@ -667,8 +665,8 @@ public class MathScanner {
 // root,(,@,(x),log(x,2),4,2,5)
                 int close = Bracket.getComplementIndex(true, i + 1, scanner);
                 List<String> list = scanner.subList(i, close + 1);
-               // System.out.println("list: " + list);
-                RootFinder.extractFunctionStringFromExpression(list);
+                // System.out.println("list: " + list);
+                //IF THINGS GO BAD, UNCOMMENT HERE---3  RootFinder.extractFunctionStringFromExpression(list);
 
                 if (list.isEmpty()) {
                     parser_Result = ParserResult.INCOMPLETE_PARAMS;
@@ -752,9 +750,9 @@ public class MathScanner {
                         scanner.add(i + 1, "*");
                         i++;
                     } else {
- 
+
                         parser_Result = ParserResult.UNDEFINED_ARG;
- 
+
                         setRunnable(false);
                         errorList.add(scanner.get(i) + " is an undefined variable. Set MathExpression.setAutoInitOn to true to use a variable without defining it");
                     }
@@ -817,141 +815,155 @@ public class MathScanner {
         }//end for
     }//end validateTokens
 
+    private void plusAndMinusStringHandler() { 
+       scanner=plusAndMinusStringHandlerHelper(scanner);
+    }
     /**
      * Handles unary plus and minus operations on the numbers that come after
      * them Also handles repeated concatenations of plus and minus operators.
-     */
-    public void plusAndMinusStringHandler() {
-
-        for (int i = 0; i < scanner.size() - 1; i++) {
-            String tk = scanner.get(i);
-            String next_tk = scanner.get(i + 1);
-            int tk_len = tk.length();
-
-            int next_tk_len = next_tk.length();
-
-            char token = tk_len == 1 ? tk.charAt(0) : '\u0000';// if token contains a null char, then it is a token of length greater than 1
-            char nextToken = next_tk_len == 1 ? next_tk.charAt(0) : '\u0000';// may be a number or a + or -, if nextToken contains a null char, then it is a string of length more than 1
-
-            if (token == '\u0000') {//skip
-                continue;
-            }
-
-            if (i > 0 && scanner.get(i - 1).equals("(")) {
-                //Process possible unary minus and plus interacting with positive and negative numbers in the next position
-                if (token == '+' && isNegative(next_tk)) {
-                    scanner.set(i, next_tk);
-                    scanner.remove(i + 1);
-                    continue;
-                }
-                if (token == '+' && isPositive(next_tk)) {
-                    scanner.set(i, next_tk.charAt(0) == '+' ? next_tk.substring(1) : next_tk);
-                    scanner.remove(i + 1);
-                    continue;
-                }
-                if (token == '-' && isNegative(next_tk)) {
-                    scanner.set(i, next_tk.substring(1));
-                    scanner.remove(i + 1);
-                    continue;
-                }
-                if (token == '-' && isPositive(next_tk)) {
-                    scanner.set(i, next_tk.charAt(0) == '+' ? "-" + next_tk.substring(1) : "-" + next_tk);
-                    scanner.remove(i + 1);
-                    continue;
-                }
-            }
-            // Simplified Operator Logic
-            if ((token == '-' || token == '+') && (nextToken == '-' || nextToken == '+')) {
-                String result = (token == nextToken) ? "+" : "-";
-                scanner.set(i, result);
-                scanner.remove(i + 1);
-                i--;
-            }
-
-            //   System.out.println("index: "+i+", scanner- "+scanner);
-            // String s5 = "(--+-12+2^3+4%2-5-6-7*8+5!+---2E-9-0.00002+70000/32.34^8-19+9Р3+6Č5+2²+5³-3-¹/2.53+3E-12+2*----3)";
-        }//end for loop
-
-        for (int i = 0; i < scanner.size() - 1; i++) {
-            String prev_tk = i - 1 >= 0 ? scanner.get(i - 1) : null;
- 
-            String tk = scanner.get(i);
-            String next_tk = scanner.get(i + 1);
-
-            int prev_tk_len = prev_tk != null ? prev_tk.length() : -1;
-            int tk_len = tk.length();
-            int next_tk_len = next_tk.length();
-            char prevToken = prev_tk_len == 1 ? prev_tk.charAt(0) : '\u0000';// if prevToken contains a null char, then it is a token of length greater than 1 or the prevToken is null
-            char token = tk_len == 1 ? tk.charAt(0) : '\u0000';// if token contains a null char, then it is a token of length greater than 1
-            char nextToken = next_tk_len == 1 ? next_tk.charAt(0) : '\u0000';// may be a number or a + or -, if nextToken contains a null char, then it is a string of length more than 1
-
-            if ((token == '-' || token == '+') && isNumber(next_tk)) {
-                if (prevToken == '(' || i == 0) {
-                    scanner.set(i, (-1 * Double.parseDouble(next_tk)) + "");
-                    scanner.remove(i + 1);
-                }
-                continue;
-            }
-
-            if (token == '\u0000') {//skip
-                continue;
-            }
-            if ((token == '*' || token == '/' || token == '^') && (nextToken == '-' || nextToken == '+')) {
-                String veryNext = i + 2 < scanner.size() ? scanner.get(i + 2) : null;
-                if (veryNext != null && isNumber(veryNext)) {
-                    if (isNegative(veryNext)) {
-                        if (nextToken == '-') {
-                            scanner.set(i + 1, veryNext.substring(1));
-                        } else if (nextToken == '+') {
-                            scanner.set(i + 1, veryNext);
-                        }
-                    } else {
-                        if (veryNext.charAt(0) == '+') {
-                            veryNext = veryNext.substring(1);
-                        }
-                        if (nextToken == '-') {
-                            scanner.set(i + 1, "-" + veryNext);
-                        } else if (nextToken == '+') {
-                            scanner.set(i + 1, veryNext);
-                        }
-                    }
-                    scanner.remove(i + 2);
-                }
-            }
-        }
-    }// end method
-
-    /**
-     * Handles repeated concatenations of plus and minus operators.
-     */
-    public void plusAndMinusStringHandler1() {
+     */ 
+    public static final List<String> plusAndMinusStringHandlerHelper1(List<String> scanner) {
+        List<String> result = new ArrayList<>();
 
         for (int i = 0; i < scanner.size(); i++) {
+            String tk = scanner.get(i);
 
-            if (scanner.get(i).equals("-") && scanner.get(i + 1).equals("-")) {
-                scanner.set(i, "+");
-                scanner.subList(i + 1, i + 2).clear();
-                i -= 1;
-            }//end if
-            if (scanner.get(i).equals("-") && scanner.get(i + 1).equals("+")) {
-                scanner.set(i, "-");
-                scanner.subList(i + 1, i + 2).clear();
-                i -= 1;
-            }//end else if
-            if (scanner.get(i).equals("+") && scanner.get(i + 1).equals("-")) {
-                scanner.set(i, "-");
-                scanner.subList(i + 1, i + 2).clear();
-                i -= 1;
-            }//end else if
-            if (scanner.get(i).equals("+") && scanner.get(i + 1).equals("+")) {
-                scanner.set(i, "+");
-                scanner.subList(i + 1, i + 2).clear();
-                i -= 1;
-            }//end else if
+            if (isSign(tk)) {
+                // 1. Squash consecutive signs: e.g., --+- becomes -
+                int signMultiplier = 1;
+                int j = i;
+                while (j < scanner.size() && isSign(scanner.get(j))) {
+                    if (scanner.get(j).equals("-")) {
+                        signMultiplier *= -1;
+                    }
+                    j++;
+                }
 
-        }//end for loop
+                String squashedSign = (signMultiplier == 1) ? "+" : "-";
 
-    }// end method
+                // 2. Check Context: Is there a number immediately after the sign chain?
+                boolean hasNextNumber = (j < scanner.size() && isNumber(scanner.get(j)));
+
+                // 3. Check if we are in a 'unary' position 
+                // (Start of list, after '(', or after an operator)
+                boolean isUnaryPos = (result.isEmpty()
+                        || result.get(result.size() - 1).equals("(")
+                        || isOperator(result.get(result.size() - 1)));
+
+                if (isUnaryPos && hasNextNumber) {
+                    // MERGE: Turn ["-", "-", "12"] into ["12.0"] or ["-", "-", "3"] into ["-3.0"]
+                    double val = Double.parseDouble(scanner.get(j));
+                    if (signMultiplier == -1) {
+                        val *= -1;
+                    }
+
+                    result.add(String.valueOf(val));
+                    i = j; // Advance main loop past the signs and the number
+                } else {
+                    // LEAVE AS OPERATOR: It's either binary (5 - 3) 
+                    // or unary before a bracket -(... ) which can't be merged yet
+                    result.add(squashedSign);
+                    i = j - 1; // Advance main loop past the extra signs
+                }
+                continue;
+            }
+
+            // Add non-sign tokens (numbers, brackets, special operators) as they are
+            result.add(tk);
+        }
+        return result;
+    }
+    
+    
+    
+    public static final List<String> plusAndMinusStringHandlerHelper(List<String> scanner) {
+    List<String> result = new ArrayList<>();
+    
+    for (int i = 0; i < scanner.size(); i++) {
+        String tk = scanner.get(i);
+
+        // --- 1. HANDLE SIGN CHAINS (+, -, ---, etc) ---
+        if (isSign(tk)) {
+            int signMultiplier = 1;
+            int j = i;
+            // Squash: --+- -> -
+            while (j < scanner.size() && isSign(scanner.get(j))) {
+                if (scanner.get(j).equals("-")) signMultiplier *= -1;
+                j++;
+            }
+            
+            // CONTEXT CHECK: Is this sign at the start, after a bracket, or after an operator?
+            boolean isUnaryPos = result.isEmpty() || 
+                                 result.get(result.size() - 1).equals("(") || 
+                                 isOperator(result.get(result.size() - 1));
+
+            if (isUnaryPos) {
+                // Peek at what follows the sign chain
+                if (j < scanner.size() && isNumber(scanner.get(j))) {
+                    // Case: -5 -> Merge into one token "-5.0"
+                    double val = Double.parseDouble(scanner.get(j));
+                    result.add(String.valueOf(val * signMultiplier));
+                    i = j; 
+                } else {
+                    // Case: -sin(x) or -(5+2) -> Convert to -1 * ...
+                    if (signMultiplier == -1) {
+                        result.add("-1");
+                        result.add("*");
+                    }
+                    // If it's a unary +, we just discard it as it's mathematically neutral
+                    i = j - 1;
+                }
+            } else {
+                // Binary case: It's an addition or subtraction operator (e.g., 5 - 3)
+                result.add(signMultiplier == 1 ? "+" : "-");
+                i = j - 1;
+            }
+            continue;
+        }
+
+        // --- 2. REDUNDANT "* 1" or "/ 1" REMOVAL ---
+        if ((tk.equals("*") || tk.equals("/")) && i + 1 < scanner.size() && isExactlyOne(scanner.get(i + 1))) {
+            // Only remove if the previous token is "operand-like" (number, variable, or closing bracket/factorial)
+            if (!result.isEmpty() && isOperandLike(result.get(result.size() - 1))) {
+                i++; // Skip the operator and the '1'
+                continue;
+            }
+        }
+
+        result.add(tk);
+    }
+    return result;
+}
+
+// --- HELPER METHODS ---
+
+private static boolean isOperator(String s) {
+    // These are tokens that, if they appear BEFORE a sign, make that sign UNARY
+    return s.equals("+") || s.equals("-") || s.equals("*") || s.equals("/") || 
+           s.equals("^") || s.equals("%") || s.equals("Р") || s.equals("Č") || 
+           s.equals("(") || s.equals("²") || s.equals("³");
+}
+
+private static boolean isOperandLike(String s) {
+    // These are tokens that can be followed by a redundant * 1
+    // Includes numbers, variables (x), closing brackets, and factorials
+    return isNumber(s) || s.equals(")") || s.equals("!") || s.equals("x") || s.equals("y");
+}
+
+private static boolean isSign(String s) {
+    return s.equals("+") || s.equals("-");
+}
+
+private static boolean isExactlyOne(String s) {
+    try {
+        return Double.parseDouble(s) == 1.0;
+    } catch (Exception e) {
+        return false;
+    }
+}
+ 
+
+    
 
     /**
      * Utility method,more popularly used as a scanner into mathematical tokens
@@ -1185,6 +1197,7 @@ public class MathScanner {
 
             if (!Variable.isVariableString(scanner.get(i)) && !Operator.isOperatorString(scanner.get(i)) && !validNumber(scanner.get(i))
                     && !Method.isMethodName(scanner.get(i))) {
+                System.out.println("scanner-debug-000: " + scanner);
                 errorList.add("Syntax Error! Strange Object Found: " + scanner.get(i));
                 parser_Result = ParserResult.STRANGE_INPUT;
                 setRunnable(false);
@@ -1192,13 +1205,13 @@ public class MathScanner {
             if (MathExpression.isAutoInitOn()) {
                 String tk = scanner.get(i);
                 if (i + 1 < sz && Variable.isVariableString(tk) && !isOpeningBracket(scanner.get(i + 1)) && !varMan.contains(tk)
-                        && !FunctionManager.contains(tk) && !Method.isDefinedMethod(tk)) {
+                        && !FunctionManager.containsAny(tk) && !Method.isDefinedMethod(tk)) {
                     varMan.parseCommand(tk + "=0.0;");
                 }//end if
             }//end if
             else {
                 if (i + 1 < sz && Variable.isVariableString(scanner.get(i)) && !isOpeningBracket(scanner.get(i + 1)) && !varMan.contains(scanner.get(i))
-                        && !FunctionManager.contains(scanner.get(i))) {
+                        && !FunctionManager.containsAny(scanner.get(i))) {
                     errorList.add(" Unknown Variable: " + scanner.get(i) + "\n Please Declare And Initialize This Variable Before Using It.\n"
                             + "Use The Command, \'variableName=value\' To Accomplish This.");
                     parser_Result = ParserResult.STRANGE_INPUT;
@@ -1289,8 +1302,8 @@ public class MathScanner {
                     String found = i + 1 < scanner.size() ? scanner.get(i + 1) : "end of expression";
                     throw new InputMismatchException("Syntax Error occurred while scanning math expression.\n"
                             + "Reason: The @ symbol is used exclusively to create functions. Expected: `(`, found: `" + found + "`");
-                } 
-                i = processOneAnonymousFunction(scanner, i); 
+                }
+                i = processOneAnonymousFunction(scanner, i);
             } else {
                 i++;
             }
@@ -1303,7 +1316,7 @@ public class MathScanner {
      * index to continue scanning from after replacement.
      */
     private static int processOneAnonymousFunction(List<String> scanner, int indexOfAt) {
-     
+
         for (int i = indexOfAt; i < scanner.size(); i++) {
             String token = scanner.get(i);
             if (isOpeningBracket(token)) {
@@ -1338,7 +1351,6 @@ public class MathScanner {
         scanner.add(start, f.getName());
     }
 
- 
     /**
      * This technique will rid tokens of offending brackets up to the last
      * bracket. It assumes that it knows the rules that allow one to remove all
@@ -1414,7 +1426,6 @@ public class MathScanner {
      *
      */
     public static void extractFunctionStringFromExpressionForMatrixMethods(List<String> list) {
-        
 
         int sz = list.size();
         /**
@@ -1423,15 +1434,15 @@ public class MathScanner {
          */
         if (list.indexOf("(") == list.lastIndexOf("(") && list.indexOf(")") == list.lastIndexOf(")")) {
             //det,(,A,) or matrix_mul,(,A, , ,B,)
-            
-            if (sz == 4 || sz == 5) {
+//System.out.println("list: "+list);
+            if (sz == 4 || sz == 6) {
                 if (Method.isMatrixMethod(list.get(0)) && isOpeningBracket(list.get(1)) && Method.isUserDefinedFunction(list.get(2))) {
-                  if (sz == 4 && isClosingBracket(list.get(3))) {
-                        Method.run(list, Declarations.degGradRadFromVariable());
-                   }else if (sz == 5 && ( isComma(list.get(3)) && Method.isUserDefinedFunction(list.get(4)) || isNumber(list.get(4)) || isVariableString(list.get(4))) && isClosingBracket(list.get(5))) {
-                        Method.run(list, Declarations.degGradRadFromVariable());
+                    if (sz == 4 && isClosingBracket(list.get(3))) {
+                        // Method.run(list, Declarations.degGradRadFromVariable());
+                    } else if (sz == 6 && (isComma(list.get(3)) && Method.isUserDefinedFunction(list.get(4)) || isNumber(list.get(4)) || isVariableString(list.get(4))) && isClosingBracket(list.get(5))) {
+                        //   Method.run(list, Declarations.degGradRadFromVariable());
                     }
-                } 
+                }
             } /**
              * There remains only one open and close bracket, but the parameters
              * have not yet been properly ordered! Most of the matrix methods
@@ -1458,7 +1469,6 @@ public class MathScanner {
                         else if (FunctionManager.contains(token)) {
                             List l = list.subList(open, i + 1);
                             int siz = l.size();
-
                             MathExpression me = new MathExpression(LISTS.createStringFrom(list, open, i + 1));
                             String val = me.solve();
                             l.clear();
@@ -1469,7 +1479,7 @@ public class MathScanner {
                                 case ALGEBRAIC_EXPRESSION:
                                     l.add(me.getReturnObjectName());
                                     break;
-                                case LIST:
+                                case VECTOR:
                                     l.add(me.getReturnObjectName());
                                     break;
                                 case NUMBER:
@@ -1478,6 +1488,7 @@ public class MathScanner {
                                 default:
                                     break;
                             }//end switch
+
                             i = i - (siz - l.size());
                         } else if (Method.isMethodName(token) || isUnaryPreOperator(token) || isNumber(token)) {
                             List<String> l = list.subList(open - 1, i + 1);
@@ -1501,7 +1512,6 @@ public class MathScanner {
                             } else {
                                 input = LISTS.createStringFrom(list, open - 1, i + 1);
                             }
-
                             MathExpression me = new MathExpression(input);
                             String val = me.solve();
                             l.clear();
@@ -1512,7 +1522,7 @@ public class MathScanner {
                                 case ALGEBRAIC_EXPRESSION:
                                     l.add(me.getReturnObjectName());
                                     break;
-                                case LIST:
+                                case VECTOR:
                                     l.add(me.getReturnObjectName());
                                     break;
                                 case NUMBER:
@@ -1556,9 +1566,9 @@ public class MathScanner {
             //det,(,A,) or matrix_mul,(,A,B,)
             if (sz == 4 || sz == 5) {
                 if (Method.isMatrixMethod(list.get(0)) && isOpeningBracket(list.get(1)) && Method.isUserDefinedFunction(list.get(2))) {
-                  if (sz == 4 && isClosingBracket(list.get(3))) {
+                    if (sz == 4 && isClosingBracket(list.get(3))) {
                         Method.run(list, Declarations.degGradRadFromVariable());
-                   }else if (sz == 5 && (Method.isUserDefinedFunction(list.get(3)) || isNumber(list.get(3)) || isVariableString(list.get(3))) && isClosingBracket(list.get(4))) {
+                    } else if (sz == 5 && (Method.isUserDefinedFunction(list.get(3)) || isNumber(list.get(3)) || isVariableString(list.get(3))) && isClosingBracket(list.get(4))) {
                         Method.run(list, Declarations.degGradRadFromVariable());
                     }
                 }
@@ -1582,7 +1592,7 @@ public class MathScanner {
                         if (Method.isMatrixMethod(token)) {
                             List l = list.subList(open - 1, i + 1);
                             int siz = l.size();
-                            extractFunctionStringFromExpressionForMatrixMethods1(l);
+                            extractFunctionStringFromExpressionForMatrixMethods(l);
 
                             i = i - (siz - l.size());
                         } //Most likely you have gotten to the first parameter...ignore it and process the bracket
@@ -1600,7 +1610,7 @@ public class MathScanner {
                                 case ALGEBRAIC_EXPRESSION:
                                     l.add(me.getReturnObjectName());
                                     break;
-                                case LIST:
+                                case VECTOR:
                                     l.add(me.getReturnObjectName());
                                     break;
                                 case NUMBER:
@@ -1643,7 +1653,7 @@ public class MathScanner {
                                 case ALGEBRAIC_EXPRESSION:
                                     l.add(me.getReturnObjectName());
                                     break;
-                                case LIST:
+                                case VECTOR:
                                     l.add(me.getReturnObjectName());
                                     break;
                                 case NUMBER:
@@ -1668,23 +1678,46 @@ public class MathScanner {
     public void refixCommas() {
         scanner.replaceAll((String t) -> isComma(t) ? this.commaAlias : t);
     }
-   
+
     /**
      *
      * @param args Command line args (((2+3)^2))!-------((25))!-------
      */
     public static void main(String args[]) {//tester method for STRING methods
- 
+
+        
+        String s4 = "((cos(x)*1)+(-sin(x)*1))";
+             System.out.println(new MathScanner(s4).scanner());
         //String s5 = "sum(3,4,1,6,7,8,4,32,1)";
         String s5 = "--+-12+2^3+4%2-5-6-7*8+5!+---2E-9-0.00002+70000/32.34^8-19+9Р3+6Č5+2²+5³-3-¹/2.53+3E-12+2*-----3-(-4+32)";
- 
-        //String s5 = "sum(sin(3),cos(3),ln(345),sort(3,-4,5,-6,13,2,4,5,sum(3,4,5,6,9,12,23), sum(3,4,8,9,2000)),12000, mode(3,2,2,1), mode(1,5,7,7,1,1,7))";
+        System.out.println(new MathScanner(s5).scanner());
+        
 
-        MathScanner sc = new MathScanner(s5);
-        System.out.println(sc.scanner(new VariableManager()));
- 
+        //String s5 = "sum(sin(3),cos(3),ln(345),sort(3,-4,5,-6,13,2,4,5,sum(3,4,5,6,9,12,23), sum(3,4,8,9,2000)),12000, mode(3,2,2,1), mode(1,5,7,7,1,1,7))";
+        FunctionManager.add("M=@(4,5)(3,1,2,4,5,9,2,3,12,7,12,8,7,-2,3,15,4,-5,3,8)");
+        System.out.println("FUNCTIONS: " + FunctionManager.FUNCTIONS);
+
+        String s6 = "2a-3b";
+        String s7 = "2*M-3*M";
+        String s8 = "linear_sys(M)";
+        String s9 = "linear_sys(@(4,5)(3,1,2,4,5,9,2,3,12,7,12,8,7,-2,3,15,4,-5,3,8))";
+        String s10 = "diff(@(x)sin(x),2,3)";
+        String s11 = "root(@(x)sin(x),2,3)";
+        String s12 = "root(@(x)sin(x),sin(2)-cos(1),13*(2+3))";
+
+        MathScanner sc0 = new MathScanner(s8);
+        System.out.println("*************************" + sc0.scanner(new VariableManager()));
+
+        MathScanner sc = new MathScanner(s9);
+        System.out.println("*************************" + sc.scanner(new VariableManager()));
+        MathScanner sc1 = new MathScanner(s10);
+        System.out.println("*************************" + sc1.scanner(new VariableManager()));
+        MathScanner sc2 = new MathScanner(s11);
+        System.out.println("*************************" + sc2.scanner(new VariableManager()));
+        MathScanner sc3 = new MathScanner(s12);
+        System.out.println("*************************" + sc3.scanner(new VariableManager()));
+
         System.out.println(FunctionManager.FUNCTIONS);
- 
 
     }//end method main
 }

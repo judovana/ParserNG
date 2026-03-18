@@ -266,6 +266,14 @@ public class Method {
         return op.equals(PRINT);
     }
 
+    public static boolean isPureStatsMethod(String name){
+        for(String s: getStatsMethods()){
+            if(s.equals(name)){
+                return true;
+            }
+        }
+        return false;
+    }
     /**
      * @param op the String to check
      * @return true if the operator is a statistical operator..basically any
@@ -361,7 +369,7 @@ public class Method {
     }
 
     /**
-     *
+     * @param op 
      * @return true if the Function name has been defined by the user in the
      * user's workspace.
      */
@@ -707,13 +715,10 @@ public class Method {
                 return list;
             } else if (name.equals(MATRIX_EIGENPOLY)) {
                 Set set = new Set(list);
-                String poly = set.eigenPoly();
-
-                list.clear();
-                String ref = FunctionManager.ANON_PREFIX + (FunctionManager.ANON_CURSOR.get() + 1);
-
-                Function.storeAnonymousFunction("@(" + Matrix.lambda + ")" + poly);
-                list.add(ref);
+                String poly = set.eigenPoly(); 
+                list.clear(); 
+                Function fn = Function.storeAnonymousFunction("@(" + Matrix.lambda + ")" + poly);
+                list.add(fn.getName());
                 return list;
             } else if (name.equals(MATRIX_EIGENVALUES)) {
                 Set set = new Set(list);

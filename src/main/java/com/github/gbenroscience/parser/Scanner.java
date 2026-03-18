@@ -28,8 +28,13 @@ public class Scanner {
     private final String input;
     private final boolean includeTokensInOutput;
     private final Map<Character, List<String>> tokensByFirstChar;
-/**
+
+    /**
      * Standard Constructor
+     *
+     * @param input
+     * @param includeTokensInOutput
+     * @param splitterTokens
      */
     public Scanner(String input, boolean includeTokensInOutput, String... splitterTokens) {
         this(input, includeTokensInOutput, combine(splitterTokens));
@@ -37,6 +42,11 @@ public class Scanner {
 
     /**
      * Constructor for two arrays/varargs
+     *
+     * @param input
+     * @param includeTokensInOutput
+     * @param moreTokens
+     * @param tokens
      */
     public Scanner(String input, boolean includeTokensInOutput, String[] moreTokens, String... tokens) {
         this(input, includeTokensInOutput, combine(moreTokens, tokens));
@@ -44,13 +54,18 @@ public class Scanner {
 
     /**
      * Constructor for three arrays/varargs
+     *
+     * @param input
+     * @param includeTokensInOutput
+     * @param splitterTokens
+     * @param splitterTokens1
+     * @param splitterTokens2
      */
     public Scanner(String input, boolean includeTokensInOutput, String[] splitterTokens, String[] splitterTokens1, String... splitterTokens2) {
         this(input, includeTokensInOutput, combine(splitterTokens, splitterTokens1, splitterTokens2));
     }
 
     // --- Private logic ---
-
     /**
      * Internal Master Constructor
      */
@@ -83,7 +98,8 @@ public class Scanner {
 
         this.tokensByFirstChar = Collections.unmodifiableMap(map);
     }
-     private static List<String> combine(String[]... arrays) {
+
+    private static List<String> combine(String[]... arrays) {
         List<String> combined = new ArrayList<>();
         for (String[] array : arrays) {
             if (array != null) {
@@ -92,7 +108,6 @@ public class Scanner {
         }
         return combined;
     }
-  
 
     public List<String> scan() {
         List<String> output = new ArrayList<>();

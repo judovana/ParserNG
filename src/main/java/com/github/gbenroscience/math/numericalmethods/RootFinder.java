@@ -108,7 +108,8 @@ public class RootFinder {
      * The number of iterations with any of the methods before switching to
      * another method
      */
-    private int iterations = 2000;
+    private int iterations = DEFAULT_ITERATIONS;
+    public static final int DEFAULT_ITERATIONS = 2000;
 
     /**
      *
@@ -328,6 +329,14 @@ public class RootFinder {
         //[root, (, F, ,, 2, )]
         //[root, (, F, ,, 2, ,, 3, )]
         //[root, (, F, ,, 2, ,, 3, ,, 10000, )]
+        /**
+         * root(@(x)sin(x)+cos(x),2,3)
+         * root(anon1,2,3)
+         * root(@(x)sin(x)+cos(x),sin(12), exp(3^0.15))
+         * root(anon2,sin(12), exp(3^0.15))
+         * 
+         * 
+         */
 
         String methodName = list.get(0);
         String args1, args2, args3;
@@ -525,7 +534,7 @@ public class RootFinder {
             String variable = getVariable();
 
             //System.err.println(" function to differentiate: "+function.expressionForm());
-            String gradFunxn = Derivative.eval("diff(" + function.expressionForm() + ",1)");
+            MathExpression.EvalResult gradFunxn = Derivative.eval("diff(" + function.expressionForm() + ",1)");
 
             //System.err.println("gradient function is "+gradFunxn);
             Function gradFunc = new Function("@(" + variable + ")" + gradFunxn);

@@ -135,9 +135,9 @@ class MathExpressionTest {
     void moreJunkExamples() {
 
         Function f = FunctionManager.add("f(x,y) = x - x/y");
-        f.updateArgs(2, 3);
+        f.updateArgs(2, 3);System.out.println("f="+f);
         double r = f.calc();
-        Assertions.assertEquals((double) 2 - ((double) 2 / (double) 3), r);
+        Assertions.assertEquals(2.0 - 2.0/3.0, r);
         int iterations = 10000;
         long start = System.nanoTime();
         f.updateArgs(2, 3);
@@ -157,7 +157,10 @@ class MathExpressionTest {
         //some other tests could have set them. Eg
         //LogicalExpressionTest variablesDoNotWorks and variablestWorks
         VariableManager.clearVariables();
+        
+     
         MathExpression linear = new MathExpression("M=@(3,3)(3,4,1,2,4,7,9,1,-2);N=@(3,3)(4,1,8,2,1,3,5,1,9);C=matrix_sub(M,N);C;");
+      
         String ls = linear.solve();
         if (print) {
             System.out.println("soln: " + ls);
@@ -167,19 +170,20 @@ class MathExpressionTest {
                 + "    0.0  ,    3.0  ,    4.0            \n"
                 + "    4.0  ,    0.0  ,  -11.0            \n", FunctionManager.lookUp(ls).getMatrix().toString());
 
-        MathExpression expr = new MathExpression("tri_mat(M)");
-        Matrix m = FunctionManager.lookUp(expr.solve()).getMatrix();
-        System.out.println(m.toString());
+        MathExpression expr = new MathExpression("tri_mat(M)");   
+        Matrix m =expr.solveGeneric().matrix; 
+      
         if (print) {
             System.out.println(m.toString());
         }
         Function f = new Function("fExpr=@(3,3)(1.0,1.3333333333333333,0.3333333333333333,0.0,1.0,4.749999999999999,0.0,0.0,1.0)");
         FunctionManager.add(f);
+        //System.out.println("MATRIX: "+f.getMatrix()+",\nm="+m+", f="+f);
         Assertions.assertTrue(f.getMatrix().equals(m));
         FunctionManager.delete("fExpr");
 
-        MathExpression expr2 = new MathExpression("echelon(M)");
-        Matrix echelon = FunctionManager.lookUp(expr2.solve()).getMatrix();//expr2.solveGeneric().matrix;
+        MathExpression expr2 = new MathExpression("echelon(M)"); 
+           Matrix echelon = expr2.solveGeneric().matrix; 
         if (print) {
             System.out.println(echelon);
         }
@@ -270,12 +274,15 @@ class MathExpressionTest {
          3 4  3 4   13 20
          1 2  1 2   5  8                 -22
          */
+        FunctionManager.clear();
         FunctionManager.add("M=@(3,3)(3,4,1,2,4,7,9,1,-2)");
         FunctionManager.add("M1=@(2,2)(3,4,1,2)");
         FunctionManager.add("M2=@(2,2)(3,4,1,2)");
 
         FunctionManager.add("N=@(x)(sin(x))");
         FunctionManager.add("r=@(x)(ln(sin(x)))");
+        
+        System.out.println("M lookup: "+ FunctionManager.lookUp("M").toString());
 
         //WORK ON sum(3,-2sin(3)^2,4,5) error //matrix_mul(@(2,2)(3,1,4,2),@(2,2)(2,-9,-4,3))...sum(3,2sin(4),5,-3cos(2*sin(5)),4,1,3)
         //matrix_mul(invert(@(2,2)(3,1,4,2)),@(2,2)(2,-9,-4,3)).............matrix_mul(invert(@(2,2)(3,1,4,2)),@(2,2)(2,-9,-4,3))

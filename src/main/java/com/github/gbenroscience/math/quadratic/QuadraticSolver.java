@@ -3,8 +3,9 @@ package com.github.gbenroscience.math.quadratic;
 import static java.lang.Math.*;
 
 /**
- * Solves quadratic equations of the form ax² + bx + c = 0.
- * Includes numerical stability for real roots and correct complex conjugate pairs.
+ * Solves quadratic equations of the form ax² + bx + c = 0. Includes numerical
+ * stability for real roots and correct complex conjugate pairs.
+ *
  * * @author GBEMIRO
  */
 public class QuadraticSolver {
@@ -15,13 +16,11 @@ public class QuadraticSolver {
     private boolean complex;
 
     /**
-     * solutions[0], solutions[1]: Real/Imag parts of root 1
-     * solutions[2], solutions[3]: Real/Imag parts of root 2
-     * solutions[4]: 0 for Real, 1 for Complex
+     * solutions[0], solutions[1]: Real/Imag parts of root 1 solutions[2],
+     * solutions[3]: Real/Imag parts of root 2 solutions[4]: 0 for Real, 1 for
+     * Complex
      */
     public final double[] solutions = new double[5];
-    public final double[] complexCoords1 = new double[2];
-    public final double[] complexCoords2 = new double[2];
 
     public QuadraticSolver(double a, double b, double c) {
         this.a = a;
@@ -30,12 +29,32 @@ public class QuadraticSolver {
         solution();
     }
 
-    public void setA(double a) { this.a = a; solution(); }
-    public double getA() { return a; }
-    public void setB(double b) { this.b = b; solution(); }
-    public double getB() { return b; }
-    public void setC(double c) { this.c = c; solution(); }
-    public double getC() { return c; }
+    public void setA(double a) {
+        this.a = a;
+        solution();
+    }
+
+    public double getA() {
+        return a;
+    }
+
+    public void setB(double b) {
+        this.b = b;
+        solution();
+    }
+
+    public double getB() {
+        return b;
+    }
+
+    public void setC(double c) {
+        this.c = c;
+        solution();
+    }
+
+    public double getC() {
+        return c;
+    }
 
     public final boolean isComplex() {
         return complex;
@@ -46,13 +65,13 @@ public class QuadraticSolver {
      */
     public String solve() {
         if (!complex) {
-            return solutions[0] + ", " + solutions[1];
+            // Return both real roots
+            return solutions[0] + ", " + solutions[2];
         } else {
-            // Using abs() on the imaginary part ensures the string 
-            // format "real +/- imag i" is always preserved.
-            double imagMagnitude = abs(solutions[1]);
-            return solutions[0] + " + " + imagMagnitude + " i,\n"
-                 + solutions[2] + " - " + imagMagnitude + " i";
+            double real = solutions[0];
+            double imag = abs(solutions[1]);
+            return real + " + " + imag + " i,\n"
+                    + real + " - " + imag + " i";
         }
     }
 
@@ -60,58 +79,69 @@ public class QuadraticSolver {
      * Returns the solutions as an array of strings.
      */
     public String[] soln() {
-        String[] result = new String[2];
-        if (!complex) {
-            result[0] = String.valueOf(solutions[0]);
-            result[1] = String.valueOf(solutions[1]);
+        if (complex) {
+            double real = solutions[0];
+            double imag = abs(solutions[1]);
+            return new String[]{
+                real + " + " + imag + " i",
+                real + " - " + imag + " i"
+            };
         } else {
-            double imagMagnitude = abs(solutions[1]);
-            result[0] = solutions[0] + " + " + imagMagnitude + " i";
-            result[1] = solutions[2] + " - " + imagMagnitude + " i";
+            String r1 = Double.isNaN(solutions[0]) ? "No Solution" : String.valueOf(solutions[0]);
+            String r2 = Double.isNaN(solutions[2]) ? "" : String.valueOf(solutions[2]);
+            return new String[]{r1, r2};
         }
-        return result;
     }
 
     /**
      * Internal solver logic.
      */
     final void solution() {
+        // Safety check for linear case: ax + c = 0
+        if (abs(a) < 1e-18) {
+            this.complex = false;
+            if (abs(b) > 1e-18) {
+                // b is now the coefficient of x, c is constant
+                double root = -c / b;
+                solutions[0] = root;
+                solutions[1] = 0.0;
+                solutions[2] = Double.NaN; // No second root
+                solutions[3] = 0.0;
+            } else {
+                // Degenerate case: c = 0
+                solutions[0] = Double.NaN;
+                solutions[1] = 0.0;
+                solutions[2] = Double.NaN;
+                solutions[3] = 0.0;
+            }
+            solutions[4] = 0;
+            return;
+        }
+
         double discriminant = b * b - 4 * a * c;
 
         if (discriminant >= 0) {
             this.complex = false;
             double sqrtD = sqrt(discriminant);
 
-            // Numerically stable quadratic formula to prevent precision loss
+            // Stable calculation of q
             double q = -0.5 * (b + copySign(sqrtD, b));
 
-            if (q != 0) {
-                solutions[0] = q / a;
-                solutions[1] = c / q;
-            } else {
-                // Linear case: ax + c = 0
-                solutions[0] = (a != 0) ? -c / a : Double.NaN;
-                solutions[1] = Double.NaN;
-            }
-            
-            complexCoords1[0] = solutions[0]; complexCoords1[1] = 0;
-            complexCoords2[0] = solutions[1]; complexCoords2[1] = 0;
+            // Root 1 and Root 2 interleaved [R1, I1, R2, I2]
+            solutions[0] = q / a;
+            solutions[1] = 0.0;
+            solutions[2] = c / q;
+            solutions[3] = 0.0;
             solutions[4] = 0;
-            
         } else {
             this.complex = true;
             double realPart = -b / (2 * a);
-            // Magnitude of imaginary part
             double imagPart = sqrt(-discriminant) / (2 * a);
 
-            // Store parts symmetrically
             solutions[0] = realPart;
             solutions[1] = imagPart;
             solutions[2] = realPart;
-            solutions[3] = -imagPart; 
-
-            complexCoords1[0] = realPart; complexCoords1[1] = imagPart;
-            complexCoords2[0] = realPart; complexCoords2[1] = -imagPart;
+            solutions[3] = -imagPart;
             solutions[4] = 1;
         }
     }

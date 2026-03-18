@@ -33,8 +33,8 @@ public class VariableManager {
     }
 
     /**
-     * Parses commands used to insert and update Variables loaded into the
-     * VARIABLES attribute of objects of this class.
+     * Parses commands used to insert and make Variables loaded into the
+VARIABLES attribute of objects of this class.
      */
     private CommandInterpreter commandParser;
 

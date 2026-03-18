@@ -82,34 +82,11 @@ public class NumericalDerivative {
      * @return the numerical value of the
      * derivative very near the given point.
      */
-    public double findDerivativeByPolynomialExpander(){
-        FunctionExpander expander = new FunctionExpander(xPoint-0.0001, xPoint+0.1, 20,FunctionExpander.DOUBLE_PRECISION, function );
-        MathExpression polyDerivative = new MathExpression( expander.getPolynomialDerivative() );
- 
-        polyDerivative.updateArgs(xPoint);
-        return polyDerivative.solveGeneric().scalar;
+    public double findDerivativeChebyshev(){
+        FunctionExpander expander = new FunctionExpander(function, xPoint-0.0001, xPoint+0.1, 1e-16 ); 
+        return expander.derivative(xPoint);
     }
-
-
-    /**
-     * @param dx The infinitesimal used to compute the
-     * numerical derivative at the given xPoint
-     * on the function.
-     * @return the numerical value of the
-     * derivative very near the given point.
-     */
-    public double findDerivativeByLimit(double dx){
-        MathExpression func = function.getMathExpression();
-        func.updateArgs(xPoint+dx);
-        double upper = func.solveGeneric().scalar;
-
-        func.updateArgs(xPoint-dx);
-        double lower = func.solveGeneric().scalar;
-
-        return ( upper -  lower )/(2.0*dx);
-    }//end method
-
-
+    
     /**
      * Analyzes the expression and extracts the Function string from it.
      * @param expression The expression to be analyzed.
@@ -246,16 +223,13 @@ public class NumericalDerivative {
         System.out.println("expression = "+der.function.getMathExpression().getExpression());
         System.out.println("dependent variable = "+der.function.getDependentVariable());
         System.out.println("independent variable = "+der.function.getIndependentVariables());
-        System.out.println("Derivative by polynomial expander approx: "+der.findDerivativeByPolynomialExpander());
-        System.out.println("Derivative by limit approx: "+der.findDerivativeByLimit(2.0E-6));
+        System.out.println("Derivative by polynomial expander approx: "+der.findDerivativeChebyshev()); 
         try {
-            String expr = Derivative.eval( "diff(F,"+evalPoint+")");
-            System.out.println("Absolute derivative: "+expr);
+            MathExpression.EvalResult expr = Derivative.eval( "diff(F,"+evalPoint+",1)");
+            System.out.println("Absolute derivative: "+expr.toString());
         } catch (Exception ex) {
             Logger.getLogger(NumericalDerivative.class.getName()).log(Level.SEVERE, null, ex);
         }
-
-
     }
 
 

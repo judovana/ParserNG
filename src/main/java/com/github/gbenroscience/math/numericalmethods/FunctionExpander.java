@@ -1,527 +1,631 @@
 /*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+ * Copyright 2026 GBEMIRO.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.github.gbenroscience.math.numericalmethods;
 
 import com.github.gbenroscience.parser.Function;
-import java.util.InputMismatchException;
-import com.github.gbenroscience.parser.MathExpression;
-import com.github.gbenroscience.parser.MathScanner;
-import static com.github.gbenroscience.parser.Operator.*;
-import java.math.BigDecimal;
+import java.lang.invoke.MethodHandle;
 import java.util.ArrayList;
-
-import com.github.gbenroscience.math.matrix.expressParser.Matrix;
-import com.github.gbenroscience.math.matrix.expressParser.PrecisionMatrix;
-import static java.lang.Math.*;
-import com.github.gbenroscience.math.differentialcalculus.Formula;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
+ * Uses Chebyshev Polynomials to expand, evaluate, differentiate and integrate
+ * functions
  *
- * Objects of this class take a function as input and convert it into its
- * polynomial form.
- *
- *
- * @author JIBOYE Oluwagbemiro Olaoluwa
+ * @author GBEMIRO
  */
 public class FunctionExpander {
 
-    /**
-     * The degree of the polynomial. It determines how accurately the polynomial
-     * will describe the function.
-     *
-     * The unit step along x will then be (xUpper - xLower)/polySize
-     *
-     */
-    private int degree;
+    private final double[] coefficients;
+    private double lower, upper;
+    Function function;
 
-    /**
-     * The upper boundary value of x.
-     */
-    private double xUpper;
-    /**
-     * The lower boundary value of x.
-     */
-    private double xLower;
+    public FunctionExpander(MethodHandle function, double lower, double upper, int degree) throws Throwable {
+        this.lower = lower;
+        this.upper = upper;
+        this.coefficients = computeCoefficients(function, degree);
+    }
 
-    /**
-     * The function string.
-     */
-    private Function function;
-    /**
-     * The polynomial generated.
-     */
-    private String polynomial;
-    /**
-     * Uses the precision of double numbers to expand the function. This is
-     * about 16 places of decimal.
-     */
-    public static final int DOUBLE_PRECISION = 1;
-    /**
-     * Uses the precision of double numbers to expand the function. This is
-     * about 33 places of decimal.
-     * <br><b color='red'>CAUTION!!!!</b><br>
-     * This should be used only if the algorithm of the parser that expands the
-     * function has this accuracy.
-     */
-    public static final int BIGDECIMAL_PRECISION = 2;
+    public FunctionExpander(MethodHandle function, double lower, double upper, double tolerance) throws Throwable {
+        this.lower = lower;
+        this.upper = upper;
+        this.coefficients = computeAdaptiveCoefficients(function, tolerance);
+    }
 
-    /**
-     *
-     * Objects of this class will employ this constructor in creating the
-     * polynomial of best fit for the input function between the given boundary
-     * values of x. The degree parameter is the highest power of the polynomial
-     * formed.
-     *
-     * Creates a new object of this class and initializes it with the following
-     * attributes:
-     *
-     * @param xLower The lower boundary value of x.
-     * @pparam xUpper The upper boundary value of x.
-     * @param degree The degree of the polynomial. It determines how accurately
-     * the polynomial will describe the function. The unit step along x will
-     * then be (xUpper - xLower)/polySize
-     * @param precision The precision mode to employ in expanding the Function.
-     * @param function The function string.
-     */
-    public FunctionExpander(double xLower, double xUpper, int degree, int precision, Function function) {
-        this.xLower = xLower;
-        this.xUpper = xUpper;
-        this.degree = degree;
+    // Fixed Degree (For manual control)
+    public FunctionExpander(Function function, double lower, double upper, int degree) {
         this.function = function;
-        buildPolynomial(precision);
+        this.lower = lower;
+        this.upper = upper;
+        this.coefficients = computeCoefficients(function, degree);
     }
 
-    /**
-     *
-     * @param precision The precision mode to employ in expanding the Function.
-     * @param expression An expression containing information about the function
-     * whose polynomial expansion is to be deduced and the limits of expansion.
-     * For example: function,2,4,20....means expand the function between
-     * horizontal coordinates 2 and 3 as a polynomial up to degree 20.. Direct
-     * examples would be: sin(x+1),3,4,20 cos(sinh(x-2/tan9x)),4,4.32,32 and so
-     * on.
-     *
-     * F(x)=var x=3;3x; poly(F,4,4.32,32)
-     *
-     *
-     */
-    public FunctionExpander(String expression, int precision) {
-        setFunction(expression, precision);
+// Adaptive Degree (The "Turbo" Auto-Pilot)
+    public FunctionExpander(Function function, double lower, double upper, double tolerance) {
+        this.lower = lower;
+        this.upper = upper;
+        this.coefficients = computeAdaptiveCoefficients(function, tolerance);
     }
 
-    /**
-     * @param precision The precision mode to employ in expanding the Function.
-     * @param expression An expression containing information about the function
-     * whose polynomial expansion is to be deduced and the limits of expansion.
-     * For example: function,2,4,20....means expand the function between
-     * horizontal coordinates 2 and 3 as a polynomial up to degree 20.. Direct
-     * examples would be: sin(x+1),3,4,20 cos(sinh(x-2/tan9x)),4,4.32,32 and so
-     * on.
-     *
-     * F(x)=var x=3;3x; poly(F,4,4.32,32)
-     */
-    public void setFunction(String expression, int precision) {
-        parsePolynomialCommand(expression);
-        buildPolynomial(precision);
+    public void setLower(double lower) {
+        this.lower = lower;
     }
 
-    /**
-     * Changes the Function object dealt with by this class.
-     *
-     * @param function The new Function object
-     */
-    public void setFunction(Function function) {
-        this.function = function;
+    public double getLower() {
+        return lower;
     }
 
-    public Function getFunction() {
-        return function;
+    public void setUpper(double upper) {
+        this.upper = upper;
     }
 
-    public int getDegree() {
-        return degree;
+    public double getUpper() {
+        return upper;
     }
 
-    public void setDegree(int degree) {
-        this.degree = degree;
-    }
+    private double[] computeCoefficients(MethodHandle function, int n) throws Throwable {
+        double[] c = new double[n];
+        double[] fx = new double[n];
 
-    public void setxLower(double xLower) {
-        this.xLower = xLower;
-    }
+        // 1. Sample function at Chebyshev nodes
+        for (int k = 1; k <= n; k++) {
+            double node = Math.cos(Math.PI * (2.0 * k - 1.0) / (2.0 * n));
+            // Map [-1, 1] to [lower, upper]
+            double x = 0.5 * (node + 1) * (upper - lower) + lower;
+            fx[k - 1] = (double) function.invokeExact(new double[]{x});
+        }
 
-    public double getxLower() {
-        return xLower;
-    }
-
-    public void setxUpper(double xUpper) {
-        this.xUpper = xUpper;
-    }
-
-    public double getxUpper() {
-        return xUpper;
-    }
-
-    /**
-     * @return the unit step along x.
-     */
-    private double getXStep() {
-        double val = degree;
-        return (xUpper - xLower) / val;
-    }
-
-    public void setPolynomial(String polynomial) {
-        this.polynomial = polynomial;
-    }
-
-    public String getPolynomial() {
-        return polynomial;
-    }
-
-    /**
-     *
-     * @return the coefficient matrix of the function's polynomial.
-     */
-    public Matrix getMatrix() {
-        MathExpression fun = function.getMathExpression();
-        double dx = getXStep();
-        double arr[][] = new double[degree + 1][degree + 2];
-
-        for (int rows = 0; rows < degree + 1; rows++) {
-            for (int cols = 0; cols < degree + 2; cols++) {
-                if (cols < degree + 1) {
-                    arr[rows][cols] = pow(xLower + rows * dx, cols);
-                }//end if
-                else if (cols == degree + 1) {
-                    fun.setValue(function.getIndependentVariables().get(0).getName(), (xLower + rows * dx));
-                    try {
-                        arr[rows][cols] = Double.parseDouble(fun.solve());
-                    }//end try
-                    catch (NumberFormatException numException) {
-
-                    }//end catch
-                }//end else if
-            }//end cols
-        }//end rows
-
-        return new Matrix(arr);
-
-    }//end method
-
-    /**
-     *
-     * @return the coefficient matrix of the function's polynomial.
-     */
-    public PrecisionMatrix getPrecisionMatrix() {
-        MathExpression fun = function.getMathExpression();
-        double dx = getXStep();
-        BigDecimal arr[][] = new BigDecimal[degree + 1][degree + 2];
-
-        for (int rows = 0; rows < degree + 1; rows++) {
-            for (int cols = 0; cols < degree + 2; cols++) {
-                if (cols < degree + 1) {
-                    arr[rows][cols] = BigDecimal.valueOf(pow(xLower + rows * dx, cols));
-                }//end if
-                else if (cols == degree + 1) {
-                    fun.setValue(function.getIndependentVariables().get(0).getName(),  (xLower + rows * dx));
-                    try {
-                        arr[rows][cols] = new BigDecimal(fun.solve());
-                    }//end try
-                    catch (NumberFormatException numException) {
-
-                    }//end catch
-                }//end else if
-            }//end cols
-        }//end rows
-
-        return new PrecisionMatrix(arr);
-
-    }//end method
-
-    /**
-     * Method that processes the format that this software will recognize for
-     * user input of an integral expression.
-     *
-     * The general format is:
-     *
-     * expression,lowerLimit,upperLimit,iterations(optional) e.g...
-     * sin(3x-5),2,5.//assuming default number of iterations which will be
-     * computed automatically sin(3x-5),2,5,50.//specifies 50 iterations. Please
-     * ensure that the function is continuous in the specified range.
-     *
-     * @param expression The expression containing the function to integrate and
-     * the lower and upper boundaries of integration.
-     *
-     * Produces an array which has:
-     * At index 0.....the expression to integrate
-     * At index 1.....the lower limit of integration At index 2.....the upper
-     * limit of integration. At index 3(optional)...the number of iterations to
-     * employ in evaluating this expression.
-     *
-     * F(x)=3x+1; poly( F,0,2,3 ) poly(F(x)=3x+1,0,2,5) OR poly(F(x),0,2,5) OR
-     * poly(F,0,2,5)
-     *
-     */
-    public void parsePolynomialCommand(String expression) {
-
-        expression = expression.trim();
-
-        if (expression.startsWith("poly(") && expression.endsWith(")")) {
-            expression = expression.substring(expression.indexOf("(") + 1);
-            expression = expression.substring(0, expression.length() - 1);//remove the last bracket
-            double args[] = new double[3];
-            args[0] = Double.NaN;
-//The expression should look like...function,x1,x2,iterations(optional)
-            int lastCommaIndex = expression.lastIndexOf(",");
-            try {
-                args[2] = Double.parseDouble(expression.substring(lastCommaIndex + 1).trim());
-                expression = expression.substring(0, lastCommaIndex).trim();
-            }//end try
-            catch (NumberFormatException numErr) {
-                throw new InputMismatchException("SYNTAX ERROR!");
-            }//end catch
-
-            lastCommaIndex = expression.lastIndexOf(",");
-            try {
-                args[1] = Double.parseDouble(expression.substring(lastCommaIndex + 1).trim());
-                expression = expression.substring(0, lastCommaIndex).trim();
-            }//end try
-            catch (NumberFormatException numErr) {
-                throw new InputMismatchException("SYNTAX ERROR!");
-            }//end catch
-            lastCommaIndex = expression.lastIndexOf(",");
-            try {
-                args[0] = Double.parseDouble(expression.substring(lastCommaIndex + 1).trim());
-                expression = expression.substring(0, lastCommaIndex).trim();
-            }//end try
-            catch (NumberFormatException numErr) {
-            }//end catch
-            catch (IndexOutOfBoundsException indErr) {
-                throw new InputMismatchException("SYNTAX ERROR!");
-            }//end catch
-
-            /**
-             * test for a fourth argument and report an error if one is found,
-             * else exit test quietly.
-             */
-            lastCommaIndex = expression.lastIndexOf(",");
-            try {
-                args[0] = Double.parseDouble(expression.substring(lastCommaIndex + 1).trim());
-                expression = expression.substring(0, lastCommaIndex).trim();
-                throw new InputMismatchException(" Max of 3 args allowed! ");
-            }//end try
-            catch (NumberFormatException | IndexOutOfBoundsException numErr) {
-
+        // 2. Compute coefficients using the orthogonality property
+        for (int j = 0; j < n; j++) {
+            double sum = 0;
+            for (int k = 1; k <= n; k++) {
+                sum += fx[k - 1] * Math.cos(Math.PI * j * (2.0 * k - 1.0) / (2.0 * n));
             }
-            //end catch
-            //end catch
-
-            if (Double.valueOf(args[0]).isNaN()) {
-                setxLower(args[1]);
-                setxUpper(args[2]);
-//setIterations(5);
-                setFunction(new Function(expression));
-            }//end if
-            else if (!Double.valueOf(args[0]).isNaN()) {
-
-                setxLower(args[0]);
-                setxUpper(args[1]);
-                setDegree((int) args[2]);
-                setFunction(new Function(expression));
-            }//end else if
-            else {
-                throw new InputMismatchException("Invalid Integral Expression!");
-            }//end else
-
-        }//end if
-        else if (!expression.startsWith("poly(")) {
-            throw new InputMismatchException("Invalid Integral Expression!");
-        } else if (!expression.endsWith(")")) {
-            throw new InputMismatchException("Missing Closing Parenthesis");
+            double factor = (j == 0) ? (1.0 / n) : (2.0 / n);
+            c[j] = factor * sum;
         }
-
-    }//end method
+        return c;
+    }
 
     /**
-     * Builds the polynomial expansion of the function.
+     * Dynamically computes coefficients using MethodHandle for Turbo
+     * performance. Double the degree N until the last few coefficients are
+     * below the tolerance.
      *
-     * @param precisionMode The precision mode to employ in expanding the
-     * Function.
+     * * @param function The Turbo-compiled MethodHandle (double[])Object
+     * @param tolerance The target precision (e.g., 1e-12)
+     * @return The optimally sized coefficient array
+     * @throws Throwable if evaluation fails
      */
-    public void buildPolynomial(int precisionMode) {
-        if (precisionMode == DOUBLE_PRECISION) {
+    private double[] computeAdaptiveCoefficients(MethodHandle function, double tolerance) throws Throwable {
+        int n = 16;       // Initial degree
+        int maxN = 1024;  // Safety cap to prevent OOM
+        double[] c = null;
 
-            Matrix mat = getMatrix();
-            mat = mat.solveEquation();
-            String var = function.getIndependentVariables().get(0).getName();
-            String poly = "";
+        while (n <= maxN) {
+            // Use your existing MethodHandle version of computeCoefficients
+            c = computeCoefficients(function, n);
 
-            int power = 0;
-            double arr[][] = mat.getArray();
-            for (int rows = 0; rows < mat.getRows(); rows++, power++) {
-                for (int cols = 0; cols < mat.getCols(); cols++) {
+            // Check the 'tail' of the coefficients. 
+            // We sum the last three to avoid being fooled by zeros in symmetric functions.
+            double tailError = Math.abs(c[n - 1]) + Math.abs(c[n - 2]) + Math.abs(c[n - 3]);
 
-                    poly = poly.concat(arr[rows][cols] + "*" + var + "^" + power + "+");
+            if (tailError <= tolerance) {
+                // Success! The function is well-approximated.
+                return trimCoefficients(c, tolerance);
+            }
 
-                }//end cols
-            }//end rows
-
-            poly = poly.replace("+-", "-");
-            poly = poly.replace("-+", "-");
-            poly = poly.replace("--", "+");
-            poly = poly.replace("++", "+");
-
-            setPolynomial(poly.substring(0, poly.length() - 1));//remove the ending "+".
-
-        }//end if
-        else if (precisionMode == BIGDECIMAL_PRECISION) {
-
-            PrecisionMatrix mat = getPrecisionMatrix();
-            mat = mat.solveEquation();
-            String var = function.getIndependentVariables().get(0).getName();
-            String poly = "";
-
-            int power = 0;
-            BigDecimal arr[][] = mat.getArray();
-            for (int rows = 0; rows < mat.getRows(); rows++, power++) {
-                for (int cols = 0; cols < mat.getCols(); cols++) {
-
-                    poly = poly.concat(arr[rows][cols] + var + "^" + power + "+");
-
-                }//end cols
-            }//end rows
-
-            poly = poly.replace("+-", "-");
-            poly = poly.replace("-+", "-");
-            poly = poly.replace("--", "+");
-            poly = poly.replace("++", "+");
-
-            setPolynomial(poly.substring(0, poly.length() - 1));//remove the ending "+".
-
-        }//end else if
-        else {
-            throw new InputMismatchException("Choose A Relevant Precision Mode.");
+            // Precision not met, double the nodes and retry
+            n *= 2;
         }
-    }//end method
 
-    /**
-     * @return the derivative of the polynomial.
-     */
-    public String getPolynomialDerivative() {
-        return new PolynomialCalculus().differentiate();
+        // Return the best-effort coefficients if maxN is reached
+        return c;
     }
 
     /**
-     * @return the integral of the polynomial.
+     * Strips insignificant coefficients to keep the resulting polynomial
+     * expression as lean as possible.
      */
-    public String getPolynomialIntegral() {
-        return new PolynomialCalculus().integrate();
+    private double[] trimCoefficients(double[] c, double tolerance) {
+        int lastSignificant = c.length - 1;
+        // Walk backward until we find a coefficient larger than our tolerance
+        while (lastSignificant > 0 && Math.abs(c[lastSignificant]) < (tolerance / 10.0)) {
+            lastSignificant--;
+        }
+
+        double[] trimmed = new double[lastSignificant + 1];
+        System.arraycopy(c, 0, trimmed, 0, lastSignificant + 1);
+        return trimmed;
     }
 
     /**
-     * Finds the derivative of polynomial functions generated from above. Its
-     * operations are trustworthy if the powers of the polynomial variable never
-     * fall below zero. i.e it is valid for n>=0
+     * Computes Chebyshev coefficients using a standard functional interface.
+     * Useful for non-compiled or interpreted functions.
      */
-    private class PolynomialCalculus {
+    private double[] computeCoefficients(Function function, int n) {
+        double[] c = new double[n];
+        double[] fx = new double[n];
 
-        private List<String> scanner = new ArrayList<String>();
+        // 1. Sample function at Chebyshev nodes
+        for (int k = 1; k <= n; k++) {
+            // Compute the k-th zero of the n-th Chebyshev polynomial
+            double node = Math.cos(Math.PI * (2.0 * k - 1.0) / (2.0 * n));
 
-        public PolynomialCalculus() {
-            scan();
+            // Map from standard interval [-1, 1] to [lower, upper]
+            double x = 0.5 * (node + 1.0) * (upper - lower) + lower;
+
+            function.updateArgs(x);
+            // Evaluate function
+            fx[k - 1] = function.calc();
         }
 
-        public String getPolynomial() {
-            return polynomial;
+        // 2. Compute coefficients using Discrete Cosine Transform (DCT-II) logic
+        for (int j = 0; j < n; j++) {
+            double sum = 0;
+            for (int k = 1; k <= n; k++) {
+                sum += fx[k - 1] * Math.cos(Math.PI * j * (2.0 * k - 1.0) / (2.0 * n));
+            }
+            // Orthogonality normalization factor
+            double factor = (j == 0) ? (1.0 / n) : (2.0 / n);
+            c[j] = factor * sum;
+        }
+        return c;
+    }
+
+    /**
+     * Dynamically computes coefficients to guarantee a specific error
+     * tolerance.
+     *
+     * * @param function The math function (wrapped as DoubleUnaryOperator)
+     * @param tolerance The desired precision (e.g., 1e-10)
+     * @return The optimally sized coefficient array
+     */
+    private double[] computeAdaptiveCoefficients(Function function, double tolerance) {
+        int n = 16;       // Start with a low degree
+        int maxN = 1024;  // Hard limit to prevent OOM or infinite loops
+        double[] c = null;
+
+        while (n <= maxN) {
+            // Compute coefficients for the current degree
+            c = computeCoefficients(function, n);
+
+            // We check the last 3 coefficients. 
+            // Why 3? Because symmetric functions (like even/odd functions) 
+            // might have every other coefficient be exactly zero. Checking 3 
+            // guarantees we don't get tricked by a single zero.
+            double tailError = Math.abs(c[n - 1]) + Math.abs(c[n - 2]) + Math.abs(c[n - 3]);
+
+            if (tailError <= tolerance) {
+                // The tail is practically zero. We have converged!
+                // Optional: We can actually trim the array to remove the trailing zeros 
+                // to make the buildPolynomial() string even shorter.
+                return trimCoefficients(c, tolerance);
+            }
+
+            // If error is still too high, double the degree and try again
+            n *= 2;
+        }
+
+        // If we exit the loop, we hit maxN without fully converging.
+        // It's usually best to warn the user, or just return the best effort.
+        System.err.println("Warning: FunctionExpander reached max degree " + maxN
+                + " without fully converging. Tail error: "
+                + (Math.abs(c[maxN - 1]) + Math.abs(c[maxN - 2]) + Math.abs(c[maxN - 3])));
+        return c;
+    }
+
+    /**
+     * Evaluate the approximated polynomial using Clenshaw's Algorithm. This is
+     * O(N) and much more stable than evaluating a^n + b^n-1...
+     */
+    public double evaluate(double x) {
+        // Map x to [-1, 1]
+        double u = (2.0 * x - lower - upper) / (upper - lower);
+        double b2 = 0, b1 = 0, b0 = 0;
+
+        for (int j = coefficients.length - 1; j >= 1; j--) {
+            b0 = coefficients[j] + 2.0 * u * b1 - b2;
+            b2 = b1;
+            b1 = b0;
+        }
+        return coefficients[0] + u * b1 - b2;
+    }
+
+    /**
+     * Computes the derivative of the approximation at point x. This is an exact
+     * derivative of the surrogate polynomial.
+     */
+    public double derivative(double x) {
+        int n = coefficients.length;
+        if (n < 2) {
+            return 0.0;
+        }
+
+        double[] cDeriv = new double[n];
+
+        // Backward recurrence to find derivative coefficients
+        cDeriv[n - 1] = 0; // Highest degree derivative is 0
+        if (n > 1) {
+            cDeriv[n - 2] = 2 * (n - 1) * coefficients[n - 1];
+        }
+
+        for (int j = n - 3; j >= 0; j--) {
+            cDeriv[j] = cDeriv[j + 2] + 2 * (j + 1) * coefficients[j + 1];
+        }
+
+        // Evaluate the derivative coefficients at point x using Clenshaw
+        double u = (2.0 * x - lower - upper) / (upper - lower);
+        double b2 = 0, b1 = 0, b0 = 0;
+
+        for (int j = n - 1; j >= 1; j--) {
+            b0 = cDeriv[j] + (2.0 * u * b1) - b2;
+            b2 = b1;
+            b1 = b0;
+        }
+
+        double derivInU = (coefficients.length == 0) ? 0 : (cDeriv[0] * 0.5 + u * b1 - b2);
+
+        // Apply chain rule: d/dx = d/du * du/dx
+        return derivInU * (2.0 / (upper - lower));
+    }
+
+    /**
+     * Integrates the approximated polynomial analytically using Kahan
+     * summation. This preserves the precision of the high-frequency
+     * coefficients.
+     */
+    public double integrateApproximation() {
+        if (coefficients == null || coefficients.length == 0) {
+            return 0.0;
+        }
+
+        // Start with the c0 term (integral of constant T0 = 1 over [-1,1] is 2)
+        double sum = 2.0 * coefficients[0];
+        double compensation = 0.0;
+
+        for (int n = 2; n < coefficients.length; n += 2) {
+            // 1. Calculate the high-precision term
+            double term = coefficients[n] * (2.0 / (1.0 - (double) n * n));
+
+            // 2. Kahan logic: subtract the previous error from the current term
+            double y = term - compensation;
+
+            // 3. Add to the running sum. 't' is potentially less precise than we want.
+            double t = sum + y;
+
+            // 4. Calculate the 'low bits' that were lost during the addition.
+            // This MUST be written exactly like this to work.
+            compensation = (t - sum) - y;
+
+            // 5. Update the sum with the result
+            sum = t;
+        }
+
+        // Map from normalized [-1, 1] to the user's [lower, upper]
+        return sum * (upper - lower) / 2.0;
+    }
+
+    public String buildPolynomial() {
+        if (coefficients == null || coefficients.length == 0) {
+            return "0";
+        }
+
+        // Interval mapping: u = (2*x - (a+b)) / (b-a)
+        // We define this once to avoid redundant calcs in the nested structure
+        double a = lower;
+        double b = upper;
+        String u = String.format("((2*x - (%f)) / %f)", (a + b), (b - a));
+
+        // Clenshaw's recurrence: 
+        // y_k = c_k + 2*u*y_{k+1} - y_{k+2}
+        // We build the expression from the highest degree down to 0.
+        int n = coefficients.length - 1;
+
+        // We need to represent the recurrence as a single nested string.
+        // For n=3: c0 + u*b1 - b2...
+        // This is more efficiently handled by a recursive string builder
+        return generateClenshawString(u);
+    }
+
+    private String generateClenshawString(String u) {
+        int n = coefficients.length - 1;
+        if (n == 0) {
+            return String.valueOf(coefficients[0]);
+        }
+
+        // b_{n+1} and b_{n+2} start at 0
+        String b_next = "0";
+        String b_next_next = "0";
+        String current_b = "";
+
+        for (int j = n; j >= 1; j--) {
+            // b_j = c_j + 2*u*b_{j+1} - b_{j+2}
+            current_b = String.format("(%.17g + (2*%s*%s) - %s)",
+                    coefficients[j], u, b_next, b_next_next);
+            b_next_next = b_next;
+            b_next = current_b;
+        }
+
+        // Final result: f(x) = c0 + u*b1 - b2
+        return String.format("(%.17g + (%s * %s) - %s)", coefficients[0], u, b_next, b_next_next);
+    }
+
+    /**
+     * Estimates the truncation error of the current approximation. For 16dp
+     * accuracy, this should be < 1e-16.
+     */
+    public double getTailError() {
+        if (coefficients == null || coefficients.length < 4) {
+            return Double.MAX_VALUE;
+        }
+
+        int n = coefficients.length;
+
+        // We sum the last few coefficients.
+        // Why? In double precision, the noise floor is ~2e-16.
+        // If the sum of the last 3 coefficients is larger than our target,
+        // the series hasn't converged yet.
+        return Math.abs(coefficients[n - 1])
+                + Math.abs(coefficients[n - 2])
+                + Math.abs(coefficients[n - 3]);
+    }
+
+    public static final class ChebyshevForest1 {
+
+        private final List<FunctionExpander> segments = new ArrayList<>();
+        private final double tolerance = 1e-10;
+
+        private final int MAX_DEPTH = 25; // Prevents infinite recursion
+        private final double MIN_DX = 1.0e-12;
+        
+        public void build(MethodHandle function, double a, double b) throws Throwable {
+            buildRecursive(function, a, b, 0);
+        }
+
+        private void buildRecursive(MethodHandle function, double a, double b, int depth) throws Throwable {
+            // Use a high degree to see if the interval is "smoothable"
+            FunctionExpander attempt = new FunctionExpander(function, a, b, 256);
+
+            // Terminate if:
+            // 1. Accuracy is met
+            // 2. We've reached max recursion depth
+            // 3. The interval is too small for double precision math to handle (sub-atomic scale)
+            if (attempt.getTailError() <= tolerance || depth >= MAX_DEPTH || (b - a) < MIN_DX) {
+                segments.add(attempt);
+            } else {
+                double mid = a + (b - a) / 2.0;
+                buildRecursive(function, a, mid, depth + 1);
+                buildRecursive(function, mid, b, depth + 1);
+            }
+        }
+
+        public void build(Function function, double a, double b) throws Throwable {
+            buildRecursive(function, a, b, 0);
+        }
+
+        private void buildRecursive(Function function, double a, double b, int depth) throws Throwable {
+            // Use a high degree to see if the interval is "smoothable"
+            FunctionExpander attempt = new FunctionExpander(function, a, b, 256);
+           
+            // Terminate if:
+            // 1. Accuracy is met
+            // 2. We've reached max recursion depth
+            // 3. The interval is too small for double precision math to handle (sub-atomic scale)
+            if (attempt.getTailError() <= tolerance || depth >= MAX_DEPTH || (b - a) < MIN_DX) {      
+                segments.add(attempt);
+            } else {
+                double mid = a + (b - a) / 2.0;
+                buildRecursive(function, a, mid, depth + 1);    
+                buildRecursive(function, mid, b, depth + 1);     
+            }
+        }
+
+        /**
+         * The global integral is simply the sum of the integrals of all
+         * segments.
+         */
+        public double integrate() {
+            double totalArea = 0;
+            for (FunctionExpander segment : segments) {
+                totalArea += segment.integrateApproximation();
+            }
+            return totalArea;
+        }
+
+        /**
+         * To find the derivative at x, we find the specific segment containing
+         * x.
+         */
+        public double derivative(double x) {
+            FunctionExpander segment = findSegment(x);
+            return (segment != null) ? segment.derivative(x) : Double.NaN;
+        }
+
+        public double evaluate(double x) {
+            FunctionExpander segment = findSegment(x);
+            return (segment != null) ? segment.evaluate(x) : Double.NaN;
         }
 
         /**
          *
-         * @return a scanned version of the polynomial.
+         * Find the segment that contains x and call its evaluate(x) For
+         * performance, use binary search on the segment boundaries Optimized
+         * segment lookup using Binary Search (O(log N))
          */
-        public void scan() {
-            scanner = new MathScanner(polynomial).scanner();
+        private FunctionExpander findSegment(double x) {
+            int low = 0;
+            int high = segments.size() - 1;
+
+            while (low <= high) {
+                int mid = (low + high) >>> 1;
+                FunctionExpander s = segments.get(mid);
+                if (x < s.getLower()) {
+                    high = mid - 1;
+                } else if (x > s.getUpper()) {
+                    low = mid + 1;
+                } else {
+                    return s;
+                }
+            }
+            return null;
+        }
+    }
+
+    /*
+ * Copyright 2026 GBEMIRO.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+     */
+    /**
+     * High-precision Piecewise Chebyshev approximation engine. Optimized for
+     * ParserNG Turbo engine.
+     *
+     * @author GBEMIRO
+     */
+    public static final class ChebyshevForest {
+
+        private final List<FunctionExpander> segments = new ArrayList<>();
+        private final double tolerance = 1e-10;
+        private final int MAX_DEPTH = 25;
+        private final double MIN_DX = 1.0e-12;
+
+        public void build(MethodHandle function, double a, double b) throws Throwable {
+            segments.clear();
+            buildRecursive(function, a, b, 0);
+            segments.sort((o1, o2) -> Double.compare(o1.getLower(), o2.getLower()));
+        }
+
+        private void buildRecursive(MethodHandle function, double a, double b, int depth) throws Throwable {
+            FunctionExpander attempt = new FunctionExpander(function, a, b, 256);
+
+            if (attempt.getTailError() <= tolerance || depth >= MAX_DEPTH || (b - a) < MIN_DX) {
+                segments.add(attempt);
+            } else {
+                double mid = a + (b - a) / 2.0;
+                buildRecursive(function, a, mid, depth + 1);
+                buildRecursive(function, mid, b, depth + 1);
+            }
+        }
+
+        public void build(Function function, double a, double b) throws Throwable {
+            segments.clear();
+            buildRecursive(function, a, b, 0);
+            segments.sort((o1, o2) -> Double.compare(o1.getLower(), o2.getLower()));
+        }
+
+        private void buildRecursive(Function function, double a, double b, int depth) throws Throwable {
+            FunctionExpander attempt = new FunctionExpander(function, a, b, 256);
+          
+            if (attempt.getTailError() <= tolerance || depth >= MAX_DEPTH || (b - a) < MIN_DX) {
+                segments.add(attempt);
+            } else {
+                double mid = a + (b - a) / 2.0;
+                buildRecursive(function, a, mid, depth + 1);
+                buildRecursive(function, mid, b, depth + 1);
+            }
         }
 
         /**
-         * Differentiates polynomials.
+         * The global integral sum using Kahan Summation.
          */
-        public String differentiate() {
-            ArrayList<String> myScan = new ArrayList<String>(scanner);
-            for (int i = 0; i < myScan.size(); i++) {
-                if (isPower(myScan.get(i))) {
-                    try {
-                        myScan.set(i - 3, String.valueOf(Double.valueOf(myScan.get(i + 1)) * Double.valueOf(myScan.get(i - 3))));
-                        myScan.set(i + 1, String.valueOf(Double.valueOf(myScan.get(i + 1)) - 1));
-                    }//end try
-                    catch (IndexOutOfBoundsException indexExcep) {
+        public double integrate() {
+            double sum = 0.0;
+            double compensation = 0.0;
 
-                    }
-                }//end if
+            for (FunctionExpander segment : segments) {
+                double area = segment.integrateApproximation();
+                double y = area - compensation;
+                double t = sum + y;
+                compensation = (t - sum) - y;
+                sum = t;
+            }
+            return sum;
+        }
 
-            }//end for
-            String derivative = myScan.toString().replaceAll("[,| ]", "");
-            derivative = derivative.substring(1);
-            derivative = derivative.substring(0, derivative.length() - 1);
-            derivative = derivative.replace("--", "+");
-            derivative = derivative.replace("-+", "-");
-            derivative = derivative.replace("+-", "-");
-            derivative = derivative.replace("++", "+");
+        public double derivative(double x) {
+            FunctionExpander segment = findSegment(x);
+            return (segment != null) ? segment.derivative(x) : Double.NaN;
+        }
 
-            return derivative;
-        }//end method
+        public double evaluate(double x) {
+            FunctionExpander segment = findSegment(x);
+            return (segment != null) ? segment.evaluate(x) : Double.NaN;
+        }
 
-        /**
-         * Integrates polynomials.
-         */
-        public String integrate() {
+        private FunctionExpander findSegment(double x) {
+            int low = 0;
+            int high = segments.size() - 1;
 
-            ArrayList<String> myScan = new ArrayList<String>(scanner);
+            while (low <= high) {
+                int mid = (low + high) >>> 1;
+                FunctionExpander s = segments.get(mid);
+                if (x < s.getLower()) {
+                    high = mid - 1;
+                } else if (x > s.getUpper()) {
+                    low = mid + 1;
+                } else {
+                    return s;
+                }
+            }
+            return null;
+        }
+    }
 
-            for (int i = 0; i < myScan.size(); i++) {
-                if (isPower(myScan.get(i))) {
-                    try {
-                        myScan.set(i - 3, String.valueOf(Double.valueOf(myScan.get(i - 3)) / (Double.valueOf(myScan.get(i + 1)) + 1.0)));
-                        myScan.set(i + 1, String.valueOf(Double.valueOf(myScan.get(i + 1)) + 1));
+    public static void main(String[] args) {
 
-                    }//end try
-                    catch (IndexOutOfBoundsException indexExcep) {
-                    }
-                }//end if
+        FunctionExpander fe = new FunctionExpander(new Function("@(x)sin(x)"), 0, 10, 1e-16);
+        System.out.println("f(" + 4 + ")=" + fe.evaluate(4));
+        System.out.println("f'(4)=" + fe.derivative(4));
+        System.out.println("I(0,10)=" + fe.integrateApproximation());
+        /*
+        FunctionExpander.ChebyshevForest1 fec = new FunctionExpander.ChebyshevForest1();
+        try {
+            fec.build(new Function("@(x)x/(x-sin(x))"), 1, 600);
+            System.out.println("com.github.gbenroscience.math.numericalmethods.FunctionExpander.main()");
+            System.out.println("f(" + 4 + ")=" + fec.evaluate(4));
+            System.out.println("intg()=" + fec.integrate());
+            System.out.println("dfx(" + 4 + ")=" + fec.derivative(4));
 
-            }//end for
-//remove all commas and whitespaces.
-            String integral = myScan.toString().replaceAll("[,| ]", "");
-            integral = integral.substring(1);//remove the starting [
-            integral = integral.substring(0, integral.length() - 1);//remove the starting ]
-            return integral;
-        }//end method
+        } catch (Throwable ex) {
+            Logger.getLogger(FunctionExpander.class.getName()).log(Level.SEVERE, null, ex);
+        }*/
 
-    }//end class PolynomialCalculus
+        FunctionExpander.ChebyshevForest fec = new FunctionExpander.ChebyshevForest();
+        try {
+            fec.build(new Function("@(x)sin(x)"), 1, 200);
+            System.out.println("com.github.gbenroscience.math.numericalmethods.FnExpander.main()");
+            System.out.println("f(" + 4 + ")=" + fec.evaluate(4));
+            System.out.println("intg()=" + fec.integrate());
+            System.out.println("dfx(" + 4 + ")=" + fec.derivative(4));
 
-    public static void main(String args[]) {
-       
-        FunctionExpander polynomial = new FunctionExpander("poly(@(x)(x-1)(x+2)(3+x),1,20,4)", DOUBLE_PRECISION);//var x=1;..is to initialize the variable x.
-        System.out.println(polynomial.getPolynomial());
-        
-        FunctionExpander expand = new FunctionExpander("poly(@(x)asin(x),0.8,1.0,25)", DOUBLE_PRECISION);//var x=1;..is to initialize the variable x.
-        String poly = expand.getPolynomial();
-        System.out.println("polynomial function = " + poly + "\n\n\n");
-        MathExpression me = new MathExpression(poly);
-        me.setValue("x", 0.9999);
-        System.out.println("evaluating polynomial function with normal parser = " + me.solve());
-        expand.getFunction().getIndependentVariable("x").setValue("0.9999");
-        System.out.println("evaluating function = " + expand.getFunction().eval());
+        } catch (Throwable ex) {
+            Logger.getLogger(FunctionExpander.class.getName()).log(Level.SEVERE, null, ex);
+        }
 
-    }//end main
-
-}//end class
-/**
- * 
- * 
- * (x-1)(x+2)(x+3) = x^3+4x^2+x-6
- *  
- */
+    }
+}

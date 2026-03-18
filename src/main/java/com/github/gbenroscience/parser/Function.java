@@ -11,10 +11,14 @@ import java.util.ArrayList;
 import java.util.InputMismatchException;
 import java.util.List;
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
+import static com.github.gbenroscience.parser.TYPE.VECTOR;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.util.FunctionManager;
+import static com.github.gbenroscience.util.FunctionManager.ANON_PREFIX;
+import static com.github.gbenroscience.util.FunctionManager.FUNCTIONS;
 import com.github.gbenroscience.util.Serializer;
 import com.github.gbenroscience.util.VariableManager;
+import java.util.Arrays;
 
 /**
  *
@@ -46,6 +50,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      */
     private Matrix matrix;
 
+    public Function() {
+    }
+
     /**
      *
      * @param matrix A Matrix to be used to initialize the function..
@@ -53,144 +60,117 @@ public class Function implements Savable, MethodRegistry.MethodAction {
     public Function(Matrix matrix) {
         this.matrix = matrix;
         this.type = TYPE.MATRIX;
+
+        String fName = this.matrix.getName();
+
+        Function oldFunc = FUNCTIONS.get(fName);
+        Variable v = VariableManager.lookUp(fName);//check if a Variable has this name in the Variables registry
+        if (v != null) {
+            VariableManager.delete(fName);//if so delete it.
+        }//end if 
+
+        if (oldFunc != null) {//function does not exist in registry
+            FunctionManager.delete(fName);
+        }
+
         FunctionManager.add(this);
+
+        FunctionManager.update();
     }
 
     /**
      *
      * @param input The user input into the system, usually of the form:
-     * F(x,y,z,w,....)=mathexpr; or F= @(x,y,z,w,...)mathexpr ...where mathexpr
-     * is an algebraic expression in terms of x,y,z,w,...
+     * F(x,y,z,w,....)=mathexpr; or F= @(x,y,z,w,...)mathexpr.....where mathexpr
+     * is an algebraic expression in terms of x,y,z,w,... OR JUST PLAIN
+     * @(x,y,...)expr in which case an anonymous function will be created
      *
      */
     public Function(String input) throws InputMismatchException {
         try {
-            input = STRING.purifier(input);
-
-            int openIndex = input.indexOf("(");
-            int equalsIndex = input.indexOf("=");
-            int atIndex = input.indexOf("@");
-
-            if (equalsIndex == -1) {
-                boolean anonymous = input.startsWith("@");
-                if (anonymous) {
-                    parseInput(input);
-                    return;
-                }
-                throw new InputMismatchException("Bad function syntax!");
-            }
-
-            /**
-             * F=@(x,y,z,w,...)mathexpr OR F(x,y,z,w,...)=mathexpr
-             */
-            String tokenAfterEquals = input.substring(equalsIndex + 1, equalsIndex + 2);
-            if (atIndex != -1 && atIndex < openIndex) {
-                //The enclosing if assumes that the user is creating a function using the anonymous function assignment format.
-                if (atIndex != openIndex - 1) {
-                    throw new InputMismatchException("Error in function format... anonymous function assignment format must have the `@` preceding the `(`");
-                    //error...token between at symbol and param list
-                } else if (!tokenAfterEquals.equals("@")) {
-                    //Avoid this nonsense: f=kdkdk@(x,...)expr
-                    throw new InputMismatchException("Error in function format... anonymous function assignment format must have the `=` preceding the `@`");
-                    //cool... function created with anonymous function assignment
-                }
-            }
-
-            if (openIndex == -1 || equalsIndex == -1) {
-                throw new InputMismatchException("Bad function format!");
-            }
-            int close = Bracket.getComplementIndex(true, openIndex, input);
-            String name = null;
-            /**
-             * If function is in this format: //f(...) = expr Force it to be in
-             * this format: //f=@(...)expr
-             */
-            if (openIndex < equalsIndex) {
-                name = input.substring(0, openIndex);
-                input = name + "=@" + input.substring(openIndex, close + 1) + input.substring(equalsIndex + 1);
-            }
-
-            openIndex = input.indexOf("(");
-            equalsIndex = input.indexOf("=");
-            close = Bracket.getComplementIndex(true, openIndex, input);
-
-            if (name == null) {
-                name = input.substring(0, equalsIndex);
-            }
-
-            if (!Variable.isVariableString(name)) {
-                throw new InputMismatchException("Bad name for Function.");
-            }
-
-            String paramsList = input.substring(openIndex + 1, close);
-            List<String> params = new Scanner(paramsList, false, ",").scan();
-
-            int size = params.size();
-            boolean notAlgebraic = true;
-            /**
-             * This loop should check if all arguments in the params list are
-             * numbers... This is necessary for the input to be a Matrix
-             * function or a List
-             */
-            for (String p : params) {
-                try {
-                    Double.parseDouble(p);
-                } catch (Exception e) {
-                    notAlgebraic = false;//algebraic argument found....exit
-                    break;
-                }
-            }//end for loop
-
-            if (notAlgebraic) {
-                if (size == 1) {
-                    int listSize = Integer.parseInt(params.get(0));
-                    type = TYPE.LIST;
-                } else if (size == 2) {
-                    //A matrix definition...A(2,3)=(3,2,4,5,3,1)------A=@(3,3)(3,4,32,3,4,4,3,3,4)
-                    int rows = Integer.parseInt(params.get(0));
-                    int cols = Integer.parseInt(params.get(1));
-                    int indexOfLastCloseBrac = input.lastIndexOf(")");
-                    int compIndexOfLastCloseBrac = Bracket.getComplementIndex(false, indexOfLastCloseBrac, input);
-                    String list = input.substring(compIndexOfLastCloseBrac, indexOfLastCloseBrac + 1);
-                    if (!list.startsWith("(") || !list.endsWith(")")) {
-                        throw new InputMismatchException("Invalid Matrix Format...Circular Parentheses missing");
-                    }
-                    list = list.substring(1, list.length() - 1);
-
-                    List<String> matrixData = new Scanner(list, false, ",").scan();
-                    if (rows * cols == matrixData.size()) {
-                        matrixData.add(0, cols + "");
-                        matrixData.add(0, rows + "");
-
-                        //Validate the entries
-                        for (int i = 0; i < matrixData.size(); i++) {
-                            try {
-                                Double.parseDouble(matrixData.get(i));
-                            } catch (Exception e) {
-                                throw new InputMismatchException("Invalid Matrix Data..." + matrixData.get(i) + " found.");
-                            }
-                        }
-                        this.matrix = listToMatrix(matrixData);
-                        type = TYPE.MATRIX;
-                        this.matrix.setName(name);
-
-                    } else {
-                        throw new InputMismatchException("Invalid number of entries found in Matrix Data---for input: " + input);
-                    }
-
-                }//end else if params-list  size == 2
-
-            }//if not an algebraic function
-            else {//input is algebraic like this..f(a,b..)=expr
-                parseInput(input);
-            }
-
+            input = rewriteAsStandardFunction(STRING.purifier(input));//Change function to standard form immediately
+            parseInput(input);
         } catch (Exception e) {
             e.printStackTrace();
             throw new InputMismatchException("Bad Function Syntax--" + input);
         }
 
     }//end constructor
+
+    /**
+     * Takes a string in the format: F(args)=expr and rewrites it as
+     * F=@(args)expr
+     *
+     * @param input The input string
+     * @return the properly formatted string
+     */
+    private static String rewriteAsStandardFunction(String input) {
+        int indexOfOpenBrac = -1;
+        int indexOfCloseBrac = -1;
+        int indexOfAt = -1;
+        int indexOfEquals = -1;
+
+        for (int i = 0; i < input.length(); i++) {
+            switch (input.charAt(i)) {
+                case '(':
+                    indexOfOpenBrac = indexOfOpenBrac == -1 ? i : indexOfOpenBrac;
+                    break;
+                case ')':
+                    indexOfCloseBrac = indexOfCloseBrac == -1 ? i : indexOfCloseBrac;
+                    break;
+                case '@':
+                    indexOfAt = indexOfAt == -1 ? i : indexOfAt;
+                    break;
+                case '=':
+                    indexOfEquals = indexOfEquals == -1 ? i : indexOfEquals;
+                    break;
+                default:
+                    break;
+            }
+            if (indexOfOpenBrac != -1 && indexOfCloseBrac != -1 && indexOfEquals != -1 && indexOfAt != -1) {
+                break;
+            }
+        }
+
+        if (indexOfEquals == -1) {//MUST BE AN ANONYMOUS Function....e.g @(args)expr format alone was entered
+            if (indexOfAt == 0) {//ENFORCE MUST BE ANONYMOUS FUNCTION with no assignmenr statemet
+                if (indexOfOpenBrac == indexOfAt + 1) {
+                    if (indexOfCloseBrac > indexOfOpenBrac) {
+                        return input;
+                    } else {
+                        throw new InputMismatchException("Bracket Error in Function creation");
+                    }
+                } else {
+                    throw new InputMismatchException("Function definition syntax error in token structure");
+                }
+            } else {
+                throw new InputMismatchException("The function is supposed to be an anonymous one. SYNATX ERROR");
+            }
+        }
+
+        if (indexOfOpenBrac == -1 || indexOfCloseBrac == -1) {// MUST HAVES, if not INVALID FUNCTION
+            throw new InputMismatchException("Core tokens not found in Function expression.. one or more of (, ) and = not found!");
+        }
+
+        int computeCloseBracIndex = Bracket.getComplementIndex(true, indexOfOpenBrac, input);//this is the index of the matching close bracket for the args list
+        if (computeCloseBracIndex != indexOfCloseBrac) {//Is a major structural flasw in the input...e.g f=@(((args))expr, but this is not allowed! only f=@(args)expr is
+            throw new InputMismatchException("Multiple brackets not allowed on args list e.g: f((x)) is not allowed, only f(x) and f=@((x)) is not allowed");
+        }
+
+        if (indexOfOpenBrac < indexOfEquals && indexOfCloseBrac < indexOfEquals && indexOfOpenBrac < indexOfCloseBrac) {//GOTCHA in f(args)=expr format
+            return input.substring(0, indexOfOpenBrac) + "=@" + input.substring(indexOfOpenBrac, indexOfCloseBrac + 1) + input.substring(indexOfEquals + 1);//Convert to standard and exit
+        }
+        //check if already standard input....F=@(args)expr     
+        if (indexOfAt != -1 && indexOfEquals < indexOfAt && indexOfAt < indexOfOpenBrac && indexOfOpenBrac < indexOfCloseBrac) {//likely standard input, exit early
+            if (indexOfAt - indexOfEquals == 1 && indexOfOpenBrac - indexOfAt == 1) {
+                return input;
+            } else {
+                throw new InputMismatchException("Function definition is not valid. Invalid token structure");
+            }
+        }
+        throw new InputMismatchException("Your Function definition is not valid.. " + input);
+
+    }
 
     public void setType(TYPE type) {
         this.type = type;
@@ -207,11 +187,11 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         }
     }
 
-    /** 
+    /**
      * @return the value of the function with these variables set.
      */
     public double calc() {
-          return mathExpression.solveGeneric().scalar; 
+        return mathExpression.solveGeneric().scalar;
     }
 
     /**
@@ -319,11 +299,10 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
                 success = true;
             } else {
-
                 MathExpression expr = new MathExpression(rhs);
 
                 List<String> scanner = expr.getScanner();
-                if (scanner.size() == 3 && scanner.get(1).startsWith("anon")) {//function assigments will always be like this: [(,anon1,)] when they get here
+                if (scanner.size() == 3 && scanner.get(1).startsWith(ANON_PREFIX)) {//function assigments will always be like this: [(,anon1,)] when they get here
 
                     Function f = FunctionManager.lookUp(scanner.get(1));
                     if (f != null) {
@@ -349,7 +328,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                     return true;
                 }
                 MathExpression.EvalResult val = expr.solveGeneric();
-                String referenceName = expr.getReturnObjectName();
+                String referenceName = null;
 
                 if (Variable.isVariableString(newFuncName) || isVarNamesList) {
                     Function f;
@@ -371,7 +350,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                             FunctionManager.FUNCTIONS.put(newFuncName, new Function(newFuncName + "=" + f.expressionForm()));
                             success = true;
                             break;
-                        case LIST:
+                        case VECTOR:
                             if (isVarNamesList && hasCommas) {
                                 throw new InputMismatchException("Initialize a function at a time!");
                             }
@@ -438,69 +417,131 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      *
      */
     private void parseInput(String input) {
+        int equalsIndex = input.indexOf("=");
+        int atIndex = input.indexOf("@");
+        if (atIndex == -1) {
+            throw new InputMismatchException("Function Syntax error! " + input);
+        }
+        String funcName = equalsIndex == -1 ? null : input.substring(0, equalsIndex);//may be null for a anonymous function input
 
-        input = input.trim();
-        if (input.contains("@")) {
+        Function anonFn = null;
 
-            boolean anonymous = input.startsWith("@");
-            if (anonymous) {
-                input = FunctionManager.ANON_PREFIX + (FunctionManager.ANON_CURSOR.get() + 1) + "=".concat(input);
+        int firstIndexOfClose = input.indexOf(")");
+        int indexOfFirstOpenBrac = input.indexOf("(");
+        String vars = input.substring(indexOfFirstOpenBrac + 1, firstIndexOfClose);//GETS x,y,z,w...,t out of @(x,y,z,w...,t)expr
+        String expr = input.substring(Bracket.getComplementIndex(true, indexOfFirstOpenBrac, input) + 1).trim();
+        List<String> varList = new Scanner(vars, false, ",").scan();
+        ArrayList<Variable> indVars = new ArrayList<>(varList.size());
+
+        int numCount = 0;
+        int varCount = 0;
+        for (int i = 0; i < varList.size(); i++) {
+            try {
+                String tkn = varList.get(i);
+                if (Variable.isVariableString(tkn)) {
+                    varCount++;
+                    Variable searchVal = VariableManager.lookUp(varList.get(i));
+                    Variable v = searchVal != null ? searchVal : new Variable(varList.get(i), 0.0, false);
+                    indVars.add(v);
+                    vars = vars.concat(varList.get(i) + "=" + v.getValue() + ";");//build variable command list
+                }//end if
+                else if (Number.isNumber(tkn)) {
+                    numCount++;
+                }
+            }//end try
+            catch (IndexOutOfBoundsException boundsException) {
+                break;
+            }//end catch
+        }//end for
+        if (numCount > 0 && varCount > 0) {//mixed args, not acceptable, either number args for matrices and vectors or variabble args for math expre
+            throw new RuntimeException("Bad args for function! Matrix definition must have args that are "
+                    + "purely numbers and must be 2 in number. Variable definition must have args that are purely variable names.");
+        }
+        boolean isMathExpr = varCount == varList.size();
+        boolean isMatrix = numCount == varList.size() && numCount == 2;
+        boolean isVector = numCount == varList.size() && numCount == 1;
+
+        //Remove bogus enclosing brackets on an expression e.g(((x+2)))
+        while (expr.startsWith("(") && expr.endsWith(")") && Bracket.getComplementIndex(true, 0, expr) == expr.length() - 1) {
+            expr = expr.substring(1, expr.length() - 1).trim();
+        }
+
+        if (isMathExpr) {
+            anonFn = FunctionManager.lockDownAnon(varList.toArray(new String[0]));
+            String dependentVar = anonFn.getName();
+            //input = dependentVar + "="+input;
+            anonFn.setDependentVariable(new Variable(dependentVar));
+            anonFn.setIndependentVariables(indVars);
+            anonFn.type = TYPE.ALGEBRAIC_EXPRESSION;
+            anonFn.mathExpression = new MathExpression(expr);
+            //FunctionManager.update(anonFn);
+        } else if (isMatrix) {
+            int rows = Integer.parseInt(varList.get(0));
+            int cols = Integer.parseInt(varList.get(1));
+            List<String> entries = new Scanner(expr, false, "(", ")", ",").scan();
+            int sz = entries.size();
+
+            if (rows * cols != sz) {
+                throw new RuntimeException("Invalid matrix! rows x cols must be equal to items supplied in matrix list. Expected: " + (rows * cols) + ", Found: " + sz + " items");
             }
-
-            String[] cutUpInput = new String[3];
-
-            cutUpInput[0] = input.substring(0, input.indexOf("=")).trim();//---function-name
-            cutUpInput[1] = input.substring(input.indexOf("@") + 1, input.indexOf(")") + 1).trim();//---(x,y,....)..params list
-            cutUpInput[2] = input.substring(input.indexOf(")") + 1);//--the expression
-
-            Scanner cs = new Scanner(cutUpInput[1], false, ",", "(", ")");
-            List<String> scan = cs.scan();
-
-            if (Variable.isVariableString(cutUpInput[0]) && isParameterList(cutUpInput[1])) {
-                if (cutUpInput[0].startsWith(FunctionManager.ANON_PREFIX) && !anonymous) {
-                    throw new InputMismatchException("Function Name Cannot Start With \'anon\'.\n \'anon\' is a reserved name for anonymous functions..culprit: " + cutUpInput[0]);
-                } else if (Method.isInBuiltMethod(cutUpInput[0])) {
-                    throw new InputMismatchException(cutUpInput[0] + " is a reserved name for inbuilt methods.");
-                } else {
-                    setDependentVariable(new Variable(cutUpInput[0]));
+            double[] flatArray = new double[sz];
+            try {
+                for (int i = 0; i < sz; i++) {
+                    flatArray[i] = Double.parseDouble(entries.get(i));
                 }
-                String vars = "";
-                for (int i = 0; i < scan.size(); i++) {
-                    try {
-                        if (Variable.isVariableString(scan.get(i))) {
-                            Variable searchVal = VariableManager.lookUp(scan.get(i));
-                            Variable v = searchVal != null ? searchVal : new Variable(scan.get(i), 0.0, false);
-                            independentVariables.add(v);
-                            vars = vars.concat(scan.get(i) + "=" + v.getValue() + ";");//build variable command list
-                        }//end if
-                    }//end try
-                    catch (IndexOutOfBoundsException boundsException) {
-                        break;
-                    }//end catch
-                }//end for
+            } catch (Exception e) {
+                throw new RuntimeException("Elements of a matrix must be numbers!");
+            }
+            Matrix m = new Matrix(flatArray, rows, cols);
+            anonFn = FunctionManager.lockDownAnon(varList.toArray(new String[0]));
+            String dependentVar = anonFn.getName();
+            anonFn.setDependentVariable(new Variable(dependentVar));
+            m.setName(dependentVar);
+            anonFn.matrix = m;
+            anonFn.type = TYPE.MATRIX;
+            //FunctionManager.update(anonFn); 
+        } else if (isVector) {
+            int rows = Integer.parseInt(varList.get(0));
+            List<String> entries = new Scanner(expr, false, "(", ")", ",").scan();
+            int sz = entries.size();
 
-                while (cutUpInput[2].startsWith("(") && cutUpInput[2].endsWith(")") && Bracket.getComplementIndex(true, 0, cutUpInput[2]) == cutUpInput[2].length() - 1) {
-                    cutUpInput[2] = cutUpInput[2].substring(1, cutUpInput[2].length() - 1).trim();
+            if (rows != sz) {
+                throw new RuntimeException("Invalid matrix! rows x cols must be equal to items supplied in matrix list. Expected: " + (rows) + ", Found: " + sz + " items");
+            }
+            double[] flatArray = new double[sz];
+            try {
+                for (int i = 0; i < sz; i++) {
+                    flatArray[i] = Double.parseDouble(entries.get(i));
                 }
+            } catch (Exception e) {
+                throw new RuntimeException("Elements of a vector must be numbers!");
+            }
+            Matrix m = new Matrix(flatArray, 1, sz);
+            anonFn = FunctionManager.lockDownAnon(varList.toArray(new String[0]));
+            m.setName(anonFn.getName());
+            String dependentVar = anonFn.getName();
+            anonFn.setDependentVariable(new Variable(dependentVar));
+            anonFn.matrix = m;
+            anonFn.type = TYPE.VECTOR;
+            // FunctionManager.update(anonFn);
 
-                setMathExpression(new MathExpression(vars.concat(cutUpInput[2].trim())));
-                if (!mathExpression.isCorrectFunction()) {
-                    throw new InputMismatchException("SYNTAX ERROR IN FUNCTION");
-                }
-            }//end if
-            else {
-                if (isDimensionsList(cutUpInput[1])) {
-                    Function f = new Function(input);
-                    this.matrix = f.matrix;
-                    this.type = f.type;
-                    return;
-                }
-                throw new InputMismatchException("Syntax Error: Format Is: F=@(x,y,z,...)mathexpr");
-            }//end else
-        }//end if
-        else {
-            throw new InputMismatchException("Syntax Error: Format Is: F=@(x,y,z,...)mathexpr");
-        }//end else
+        } else {
+            throw new InputMismatchException("SYNTAX ERROR IN FUNCTION");
+        }
+
+        //DONE PROCESSIING anon function side of F=@(args)expr
+        //Now deal with normal function assignments e.g F=@(x,y,z,...)expr, Use a recursive hack!
+        this.dependentVariable = anonFn.dependentVariable;
+        this.independentVariables = anonFn.independentVariables;
+        this.mathExpression = anonFn.mathExpression;
+        this.matrix = anonFn.matrix;
+        if (this.matrix != null && funcName != null) {
+            this.matrix.setName(funcName);
+        }
+        this.type = anonFn.type;
+        if (funcName != null) {
+            FunctionManager.update(anonFn.getName(), funcName);
+        }
 
     }//end method
 
@@ -514,6 +555,13 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
     public void setMathExpression(MathExpression mathExpression) {
         this.mathExpression = mathExpression;
+        this.type = TYPE.ALGEBRAIC_EXPRESSION;
+    }
+
+    public void setMatrix(Matrix m) {
+        this.matrix = m;
+        this.matrix.setName(this.getName());
+        this.type = TYPE.MATRIX;
     }
 
     public MathExpression getMathExpression() {
@@ -534,7 +582,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      * object.
      */
     public int numberOfParameters() {
-        if (type == TYPE.LIST) {
+        if (type == TYPE.VECTOR) {
             return 1;
         }
         if (type == TYPE.MATRIX) {
@@ -727,12 +775,12 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      * @return the name assigned to the anonymous function created.
      */
     public static synchronized String storeAnonymousMatrixFunction(Matrix matrix) {
-        int num = FunctionManager.ANON_CURSOR.get();
-        String name = FunctionManager.ANON_PREFIX + (num + 1);
-
-        matrix.setName(name);
-        FunctionManager.add(new Function(matrix));
-        return name;
+        Function f = FunctionManager.lockDownAnon();
+        matrix.setName(f.getName());
+        f.setType(TYPE.MATRIX);
+        f.setMatrix(matrix);
+        FunctionManager.update(f);
+        return f.getName();
     }
 
     /**
@@ -741,17 +789,27 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      * @(x)sin(x-1)^cos(x)
      * @return the name assigned to the anonymous function created.
      */
-    public static synchronized String storeAnonymousFunction(String expression) {
-        int num = FunctionManager.ANON_CURSOR.get();
-        String name = FunctionManager.ANON_PREFIX + (num + 1);
+    public static synchronized Function storeAnonymousFunction(String expression) {
+        Function f = FunctionManager.lockDownAnon();
+        f.setType(TYPE.ALGEBRAIC_EXPRESSION);
+        MathExpression me = new MathExpression(expression);
+        f.setMathExpression(me);
+        f.dependentVariable.setName(f.getName());
+        String names[] = me.getVariablesNames();
+        for (String n : names) {
+            Variable v = VariableManager.lookUp(n);
+            if (v != null) {
+                f.independentVariables.add(v);
+            } else {
+                f.independentVariables.add(new Variable(n));
+            }
+        }
+        FunctionManager.update(f);
+        return f;
+    }
 
-        String tempName = "temp" + System.nanoTime();
-
-        Function f = new Function(tempName + "=" + expression);
-        f.dependentVariable.setName(name);
-
-        FunctionManager.add(f);
-        return name;
+    public boolean isMatrix() {
+        return this.type == TYPE.MATRIX && matrix != null;
     }
 
     /**
@@ -782,9 +840,11 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                         throw new NumberFormatException("Unrecognized Value or Variable: " + l.get(i));
                     }//end if
                     else {
-                        vars = vars.concat(independentVariables.get(i).getName() + "=" + l.get(i) + ";");//build variable command.
+                        String v = independentVariables.get(i).getName();
+                        vars = vars.concat(v + "=" + l.get(i) + ";");//build variable command.
+                        mathExpression.setValue(v, Double.parseDouble(l.get(i)));
                     }
-                }//end for
+                }//end for 
                 mathExpression.getVariableManager().parseCommand(vars);
                 return mathExpression.solve();
             }//end if
@@ -957,7 +1017,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 return getName() + "=@" + paramList + mathExpression.getExpression();
             case MATRIX:
                 return getName() + "=@" + paramList + "(" + matrixToCommaList(matrix) + ")";
-            case LIST:
+            case VECTOR:
                 return getName() + "=@" + paramList + "(" + matrixToCommaList(matrix) + ")";
             default:
                 return "";
@@ -975,7 +1035,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 return f.dependentVariable.getName().startsWith(FunctionManager.ANON_PREFIX);
             case MATRIX:
                 return f.matrix.getName().startsWith(FunctionManager.ANON_PREFIX);
-            case LIST:
+            case VECTOR:
                 return f.matrix.getName().startsWith(FunctionManager.ANON_PREFIX);
             default:
                 return false;
@@ -1004,7 +1064,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
     public String getFullName() {
         switch (type) {
             case ALGEBRAIC_EXPRESSION:
-
+                if (dependentVariable == null) {
+                    return null;
+                }
                 String str = dependentVariable.getName() + "(";
                 int sz = independentVariables.size();
                 for (int i = 0; i < sz; i++) {
@@ -1014,7 +1076,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 return str + ")";
             case MATRIX:
                 return getName() + "(" + matrix.getRows() + "," + matrix.getCols() + ")";
-            case LIST:
+            case VECTOR:
                 return getName() + "(" + matrix.getRows() + "," + matrix.getCols() + ")";
             default:
                 return "";
@@ -1029,11 +1091,11 @@ public class Function implements Savable, MethodRegistry.MethodAction {
     public String getName() {
         switch (type) {
             case ALGEBRAIC_EXPRESSION:
-                return dependentVariable.getName();
+                return dependentVariable == null ? null : dependentVariable.getName();
             case MATRIX:
+            case VECTOR:
                 return matrix.getName();
-            case LIST:
-                return matrix.getName();
+
             default:
                 return "";
         }
@@ -1164,18 +1226,49 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      */
     public static String matrixToCommaList(Matrix mat) {
 
-        int numRows = mat.getRows();
-        int numCols = mat.getCols();
         StringBuilder str = new StringBuilder();
+        double[] flatArr = mat.getFlatArray();
 
-        for (int i = 0; i < numRows; i++) {
-            for (int j = 0; j < numCols; j++) {
-                str.append(mat.getElem(i, j)).append(",");
-            }
+        for (int j = 0; j < flatArr.length; j++) {
+            str.append(flatArr[j]).append(",");
         }
 
         return str.substring(0, str.length() - 1);
+    }
 
+    /**
+     * Creates a deep copy of this Function instance. Essential for thread-safe
+     * parallel integration.
+     *
+     * Each thread gets an independent Function with: - Same expression and
+     * parsed structure - Independent state variables - No shared mutable
+     * references
+     *
+     * @return A new Function instance safe for concurrent use
+     */
+    public Function copy() {
+        try {
+            // Create new instance from expression
+            Function copy = new Function();
+            copy.independentVariables = new ArrayList<>(independentVariables);
+            copy.dependentVariable = new Variable(dependentVariable.getName(), dependentVariable.getValue());
+            copy.mathExpression = mathExpression.clone();
+
+            copy.matrix = matrix == null ? null : new Matrix(matrix.getFlatArray(), matrix.getRows(), matrix.getCols());
+            if (copy.matrix != null) {
+                copy.matrix.setName(matrix.getName());
+            }
+            copy.type = this.type;
+ 
+            // Do NOT copy:
+            // - this.x (thread-local state)
+            // - this.lastResult (evaluation cache)
+            // - Any other mutable temporary state
+            return copy;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to copy Function: " + e.getMessage(), e);
+        }
     }
 
     public static Function parse(String enc) {
@@ -1183,6 +1276,12 @@ public class Function implements Savable, MethodRegistry.MethodAction {
     }
 
     public static void main(String args[]) {
+
+        System.out.println(Function.rewriteAsStandardFunction("f(x)=sin(x)-cos(x)"));
+        System.out.println(Function.rewriteAsStandardFunction("f(x,y,z)=sin(x+y)-cos(z-2*x)"));
+        System.out.println(Function.rewriteAsStandardFunction("f=@+(x)sin(x)-cos(x)"));
+        System.out.println(Function.rewriteAsStandardFunction("f=@((x))sin(x)-cos(x)"));
+
         FunctionManager.add("K=@(2,3)(2,3,4,9,8,1);");
 
         System.out.println("K=" + FunctionManager.lookUp("K").getMatrix());
@@ -1194,7 +1293,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
         Function func = new Function("p=@(x)sin(x)+x+x^2");
         FunctionManager.add(func);
-        
+
         func.updateArgs(4);
         System.out.println(func.calc());
 
