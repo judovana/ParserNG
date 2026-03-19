@@ -1,5 +1,10 @@
 # ParserNG
- 
+
+
+ParserNG 1.0.1 has been released on maven-central!
+This close update ensures that Turbo mode's  memory profile stays close to that of the normal mode, which is, nigh zero.
+
+
 ParserNG 1.0.0 has been released on maven-central!
 The library has finally come of age with the introduction of its Turbo mode, which offers a massive speed boost over its normal mode.
 The nomal mode already beats famous libraries like exp4J, and rivals Janino, the widely acclaimed Gold Standard of Java math parser speed measurements, very closely
