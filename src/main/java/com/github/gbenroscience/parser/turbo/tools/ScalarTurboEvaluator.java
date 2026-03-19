@@ -72,7 +72,6 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
             MethodType vectorType = MethodType.methodType(double[].class, String.class, double[].class);
             MethodType vector2Type = MethodType.methodType(double[].class, String.class, String.class);
 
-            // Find the static methods
             /**
              * For non stats methods that return a double array
              */
@@ -193,23 +192,52 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
      *
      * @return A FastCompositeExpression that returns wrapped scalar
      * @throws Throwable if compilation fails
+     *
+     * @Override public FastCompositeExpression compile() throws Throwable { //
+     * This now yields a handle with signature (double[])Object MethodHandle
+     * scalarHandle = compileScalar(postfix);
+     *
+     * return new FastCompositeExpression() {
+     * @Override public MathExpression.EvalResult apply(double[] variables) {
+     * try { // invoke() now returns Double (boxed) or double[] Object result =
+     * scalarHandle.invoke(variables);
+     *
+     * if (result instanceof double[]) { return new
+     * MathExpression.EvalResult().wrap((double[]) result); } return new
+     * MathExpression.EvalResult().wrap(((Number) result).doubleValue()); }
+     * catch (Throwable t) { throw new RuntimeException("Turbo evaluation
+     * failed", t); } }
+     *
+     * @Override public double applyScalar(double[] variables) { try { Object
+     * result = scalarHandle.invoke(variables);
+     *
+     * if (result instanceof Number) { return ((Number) result).doubleValue(); }
+     * // Coercion: If the user calls a vector function in a scalar context, //
+     * we return the first element to prevent a crash. double[] arr = (double[])
+     * result; return (arr != null && arr.length > 0) ? arr[0] : Double.NaN; }
+     * catch (Throwable t) { throw new RuntimeException("Turbo primitive
+     * execution failed", t); } } }; }
      */
     @Override
     public FastCompositeExpression compile() throws Throwable {
-        // This now yields a handle with signature (double[])Object
-        MethodHandle scalarHandle = compileScalar(postfix);
+        // The base handle as defined by your compiler (returns Object)
+        MethodHandle genericHandle = compileScalar(postfix);
+
+        // Specialized handle for scalar path: (double[])double
+        // This forces the JIT to see the primitive return path
+        MethodHandle scalarPrimitiveHandle = genericHandle.asType(
+                MethodType.methodType(double.class, double[].class));
 
         return new FastCompositeExpression() {
             @Override
             public MathExpression.EvalResult apply(double[] variables) {
                 try {
-                    // invoke() now returns Double (boxed) or double[]
-                    Object result = scalarHandle.invoke(variables);
-
+                    // Keep Object for the general/vector path
+                    Object result = genericHandle.invokeExact(variables);
                     if (result instanceof double[]) {
                         return new MathExpression.EvalResult().wrap((double[]) result);
                     }
-                    return new MathExpression.EvalResult().wrap(((Number) result).doubleValue());
+                    return new MathExpression.EvalResult().wrap((double) result);
                 } catch (Throwable t) {
                     throw new RuntimeException("Turbo evaluation failed", t);
                 }
@@ -218,15 +246,18 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
             @Override
             public double applyScalar(double[] variables) {
                 try {
-                    Object result = scalarHandle.invoke(variables);
-
-                    if (result instanceof Number) {
-                        return ((Number) result).doubleValue();
+                    // Use invokeExact on the specialized primitive handle
+                    // This will result in ZERO allocations
+                    return (double) scalarPrimitiveHandle.invokeExact(variables);
+                } catch (ClassCastException cce) {
+                    // Fallback for cases where the result is actually a double[] 
+                    // but called in a scalar context
+                    try {
+                        double[] arr = (double[]) genericHandle.invokeExact(variables);
+                        return (arr != null && arr.length > 0) ? arr[0] : Double.NaN;
+                    } catch (Throwable t) {
+                        throw new RuntimeException(t);
                     }
-                    // Coercion: If the user calls a vector function in a scalar context,
-                    // we return the first element to prevent a crash.
-                    double[] arr = (double[]) result;
-                    return (arr != null && arr.length > 0) ? arr[0] : Double.NaN;
                 } catch (Throwable t) {
                     throw new RuntimeException("Turbo primitive execution failed", t);
                 }
@@ -331,7 +362,6 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
                         String[] rawArgs = t.getRawArgs();
                         stack.pop();
 
- 
                         MethodHandle finalOp = MethodHandles.insertArguments(VECTOR_2_GATEKEEPER_HANDLE, 0, name, rawArgs[0]);
 
 // CRITICAL: You must change the return type to Object.class.
@@ -977,18 +1007,19 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
     /**
      * Execution bridge for the TurboRootFinder. This is invoked by the compiled
      * MethodHandle chain.
+     *
      * @param baseHandle
      * @param derivHandle
      * @param xSlot
      * @param iterations
      * @param lower
      * @param upper
-     * @return 
+     * @return
      */
     public static double executeTurboRoot(MethodHandle baseHandle, MethodHandle derivHandle,
             int xSlot, double lower, double upper, int iterations) {
         // We use a default iteration cap of 1000 for the turbo version
-        TurboRootFinder trf = new TurboRootFinder(baseHandle, derivHandle, xSlot, lower, upper, iterations); 
+        TurboRootFinder trf = new TurboRootFinder(baseHandle, derivHandle, xSlot, lower, upper, iterations);
         return trf.findRoots();
     }
 
@@ -1006,8 +1037,8 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
         QuadraticSolver alg = solver.getAlgorithm();
         if (alg.isComplex()) {
             return alg.solutions;
-        } else { 
-            return new double[]{alg.solutions[0],alg.solutions[2]};
+        } else {
+            return new double[]{alg.solutions[0], alg.solutions[2]};
         }
     }
 

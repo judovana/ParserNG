@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.github.gbenroscience</groupId>
     <artifactId>parser-ng</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>jar</packaging>
     <!-- 
       I started this project 2009 and have been upgrading it since then.
@@ -13,6 +13,8 @@
    
     <name>ParserNG</name>
     <description>Rich and Performant, Cross Platform Java Library(100% Java)...Version 1.0.0 explodes even higher in execution speed.
+        Version 1.0.1 retains the wild speeds of Version 1.0.0 and brings the memory usage of the turbo mode down to 0.001 B/op(same as for the normal mode)
+        but at nanosecond speeds.Matrix Algebra and other rich features have been optimized in Turbo mode also.
         </description>
     <url>https://github.com/gbenroscience/ParserNG</url>
     

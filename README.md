@@ -1,8 +1,8 @@
 # ParserNG 🧮⚡
 
-**ParserNG 1.0.0** is a **blazing-fast**, **pure Java**, **zero-native-dependencies** math expression parser and evaluator.
+**ParserNG 1.0.1** is a **blazing-fast**, **pure Java**, **zero-native-dependencies** math expression parser and evaluator.
 
-It **beats Janino, exp4J, and JavaMEP on evaluation speed** across every kind of expression — from simple algebra to heavy trig, matrices, and calculus.  
+It **beats Janino, exp4J, and com.expression.parser on evaluation speed** across every kind of expression — from simple algebra to heavy trig, matrices, and calculus.  
 With the new **Turbo compiled mode**, it routinely reaches **3–10 million evaluations per second**.
 
 It goes far beyond basic parsing — offering **symbolic differentiation**, **resilient numerical integration**, **full matrix algebra**, **statistics**, **equation solving**, **user-defined functions**, **2D graphing**, and more — all in one lightweight, cross-platform library.
