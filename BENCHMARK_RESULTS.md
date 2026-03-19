@@ -143,7 +143,7 @@ This is ParserNG’s **silent superpower**. While competitors generate hundreds 
 
 ---
 
-**Overall Verdict (add this at the bottom)**
+**Overall Verdict**
 
 > **ParserNG 1.0.1 Turbo is the clear winner** — fastest on every expression, dramatically lower memory pressure, and packed with features the others don’t even have (symbolic diff, resilient integration, matrix algebra, Tartaglia solver, etc.).  
 > Whether you use normal mode or Turbo, ParserNG 1.0.1 is now the best pure-Java choice for high-performance math expressions.
