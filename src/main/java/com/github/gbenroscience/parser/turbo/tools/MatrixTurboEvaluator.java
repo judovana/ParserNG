@@ -8,9 +8,11 @@ import com.github.gbenroscience.parser.MathExpression.EvalResult;
 import com.github.gbenroscience.parser.ParserResult;
 import com.github.gbenroscience.parser.TYPE;
 import com.github.gbenroscience.parser.methods.Declarations;
+import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.util.FunctionManager;
 import java.lang.invoke.*;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Turbo compiler optimized for ParserNG's flat-array Matrix implementation.
@@ -156,7 +158,41 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
                     break;
                 case MathExpression.Token.FUNCTION:
                 case MathExpression.Token.METHOD:
-                    if (t.name.equalsIgnoreCase("print")) {
+                    String name = t.name.toLowerCase();
+
+                    // --- OPTIMIZATION: Constant Folding for Pure Stats Methods ---
+                    if (Method.isPureStatsMethod(name)) {
+                        // 1. Pop the handles off the stack (we don't need them because we use rawArgs)
+                        for (int i = 0; i < t.arity; i++) {
+                            stack.pop();
+                        }
+
+                        // 2. Parse the raw arguments into a data array
+                        String[] rawArgs = t.getRawArgs();
+                        double[] data = new double[t.arity];
+                        for (int i = 0; i < t.arity; i++) {
+                            data[i] = Double.parseDouble(rawArgs[i]);
+                        }
+
+                        // 3. PRE-CALCULATE the result immediately (at compile time)
+                        EvalResult precalculated;
+                        if (name.equals(Declarations.SORT) || name.equals(Declarations.MODE)) {
+                            // Returns a Vector (double[])
+                            double[] vecResult = executeVectorStatAtCompileTime(name, data);
+                            precalculated = new EvalResult();
+                            precalculated.wrap(vecResult);
+                        } else {
+                            // Returns a Scalar (double)
+                            double scalarResult = executeScalarStatAtCompileTime(name, data);
+                            precalculated = new EvalResult();
+                            precalculated.wrap(scalarResult);
+                        }
+
+                        // 4. Push a Constant Handle. Execution time = 0ns.
+                        MethodHandle constantHandle = MethodHandles.constant(EvalResult.class, precalculated);
+                        stack.push(MethodHandles.dropArguments(constantHandle, 0, double[].class));
+                        break;
+                    } else if (t.name.equalsIgnoreCase("print")) {
                         // 1. Pop the evaluated handles off the stack (we don't need them for printing raw names)
                         for (int i = 0; i < t.arity; i++) {
                             stack.pop();
@@ -794,6 +830,245 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
             default:
                 throw new UnsupportedOperationException("Function: " + funcName);
+        }
+    }
+
+    private static double executeScalarStatAtCompileTime(String method, double[] args) {
+        int n = args.length;
+        if (n == 0 && !method.equals(Declarations.RANDOM)) {
+            return Double.NaN; // Safety guard for empty arrays
+        }
+
+        switch (method) {
+            case Declarations.LIST_SUM:
+            case Declarations.SUM: {
+                double total = 0.0;
+                // The JIT compiler will aggressively unroll this primitive loop
+                for (int i = 0; i < n; i++) {
+                    total += args[i];
+                }
+                return total;
+            }
+
+            case Declarations.PROD: {
+                double prod = 1.0;
+                for (int i = 0; i < n; i++) {
+                    prod *= args[i];
+                }
+                return prod;
+            }
+
+            case Declarations.AVG:
+            case Declarations.MEAN: {
+                double mTotal = 0.0;
+                for (int i = 0; i < n; i++) {
+                    mTotal += args[i];
+                }
+                return mTotal / n;
+            }
+
+            case Declarations.MEDIAN: {
+                // In-place sort is incredibly fast for small arrays and avoids allocation
+                Arrays.sort(args);
+                int mid = n / 2;
+                if (n % 2 == 0) {
+                    return (args[mid - 1] + args[mid]) * 0.5;
+                }
+                return args[mid];
+            }
+
+            case Declarations.MIN: {
+                double min = args[0];
+                for (int i = 1; i < n; i++) {
+                    if (args[i] < min) {
+                        min = args[i];
+                    }
+                }
+                return min;
+            }
+
+            case Declarations.MAX: {
+                double max = args[0];
+                for (int i = 1; i < n; i++) {
+                    if (args[i] > max) {
+                        max = args[i];
+                    }
+                }
+                return max;
+            }
+            case Declarations.NOW: {
+                return System.currentTimeMillis();
+            }
+            case Declarations.NANOS: {
+                return System.nanoTime();
+            }
+            case Declarations.RANGE: {
+                double rMin = args[0];
+                double rMax = args[0];
+                for (int i = 1; i < n; i++) {
+                    if (args[i] < rMin) {
+                        rMin = args[i];
+                    } else if (args[i] > rMax) {
+                        rMax = args[i];
+                    }
+                }
+                return rMax - rMin;
+            }
+
+            case Declarations.MID_RANGE: {
+                double mrMin = args[0];
+                double mrMax = args[0];
+                for (int i = 1; i < n; i++) {
+                    if (args[i] < mrMin) {
+                        mrMin = args[i];
+                    } else if (args[i] > mrMax) {
+                        mrMax = args[i];
+                    }
+                }
+                return (mrMax + mrMin) * 0.5;
+            }
+
+            case Declarations.VARIANCE: {
+                if (n < 2) {
+                    return 0.0;
+                }
+                // Welford's Algorithm: One-pass, cache-friendly, numerically stable
+                double mean = 0.0;
+                double M2 = 0.0;
+                for (int i = 0; i < n; i++) {
+                    double delta = args[i] - mean;
+                    mean += delta / (i + 1);
+                    M2 += delta * (args[i] - mean);
+                }
+                return M2 / (n - 1); // Sample variance
+            }
+
+            case Declarations.STD_DEV: {
+                if (n < 2) {
+                    return 0.0;
+                }
+                double mean = 0.0;
+                double M2 = 0.0;
+                for (int i = 0; i < n; i++) {
+                    double delta = args[i] - mean;
+                    mean += delta / (i + 1);
+                    M2 += delta * (args[i] - mean);
+                }
+                return Math.sqrt(M2 / (n - 1));
+            }
+
+            case Declarations.STD_ERR: {
+                if (n < 2) {
+                    return 0.0;
+                }
+                double mean = 0.0;
+                double M2 = 0.0;
+                for (int i = 0; i < n; i++) {
+                    double delta = args[i] - mean;
+                    mean += delta / (i + 1);
+                    M2 += delta * (args[i] - mean);
+                }
+                double stdDev = Math.sqrt(M2 / (n - 1));
+                return stdDev / Math.sqrt(n);
+            }
+
+            case Declarations.COEFFICIENT_OF_VARIATION: {
+                if (n < 2) {
+                    return Double.NaN;
+                }
+                double mean = 0.0;
+                double M2 = 0.0;
+                for (int i = 0; i < n; i++) {
+                    double delta = args[i] - mean;
+                    mean += delta / (i + 1);
+                    M2 += delta * (args[i] - mean);
+                }
+                if (mean == 0.0) {
+                    return Double.NaN; // Guard against /0
+                }
+                double stdDev = Math.sqrt(M2 / (n - 1));
+                return stdDev / mean;
+            }
+
+            case Declarations.ROOT_MEAN_SQUARED: {
+                double sumSq = 0.0;
+                for (int i = 0; i < n; i++) {
+                    sumSq += (args[i] * args[i]);
+                }
+                return Math.sqrt(sumSq / n);
+            }
+
+            case Declarations.RANDOM:
+                // ThreadLocalRandom is vastly superior to Math.random() for high-throughput calls
+                return ThreadLocalRandom.current().nextDouble();
+
+            default:
+                return Double.NaN;
+        }
+    }
+
+    private static double[] executeVectorStatAtCompileTime(String method, double[] args) {
+        int n = args.length;
+
+        switch (method) {
+            case Declarations.MODE: {
+                Arrays.sort(args); // Sort first to group identical values
+
+                // First pass: Find the maximum frequency
+                int maxCount = 0;
+                int currentCount = 1;
+                for (int i = 1; i < n; i++) {
+                    if (args[i] == args[i - 1]) {
+                        currentCount++;
+                    } else {
+                        if (currentCount > maxCount) {
+                            maxCount = currentCount;
+                        }
+                        currentCount = 1;
+                    }
+                }
+                if (currentCount > maxCount) {
+                    maxCount = currentCount;
+                }
+
+                // Second pass: Collect all values that match maxCount
+                // We use a temporary list or a precisely sized array
+                double[] tempModes = new double[n];
+                int modeIdx = 0;
+                currentCount = 1;
+
+                // Handle single element case
+                if (n == 1) {
+                    return new double[]{args[0]};
+                }
+
+                for (int i = 1; i < n; i++) {
+                    if (args[i] == args[i - 1]) {
+                        currentCount++;
+                    } else {
+                        if (currentCount == maxCount) {
+                            tempModes[modeIdx++] = args[i - 1];
+                        }
+                        currentCount = 1;
+                    }
+                }
+                if (currentCount == maxCount) {
+                    tempModes[modeIdx++] = args[n - 1];
+                }
+
+                // Return a trimmed array containing only the modes
+                return Arrays.copyOf(tempModes, modeIdx);
+            }
+            case Declarations.SORT: {
+                // Arrays.sort mutates the array in-place extremely fast.
+                Arrays.sort(args);
+                // Since this method strictly returns a double, returning the array itself isn't possible here.
+                // Returning args[0] gives the caller the first element, while the array remains sorted in memory.
+                return args;
+            }
+
+            default:
+                return null;
         }
     }
 

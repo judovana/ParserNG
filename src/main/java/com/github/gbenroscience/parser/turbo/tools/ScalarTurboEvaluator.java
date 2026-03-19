@@ -294,7 +294,29 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
         Stack<MethodHandle> stack = new Stack<>();
         for (MathExpression.Token t : postfix) {
             switch (t.kind) {
-                case MathExpression.Token.NUMBER:
+               /* case MathExpression.Token.NUMBER:
+                    if (t.name != null && !t.name.isEmpty()) {
+                        // Variable: load from array at frameIndex
+                        int frameIndex = t.frameIndex;
+
+                        // 1. Get the JVM-intrinsic array element getter for double[]
+                        // Signature: (double[], int) -> double
+                        MethodHandle arrayGetter = MethodHandles.arrayElementGetter(double[].class);
+
+                        // 2. BAKE the index into the handle (Currying)
+                        // Transforms (double[], int) -> double INTO (double[]) -> double
+                        MethodHandle directVarHandle = MethodHandles.insertArguments(arrayGetter, 1, frameIndex);
+
+                        stack.push(directVarHandle);
+
+                    } else {
+                        // Constant value: (double[]) -> double (ignoring the array)
+                        MethodHandle constant = MethodHandles.constant(double.class, t.value);
+                        stack.push(MethodHandles.dropArguments(constant, 0, double[].class));
+                    }
+                    break;
+                */
+                case MathExpression.Token.NUMBER://public static double getVar(double[] vars, int index)
                     if (t.name != null && !t.name.isEmpty()) {
                         // Variable: load from array at frameIndex
                         int frameIndex = t.frameIndex;
@@ -338,9 +360,7 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
                             stack.pop();
                             data[i] = Double.parseDouble(rawArgs[i]);
                         }
-
-                        // Inside the switch case for Stats methods
-                        // Inside the switch case for Stats methods
+ 
                         MethodHandle finalOp;
                         if (name.equals(Declarations.SORT) || name.equals(Declarations.MODE)) {
                             finalOp = MethodHandles.insertArguments(VECTOR_GATEKEEPER_HANDLE, 0, name, data);
