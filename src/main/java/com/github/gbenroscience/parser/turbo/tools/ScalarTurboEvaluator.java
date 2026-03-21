@@ -59,6 +59,8 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
 
+    private boolean willFoldConstants;
+
     public static final MethodHandle SCALAR_GATEKEEPER_HANDLE;
     public static final MethodHandle VECTOR_GATEKEEPER_HANDLE;
     public static final MethodHandle VECTOR_2_GATEKEEPER_HANDLE;
@@ -141,9 +143,20 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
 
     ));
 
-    public ScalarTurboEvaluator(MathExpression.Token[] postfix) {
-        this.postfix = postfix;
+    public ScalarTurboEvaluator(MathExpression me) {
+        this.postfix = me.getCachedPostfix();
+        this.willFoldConstants = me.isWillFoldConstants();
     }
+
+    public void setWillFoldConstants(boolean willFoldConstants) {
+        this.willFoldConstants = willFoldConstants;
+    }
+
+    public boolean isWillFoldConstants() {
+        return willFoldConstants;
+    }
+    
+    
 
     /**
      * Hardened production bridge. Zero allocation for arity <= 8. Safely scales
@@ -223,7 +236,7 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
         }
 
         // Build the register-optimized Wide tree
-        MethodHandle wideHandle = compileScalarWide(postfix, varCount);
+        MethodHandle wideHandle = compileScalarWide(postfix, varCount, willFoldConstants);
 
         // Create a version of the handle that is guaranteed to return Object
         // This is required to safely catch double[] from sort, mode, etc.
@@ -317,8 +330,18 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
 
         return false;
     }
-
-    private static MethodHandle compileScalarWide(MathExpression.Token[] postfix, int varCount) throws Throwable {
+/*
+         if (t.name != null && !t.name.isEmpty()) {
+                        // VARIABLE: (double[]) -> double
+                        MethodHandle arrayGetter = MethodHandles.arrayElementGetter(double[].class);
+                        stack.push(MethodHandles.insertArguments(arrayGetter, 1, t.frameIndex));
+                    } else {
+                        // CONSTANT: () -> double (No dropArguments yet!)
+                        stack.push(MethodHandles.constant(double.class, t.value));
+                    }
+                    break;
+    */
+    private static MethodHandle compileScalarWide(MathExpression.Token[] postfix, int varCount, boolean foldConstants) throws Throwable {
         Stack<MethodHandle> stack = new Stack<>();
         Class<?>[] pTypes = new Class<?>[varCount];
         Arrays.fill(pTypes, double.class);
@@ -344,9 +367,9 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
                     break;
                 case MathExpression.Token.OPERATOR:
                     if (t.isPostfix) {
-                        applyUnaryWide(t, stack);
+                        applyUnaryWide(t, stack, foldConstants);
                     } else {
-                        applyBinaryWide(t, stack);
+                        applyBinaryWide(t, stack, foldConstants);
                     }
                     break;
 
@@ -355,9 +378,9 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
                     String name = t.name.toLowerCase();
                     if (isIntrinsic(t.name, t.arity)) {
                         if (t.arity == 1) {
-                            applyUnaryWide(t, stack); // Pass the Token 't' and the stack
+                            applyUnaryWide(t, stack, foldConstants); // Pass the Token 't' and the stack
                         } else if (t.arity == 2) {
-                            applyBinaryWide(t, stack); // Just pass 't' and the stack
+                            applyBinaryWide(t, stack, foldConstants); // Just pass 't' and the stack
                         }
                     } else {
                         // Complex/Legacy Functions (intg, diff, root, print, stats, registry)
@@ -927,53 +950,114 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
 
     ///////////////////////////////////////////WIDE METHODS BEGIN///////////////////////////////////////////////////////////////////////////////////
 
-    private static void applyBinaryWide(MathExpression.Token token, Stack<MethodHandle> stack) throws Throwable {
+    private static void applyBinaryWide(MathExpression.Token token, Stack<MethodHandle> stack, boolean foldingEnabled) throws Throwable {
         MethodHandle h2 = stack.pop();
         MethodHandle h1 = stack.pop();
 
-        // 1. Broadcast to ensure we have (double[])double
+        // 1. Check for Folding Opportunity
+        if (foldingEnabled && isFoldable(h1) && isFoldable(h2)) {
+            String name = (token.kind == MathExpression.Token.OPERATOR)
+                    ? String.valueOf(token.opChar)
+                    : token.name;
+
+            // Get the raw (double, double)double handle
+            MethodHandle op = getBinaryFunctionHandle(name);
+
+            // Invoke the constants - we use a dummy array because they are (double[])
+            double v1 = (double) h1.invokeExact(new double[0]);
+            double v2 = (double) h2.invokeExact(new double[0]);
+
+            // Calculate result immediately
+            double result = (double) op.invokeExact(v1, v2);
+
+            // Push the pre-calculated result back to the stack
+            stack.push(createConstantHandle(result));
+            return; // Skip the expensive MethodHandle tree building
+        }
+
+        // 2. Broadcast to ensure we have (double[])double (Dynamic Path)
         h1 = broadcast(h1);
         h2 = broadcast(h2);
 
-        // --- DIAGNOSTIC CHECK ---
-        // If this throws, your Variable leaf nodes are not being created correctly for WIDE mode.
+        // Diagnostic Checks
         if (h1.type().parameterCount() != 1 || h1.type().parameterType(0) != double[].class) {
-            throw new IllegalStateException("CRITICAL ERROR: h1 is not a wide handle! It is: " + h1.type());
+            throw new IllegalStateException("CRITICAL ERROR: h1 is not a wide handle! " + h1.type());
         }
         if (h2.type().parameterCount() != 1 || h2.type().parameterType(0) != double[].class) {
-            throw new IllegalStateException("CRITICAL ERROR: h2 is not a wide handle! It is: " + h2.type());
+            throw new IllegalStateException("CRITICAL ERROR: h2 is not a wide handle! " + h2.type());
         }
-        // ------------------------
 
         String name = (token.kind == MathExpression.Token.OPERATOR)
                 ? String.valueOf(token.opChar)
                 : token.name;
-        MethodHandle op = getBinaryFunctionHandle(name); // Expected: (double, double)double
+        MethodHandle op = getBinaryFunctionHandle(name);
 
-        // 2. Combine them. 
-        // Since h1 and h2 are verified as (double[])double, combined WILL be (double[], double[])double
+        // 3. Combine and Pinch (The "Turbo" logic)
         MethodHandle combined = MethodHandles.filterArguments(op, 0, h1, h2);
-
-        // 3. Pinch them back into a single array
         MethodType wideType = MethodType.methodType(double.class, double[].class);
-
-        // Ensure 'combined' is used here, NOT 'op'
         MethodHandle pinched = MethodHandles.permuteArguments(combined, wideType, 0, 0);
 
         stack.push(pinched);
     }
 
-    private static void applyUnaryWide(MathExpression.Token token, Stack<MethodHandle> stack) throws Throwable {
-        MethodHandle h = stack.pop();
-        h = broadcast(h);
+    private static void applyUnaryWide(MathExpression.Token token, Stack<MethodHandle> stack, boolean foldingEnabled) throws Throwable {
+        MethodHandle h1 = stack.pop();
+
+        // 1. CONSTANT FOLDING CHECK
+        if (foldingEnabled && isFoldable(h1)) {
+            String name = (token.kind == MathExpression.Token.OPERATOR)
+                    ? String.valueOf(token.opChar)
+                    : token.name;
+
+            // Get the raw (double)double handle (e.g., Math.sin, Math.sqrt)
+            MethodHandle op = getUnaryFunctionHandle(name);
+
+            // Invoke the constant - h1 is (double[])double
+            double v1 = (double) h1.invokeExact(new double[0]);
+
+            // Calculate result at compile-time
+            double result = (double) op.invokeExact(v1);
+
+            // Push the pre-calculated result back
+            stack.push(createConstantHandle(result));
+            return;
+        }
+
+        // 2. DYNAMIC PATH (Wide Architecture)
+        h1 = broadcast(h1);
+
+        // Diagnostic
+        if (h1.type().parameterCount() != 1 || h1.type().parameterType(0) != double[].class) {
+            throw new IllegalStateException("CRITICAL ERROR: h1 is not a wide handle! " + h1.type());
+        }
 
         String name = (token.kind == MathExpression.Token.OPERATOR)
                 ? String.valueOf(token.opChar)
                 : token.name;
+        MethodHandle op = getUnaryFunctionHandle(name); // Expected: (double)double
 
-        MethodHandle op = getUnaryFunctionHandle(name);
-        stack.push(MethodHandles.filterArguments(op, 0, h));
+        // 3. Transform (double)double to (double[])double using filterArguments
+        // Since h1 is (double[])double, this effectively pipes the array through h1 
+        // and then into the unary op.
+        MethodHandle pinched = MethodHandles.filterArguments(op, 0, h1);
+
+        stack.push(pinched);
     }
+
+    /**
+     * Helper to identify if a handle is a constant literal. Works with your
+     * createConstantHandle(double value) implementation.
+     */
+    private static boolean isFoldable(MethodHandle mh) {
+        // In your architecture, constants are handles that take (double[]) and return double
+        // but don't actually reference the array (no arrayElementGetter).
+        // The most reliable way is to check if it's a 'Constant' kind if using MethodHandles.constant
+        return mh.type().parameterCount() == 1
+                && mh.type().parameterType(0) == double[].class
+                && mh.toString().contains("Constant"); // Or check internal state if custom
+    }
+
+    
 
     private static MethodHandle compileRegistryFunctionWide(MathExpression.Token t, List<MethodHandle> args, MethodType wideType) throws Throwable {
         int methodId = MethodRegistry.getMethodID(t.name);
@@ -1207,8 +1291,6 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
                 throw new IllegalArgumentException("Unsupported binary operator: " + op);
         }
     }
-    
-  
 
     public static double executePrint(String[] args) throws Throwable {
         double defReturnType = -1.0;

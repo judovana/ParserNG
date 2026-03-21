@@ -538,11 +538,11 @@ public class MathExpression implements Savable, Solvable {
             if (!hasMatrixOps) {
               //  System.out.println("SELECTED ScalarTurboCompiler");
                 // Pure scalar expressions: use ultra-fast scalar compiler (~5ns)
-                compiler = new ScalarTurboEvaluator(cachedPostfix);
+                compiler = new ScalarTurboEvaluator(this);
             } else {
              //   System.out.println("SELECTED FlatMatrixTurboCompiler");
                 // Any matrix operations: use flat-array optimized compiler (~50-1000ns)
-                compiler = new MatrixTurboEvaluator(cachedPostfix);
+                compiler = new MatrixTurboEvaluator(this);
             }
             compiledTurbo = compiler.compile();
             turboCompiled = true;

@@ -27,6 +27,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
+        private boolean willFoldConstants;
 
     // ========== THE RESULT CACHE ==========
     /**
@@ -99,9 +100,20 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
     private MathExpression.Token[] postfix;
 
-    public MatrixTurboEvaluator(MathExpression.Token[] postfix) {
-        this.postfix = postfix;
+    public MatrixTurboEvaluator(MathExpression me) {
+        this.postfix = me.getCachedPostfix();
+        this.willFoldConstants = me.isWillFoldConstants();
     }
+
+    public void setWillFoldConstants(boolean willFoldConstants) {
+        this.willFoldConstants = willFoldConstants;
+    }
+
+    public boolean isWillFoldConstants() {
+        return willFoldConstants;
+    }
+    
+    
 
     // ========== COMPILER CORE ==========
     @Override

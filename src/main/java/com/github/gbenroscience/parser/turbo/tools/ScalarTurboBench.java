@@ -495,23 +495,29 @@ public class ScalarTurboBench {
 
         String expr = "2^10 + 3^5 - 4! + sqrt(256)";
 
-        MathExpression turbo = new MathExpression(expr, true);
-        turbo.setWillFoldConstants(true); // Enable optimization
-        FastCompositeExpression compiled = turbo.compileTurbo();
+        MathExpression turbo = new MathExpression(expr, true); 
+        FastCompositeExpression compiled = turbo.compileTurbo();//folding info will be picked up automatically!
 
         double[] vars = new double[0];
-        for (int i = 0; i < 1000; i++) {
-            compiled.applyScalar(vars);
-        }
-
-        long start = System.nanoTime();
+        double[]res=new double[1];
+              long start = System.nanoTime();
         for (int i = 0; i < N; i++) {
-            compiled.applyScalar(vars);
+           res[0] = turbo.solveGeneric().scalar;
         }
-        double turboDur = System.nanoTime() - start;
+         double interpretedDur = System.nanoTime() - start;
+        System.out.println("res = "+res[0]);
+
+         start = System.nanoTime();
+        for (int i = 0; i < N; i++) {
+           res[0] = compiled.applyScalar(vars);
+        }
+         double turboDur = System.nanoTime() - start;
+        System.out.println("res = "+res[0]);
 
         System.out.printf("Expression: %s%n", expr);
         System.out.printf("(All constants - folds to single value at compile time)%n");
+        System.out.printf("Interpreted:     %.2f ns/op%n", interpretedDur / N);
         System.out.printf("Turbo:     %.2f ns/op%n", turboDur / N);
+        System.out.printf("Speedup:     %.1fx%n", (double) interpretedDur / turboDur);
     }
 }

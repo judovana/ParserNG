@@ -46,14 +46,7 @@ public class TurboEvaluatorFactory {
                 break;
             }
         }
-
-        if (involvesMatrices) {
-            // Returns the O(1) allocation engine for heavy linear algebra
-            return new MatrixTurboEvaluator(postfix);
-        } else {
-            // Returns the ultra-lean engine for scalar 3D point generation
-            return new ScalarTurboEvaluator(postfix);
-        }
+        return involvesMatrices ? new MatrixTurboEvaluator(me) : new ScalarTurboEvaluator(me);
     }
 
     private static boolean isMatrixToken(MathExpression.Token t) {
