@@ -1547,6 +1547,7 @@ public class MathExpression implements Savable, Solvable {
         // Pre-allocate and reuse
         private final EvalResult[] stack;
         private final EvalResult[][] argCache;
+        
 
         public ExpressionSolver() {
             // Allocate stack ONCE, with sufficient capacity
@@ -1568,7 +1569,8 @@ public class MathExpression implements Savable, Solvable {
                 }
             }
         }
-
+        
+   
         public EvalResult evaluate() {
             // Just use the pre-allocated stack - no allocation per call
             int ptr = -1;

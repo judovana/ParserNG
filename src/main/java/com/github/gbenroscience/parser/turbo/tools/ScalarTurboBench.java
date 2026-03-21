@@ -495,7 +495,7 @@ public class ScalarTurboBench {
 
         String expr = "2^10 + 3^5 - 4! + sqrt(256)";
 
-        MathExpression turbo = new MathExpression(expr, false);
+        MathExpression turbo = new MathExpression(expr, true);
         turbo.setWillFoldConstants(true); // Enable optimization
         FastCompositeExpression compiled = turbo.compileTurbo();
 
