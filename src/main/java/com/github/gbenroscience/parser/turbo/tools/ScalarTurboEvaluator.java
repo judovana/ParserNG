@@ -155,8 +155,6 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
     public boolean isWillFoldConstants() {
         return willFoldConstants;
     }
-    
-    
 
     /**
      * Hardened production bridge. Zero allocation for arity <= 8. Safely scales
@@ -330,7 +328,7 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
 
         return false;
     }
- 
+
     private static MethodHandle compileScalarWide(MathExpression.Token[] postfix, int varCount, boolean foldConstants) throws Throwable {
         Stack<MethodHandle> stack = new Stack<>();
         Class<?>[] pTypes = new Class<?>[varCount];
@@ -356,7 +354,7 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
                     }
                     break;
                 case MathExpression.Token.OPERATOR:
-                    if (t.isPostfix) {
+                    if (t.isPostfix || t.opChar == '√') {
                         applyUnaryWide(t, stack, foldConstants);
                     } else {
                         applyBinaryWide(t, stack, foldConstants);
@@ -1047,8 +1045,6 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
                 && mh.toString().contains("Constant"); // Or check internal state if custom
     }
 
-    
-
     private static MethodHandle compileRegistryFunctionWide(MathExpression.Token t, List<MethodHandle> args, MethodType wideType) throws Throwable {
         int methodId = MethodRegistry.getMethodID(t.name);
 
@@ -1641,24 +1637,58 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
     private static MethodHandle getUnaryOpHandle(char op) throws Throwable {
         switch (op) {
             case '√':
+                // Optimization: Square root uses the CPU's fsqrt instruction
                 return LOOKUP.findStatic(Math.class, "sqrt", MT_DOUBLE_D);
             case 'R':
                 // Cube root (internal representation for ³√)
                 return LOOKUP.findStatic(Math.class, "cbrt", MT_DOUBLE_D);
-            case '!':
-                // Factorial
-                return LOOKUP.findStatic(Maths.class, "fact", MT_DOUBLE_D);
             case '²':
-                // Square: x^2
-                MethodHandle pow2 = LOOKUP.findStatic(Math.class, "pow", MT_DOUBLE_DD);
-                return MethodHandles.insertArguments(pow2, 1, 2.0);
+                // Optimization: Maps to x * x via specialized kernel
+                return getOptimizedPowerHandle(2.0);
             case '³':
-                // Cube: x^3
-                MethodHandle pow3 = LOOKUP.findStatic(Math.class, "pow", MT_DOUBLE_DD);
-                return MethodHandles.insertArguments(pow3, 1, 3.0);
+                // Optimization: Maps to x * x * x via specialized kernel
+                return getOptimizedPowerHandle(3.0);
+            case '!':
+                // Factorial (External utility)
+                return LOOKUP.findStatic(Maths.class, "fact", MT_DOUBLE_D);
             default:
                 throw new IllegalArgumentException("Unsupported unary operator: " + op);
         }
+    }
+
+    public static MethodHandle getOptimizedPowerHandle(double n) throws Throwable {
+        // Case: x^0
+        if (n == 0.0) {
+            return MethodHandles.constant(double.class, 1.0);
+        }
+        // Case: x^1
+        if (n == 1.0) {
+            return MethodHandles.identity(double.class);
+        }
+        // Case: x^0.5 (Square Root)
+        if (n == 0.5) {
+            return LOOKUP.findStatic(Math.class, "sqrt", MethodType.methodType(double.class, double.class));
+        }
+        // Case: x^0.333... (Cube Root)
+        if (Math.abs(n - (1.0 / 3.0)) < 1E-9) {
+            return LOOKUP.findStatic(Math.class, "cbrt", MethodType.methodType(double.class, double.class));
+        }
+        // Case: x^2
+        if (n == 2.0) {
+            return LOOKUP.findStatic(ScalarTurboEvaluator.class, "square", MethodType.methodType(double.class, double.class));
+        }
+        // Case: x^3
+        if (n == 3.0) {
+            return LOOKUP.findStatic(ScalarTurboEvaluator.class, "cube", MethodType.methodType(double.class, double.class));
+        }       // Case: x^4
+        if (n == 4.0) {
+            return LOOKUP.findStatic(ScalarTurboEvaluator.class, "quad", MethodType.methodType(double.class, double.class));
+        }
+
+        // Fallback: The "Heavy" Math.pow
+        MethodHandle pow = LOOKUP.findStatic(Math.class, "pow",
+                MethodType.methodType(double.class, double.class, double.class));
+        return MethodHandles.insertArguments(pow, 1, n);
     }
 
     // ========== FUNCTIONS ==========
@@ -1784,6 +1814,13 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
         MethodHandle mh;
 
         switch (base) {
+            case "²":
+                // Optimization: Maps the postfix ² to the inlined square(x) method
+                return LOOKUP.findStatic(ScalarTurboEvaluator.class, "square", MT_DOUBLE_D);
+
+            case "³":
+                // Optimization: Maps the postfix ³ to the inlined cube(x) method
+                return LOOKUP.findStatic(ScalarTurboEvaluator.class, "cube", MT_DOUBLE_D);
             case "sin":
                 mh = LOOKUP.findStatic(Math.class, "sin", MT_DOUBLE_D);
                 break;
@@ -1891,6 +1928,7 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
             case "rnd":
                 mh = LOOKUP.findStatic(Math.class, "round", MT_DOUBLE_D); // Note: might need cast logic
                 break;
+            case "√":
             case "sqrt":
                 mh = LOOKUP.findStatic(Math.class, "sqrt", MT_DOUBLE_D);
                 break;
@@ -2000,6 +2038,7 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
             }
         }
         switch (name.toLowerCase()) {
+
             case "pow":
                 return LOOKUP.findStatic(Math.class, "pow", MT_DOUBLE_DD);
             case "atan2":
@@ -2017,6 +2056,18 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
             case "perm":
                 return LOOKUP.findStatic(Maths.class,
                         name.equals("comb") ? "combination" : "permutation", MT_DOUBLE_DD);
+            // --- FIX FOR POSTFIX SQUARED ---
+            case "²":
+                // Discards the second argument (the exponent 2.0) and calls square(x)
+                return MethodHandles.dropArguments(
+                        LOOKUP.findStatic(ScalarTurboEvaluator.class, "square", MT_DOUBLE_D),
+                        1, double.class);
+            // --- FIX FOR POSTFIX CUBED ---
+            case "³":
+                // Discards the second argument (the exponent 3.0) and calls cube(x)
+                return MethodHandles.dropArguments(
+                        LOOKUP.findStatic(ScalarTurboEvaluator.class, "cube", MT_DOUBLE_D),
+                        1, double.class);
             default:
                 // This is where "root", "diff", and "intg" will now fall through
                 // if they are not in FAST_PATH_METHODS.
@@ -2063,4 +2114,19 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
         return a % b;
     }
 
+    // Zero-overhead square
+    public static double square(double x) {
+        return x * x;
+    }
+
+    // Zero-overhead cube
+    public static double cube(double x) {
+        return x * x * x;
+    }
+
+    // Optional: Quad power (x^4) - still faster than Math.pow
+    public static double quad(double x) {
+        double x2 = x * x;
+        return x2 * x2;
+    }
 }

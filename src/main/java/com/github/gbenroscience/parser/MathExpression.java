@@ -527,7 +527,7 @@ public class MathExpression implements Savable, Solvable {
 
         if (!isScannedAndOptimized() || cachedPostfix == null) {
             throw new IllegalStateException(
-                    "Expression not properly compiled. Call solve() first.");
+                    "Expression not properly compiled.");
         }
 
         try {

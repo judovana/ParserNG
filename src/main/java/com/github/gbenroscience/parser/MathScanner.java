@@ -918,7 +918,7 @@ public class MathScanner {
                 result.add(signMultiplier == 1 ? "+" : "-");
                 i = j - 1;
             }
-            continue;
+            continue;//2²+3³+√9
         }
 
         // --- 2. REDUNDANT "* 1" or "/ 1" REMOVAL ---
@@ -941,13 +941,13 @@ private static boolean isOperator(String s) {
     // These are tokens that, if they appear BEFORE a sign, make that sign UNARY
     return s.equals("+") || s.equals("-") || s.equals("*") || s.equals("/") || 
            s.equals("^") || s.equals("%") || s.equals("Р") || s.equals("Č") || 
-           s.equals("(") || s.equals("²") || s.equals("³");
+           s.equals("(") || s.equals("√");
 }
 
 private static boolean isOperandLike(String s) {
     // These are tokens that can be followed by a redundant * 1
     // Includes numbers, variables (x), closing brackets, and factorials
-    return isNumber(s) || s.equals(")") || s.equals("!") || s.equals("x") || s.equals("y");
+    return isNumber(s) || s.equals(")") || s.equals("!") || isVariableString(s) || s.equals("²") || s.equals("³");
 }
 
 private static boolean isSign(String s) {
@@ -988,11 +988,13 @@ private static boolean isExactlyOne(String s) {
      */
     public List<String> scanner() {
         VariableManager variableManager = new VariableManager();
+            
         splitStringOnMethods_Variables_And_Operators();
         if (parser_Result != ParserResult.VALID) {
             scanner.clear();
             return scanner;
         }
+       
         validateInputAfterSplitOnMethodsAndOps();
         if (parser_Result != ParserResult.VALID) {
             scanner.clear();
@@ -1020,7 +1022,7 @@ private static boolean isExactlyOne(String s) {
                 }//end catch
             }//end if
         }//end for
-
+ 
 //enable interpretation of things like 3^-4 or 3^+4 i.e ^- or ^+ patterns
         for (int i = 0; i < scanner.size(); i++) {
             try {
@@ -1041,9 +1043,9 @@ private static boolean isExactlyOne(String s) {
 
             }
         }//end for
-
+ 
         validateTokens();
-
+ 
         /**
          * Automatically initialize and store undeclared variables to 0 in the
          * first if block. To enforce variable declaration and initialization,
@@ -1085,7 +1087,7 @@ private static boolean isExactlyOne(String s) {
                 }//end if
             }//end else
         }
-
+       
         if (!runnable) {
             errorList.add("\n"
                     + "Sorry, Errors Were Found In Your Expression."
@@ -1097,6 +1099,7 @@ private static boolean isExactlyOne(String s) {
         }
 
         plusAndMinusStringHandler();
+         System.out.println("6.....................scanner: "+scanner+", "+runnable+", parser_Result = "+parser_Result);
         return scanner;
     }
 
@@ -1704,6 +1707,11 @@ private static boolean isExactlyOne(String s) {
         String s10 = "diff(@(x)sin(x),2,3)";
         String s11 = "root(@(x)sin(x),2,3)";
         String s12 = "root(@(x)sin(x),sin(2)-cos(1),13*(2+3))";
+        String s13 = "2²+3³+√-9";
+        
+        MathScanner msc = new MathScanner(s13);
+        
+        System.out.println("------------------------------------"+msc.scanner());
 
         MathScanner sc0 = new MathScanner(s8);
         System.out.println("*************************" + sc0.scanner(new VariableManager()));

@@ -128,17 +128,14 @@ public class Maths {                       //3.14159265358979323846;
         return factorialStr(Double.parseDouble(p));
     }//end method fact
 
-    public static double permutation(double n, double r){
-      return Maths.fact(n) / Maths.fact(n - r);
+    public static double permutation(double n, double r) {
+        return Maths.fact(n) / Maths.fact(n - r);
     }
-    
-    public static double combination(double n, double r){
-      return Maths.fact(n) / (Maths.fact(r) * Maths.fact(n - r));
-    }
-    
 
-    
-    
+    public static double combination(double n, double r) {
+        return Maths.fact(n) / (Maths.fact(r) * Maths.fact(n - r));
+    }
+
     /**
      * method getExponent returns the power to which 10 is raised when the
      * number is written in standard form e.g an argument of 34.543 for the
@@ -484,9 +481,9 @@ public class Maths {                       //3.14159265358979323846;
                 }//end for
 
                 return STRING.reverse(h);
-            } catch (NumberFormatException num) { 
+            } catch (NumberFormatException num) {
                 num.printStackTrace();
-                throw new NumberFormatException("Only integers are expected here!--dec_no: "+dec_no+", base_no: "+base_no);
+                throw new NumberFormatException("Only integers are expected here!--dec_no: " + dec_no + ", base_no: " + base_no);
             }
 
         }//end if
@@ -1306,6 +1303,16 @@ public class Maths {                       //3.14159265358979323846;
         return result;
 
     }//end method
+// Define these static helper methods in a utility class (e.g., Maths.java)
+
+    public static double square(double x) {
+        return x * x;
+    }
+
+    public static double cube(double x) {
+        return x * x * x;
+    }
+
 
     /**
      * Developed by JIBOYE Oluwagbemiro Olaoluwa for the J2ME platform where no
@@ -1556,7 +1563,7 @@ public class Maths {                       //3.14159265358979323846;
             }
         }
     }//end method.
- 
+
     /*We use the principle:
      * pi=(magic_whole_no)*(SUM(i^-n))^(1/n) < where i goes from 1 to infinity during summation >
      * to calculate pi.
@@ -1582,5 +1589,4 @@ public class Maths {                       //3.14159265358979323846;
      *
      *
      */
-
 } //end class
