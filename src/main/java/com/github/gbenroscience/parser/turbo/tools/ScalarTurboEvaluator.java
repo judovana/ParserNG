@@ -330,17 +330,7 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
 
         return false;
     }
-/*
-         if (t.name != null && !t.name.isEmpty()) {
-                        // VARIABLE: (double[]) -> double
-                        MethodHandle arrayGetter = MethodHandles.arrayElementGetter(double[].class);
-                        stack.push(MethodHandles.insertArguments(arrayGetter, 1, t.frameIndex));
-                    } else {
-                        // CONSTANT: () -> double (No dropArguments yet!)
-                        stack.push(MethodHandles.constant(double.class, t.value));
-                    }
-                    break;
-    */
+ 
     private static MethodHandle compileScalarWide(MathExpression.Token[] postfix, int varCount, boolean foldConstants) throws Throwable {
         Stack<MethodHandle> stack = new Stack<>();
         Class<?>[] pTypes = new Class<?>[varCount];
