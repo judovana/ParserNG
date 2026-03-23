@@ -1099,7 +1099,6 @@ private static boolean isExactlyOne(String s) {
         }
 
         plusAndMinusStringHandler();
-         System.out.println("6.....................scanner: "+scanner+", "+runnable+", parser_Result = "+parser_Result);
         return scanner;
     }
 

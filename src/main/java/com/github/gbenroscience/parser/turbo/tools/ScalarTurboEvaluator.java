@@ -37,6 +37,7 @@ import com.github.gbenroscience.util.VariableManager;
 import java.lang.invoke.*;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.IntStream;
 
 /**
  * Turbo compiler optimized for PURE SCALAR expressions.
@@ -224,76 +225,36 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
      * catch (Throwable t) { throw new RuntimeException("Turbo primitive
      * execution failed", t); } } }; }
      */
+    ///////////////////////////////////////////UPDATE STARTS////////////////////////////////////////////////////////////////////////////////
+    
+    
+    
+    
+    
+    
+
+    /**
+     * Updated compile() method to use the new wide compiler.
+     */ 
     @Override
     public FastCompositeExpression compile() throws Throwable {
-        int varCount = 0;
-        for (MathExpression.Token t : postfix) {
-            if (t.kind == MathExpression.Token.NUMBER && t.name != null && !t.name.isEmpty()) {
-                varCount = Math.max(varCount, t.frameIndex + 1);
-            }
-        }
-
-        // Build the register-optimized Wide tree
-        MethodHandle wideHandle = compileScalarWide(postfix, varCount, willFoldConstants);
-
-        // Create a version of the handle that is guaranteed to return Object
-        // This is required to safely catch double[] from sort, mode, etc.
-        MethodHandle objectHandle = wideHandle.type().returnType() == double.class
-                ? wideHandle.asType(wideHandle.type().changeReturnType(Object.class))
-                : wideHandle;
-
-        // ... after wideHandle and objectHandle are defined ...
-        final MethodHandle spreaderObj;
-        // Defensive check: If it's a pure constant expression that didn't get widened
-        if (objectHandle.type().parameterCount() == 0) {
-            spreaderObj = MethodHandles.dropArguments(objectHandle, 0, double[].class);
-        } else {
-            spreaderObj = objectHandle;
-        }
-
-        final MethodHandle spreaderPrim;
-        if (wideHandle.type().returnType() == double.class) {
-            if (wideHandle.type().parameterCount() == 0) {
-                spreaderPrim = MethodHandles.dropArguments(wideHandle, 0, double[].class);
-            } else {
-                spreaderPrim = wideHandle;
-            }
-        } else {
-            spreaderPrim = null;
-        }
+        // Use the proven compileScalar() that was already working
+        MethodHandle scalarHandle = compileScalar(postfix);
 
         return new FastCompositeExpression() {
             @Override
             public double applyScalar(double[] variables) {
-                if (spreaderPrim != null) {
-                    try {
-                        // Primitive path: invokeExact is okay here because types are rigid doubles
-                        return (double) spreaderPrim.invokeExact(variables);
-                    } catch (Throwable t) {
-                        // Fallback below...
-                    }
-                }
                 try {
-                    Object res = spreaderObj.invoke(variables);
-                    if (res instanceof MathExpression.EvalResult) {
-                        return ((MathExpression.EvalResult) res).scalar;
-                    }
-                    if (res instanceof double[]) {
-                        double[] arr = (double[]) res;
-                        return arr.length > 0 ? arr[0] : Double.NaN;
-                    }
-                    return (double) res;
+                    return (double) scalarHandle.invokeExact(variables);
                 } catch (Throwable t) {
-                    throw new RuntimeException("Turbo vector-fallback failed", t);
+                    throw new RuntimeException("Turbo evaluation failed", t);
                 }
             }
 
             @Override
             public MathExpression.EvalResult apply(double[] variables) {
                 try {
-                    // USE .invoke() here to handle the conversion from double[] args to Object return
-                    Object result = spreaderObj.invoke(variables);
-
+                    Object result = scalarHandle.invoke(variables);
                     if (result instanceof MathExpression.EvalResult) {
                         return (MathExpression.EvalResult) result;
                     }
@@ -329,94 +290,6 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
         return false;
     }
 
-    private static MethodHandle compileScalarWide(MathExpression.Token[] postfix, int varCount, boolean foldConstants) throws Throwable {
-        Stack<MethodHandle> stack = new Stack<>();
-        Class<?>[] pTypes = new Class<?>[varCount];
-        Arrays.fill(pTypes, double.class);
-        MethodType wideType = MethodType.methodType(double.class, pTypes);
-
-        for (MathExpression.Token t : postfix) {
-            switch (t.kind) {
-                case MathExpression.Token.NUMBER:
-                    if ((t.name != null && !t.name.isEmpty()) || t.v != null) {
-                        int index = t.frameIndex;
-                        if (index >= 0) {
-                            // This is the Janino-killer. 
-                            // It maps (double[], int) -> double, then binds the index.
-                            // Result: A handle (double[]) -> double that is a direct memory read.
-                            MethodHandle getter = MethodHandles.arrayElementGetter(double[].class);
-                            stack.push(MethodHandles.insertArguments(getter, 1, index));
-                        } else {
-                            stack.push(createConstantHandle(t.value));
-                        }
-                    } else {
-                        stack.push(createConstantHandle(t.value));
-                    }
-                    break;
-                case MathExpression.Token.OPERATOR:
-                    if (t.isPostfix || t.opChar == '√') {
-                        applyUnaryWide(t, stack, foldConstants);
-                    } else {
-                        applyBinaryWide(t, stack, foldConstants);
-                    }
-                    break;
-
-                case MathExpression.Token.FUNCTION:
-                case MathExpression.Token.METHOD:
-                    String name = t.name.toLowerCase();
-                    if (isIntrinsic(t.name, t.arity)) {
-                        if (t.arity == 1) {
-                            applyUnaryWide(t, stack, foldConstants); // Pass the Token 't' and the stack
-                        } else if (t.arity == 2) {
-                            applyBinaryWide(t, stack, foldConstants); // Just pass 't' and the stack
-                        }
-                    } else {
-                        // Complex/Legacy Functions (intg, diff, root, print, stats, registry)
-                        name = t.name.toLowerCase();
-                        MethodHandle complexHandle;
-
-                        // 1. Identify "Legacy" functions that take String literals (rawArgs)
-                        if (Method.isPureStatsMethod(name) || name.equals(Declarations.QUADRATIC)
-                                || name.equals(Declarations.TARTAGLIA_ROOTS) || name.equals(Declarations.GENERAL_ROOT)
-                                || name.equals("print") || name.equals("intg") || name.equals("diff")) {
-
-                            // These handles are built from Token strings and already conform to (double[])double or (double[])double[]
-                            complexHandle = buildLegacyComplexHandle(t, name);
-
-                            // Convert Object returns to double for scalar functions (like root, intg, diff)
-                            if (!Method.isPureStatsMethod(name) && !name.equals(Declarations.QUADRATIC)
-                                    && !name.equals(Declarations.TARTAGLIA_ROOTS)) {
-                                complexHandle = ensurePrimitive(complexHandle);
-                            }
-                        } else {
-                            // 2. User-defined "Registry" functions that take dynamic values from the stack
-                            List<MethodHandle> poppedArgs = new ArrayList<>(t.arity);
-                            for (int i = 0; i < t.arity; i++) {
-                                poppedArgs.add(0, stack.pop());
-                            }
-                            complexHandle = compileRegistryFunctionWide(t, poppedArgs, wideType);
-                        }
-
-                        // Push the resulting standardized handle to the stack
-                        stack.push(complexHandle);
-                    }
-                    break;
-            }
-        }
-// NEW CODE
-        MethodHandle root = stack.pop();
-
-// If the root is a legacy function returning Object, DO NOT force ensurePrimitive
-        if (root.type().returnType() != double.class) {
-            if (root.type().parameterCount() == 0) {
-                return MethodHandles.dropArguments(root, 0, wideType.parameterList());
-            }
-            return root; // Returns the Object handle
-        }
-
-        return broadcast(root);
-    }
-
     private static MethodHandle compileScalar(MathExpression.Token[] postfix) throws Throwable {
         Stack<MethodHandle> stack = new Stack<>();
         for (MathExpression.Token t : postfix) {
@@ -432,12 +305,11 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
                     }
                     break;
                 case MathExpression.Token.OPERATOR:
-                    if (t.isPostfix) {
+                    if (t.isPostfix || t.opChar == '√') {  // ADD THIS CHECK FOR √
                         stack.push(applyUnaryOp(t.opChar, ensurePrimitive(stack.pop())));
                     } else {
                         MethodHandle right = ensurePrimitive(stack.pop());
                         MethodHandle left = ensurePrimitive(stack.pop());
-                        // USE NEW METHOD: applyBinaryOpNoPermute instead of applyBinaryOp
                         stack.push(applyBinaryOpNoPermute(t.opChar, left, right));
                     }
                     break;
@@ -936,162 +808,6 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
         return MethodHandles.permuteArguments(MethodHandles.filterArguments(fn, 0, left, right), MT_SAFE_WRAP, 0, 0);
     }
 
-    ///////////////////////////////////////////WIDE METHODS BEGIN///////////////////////////////////////////////////////////////////////////////////
-
-    private static void applyBinaryWide(MathExpression.Token token, Stack<MethodHandle> stack, boolean foldingEnabled) throws Throwable {
-        MethodHandle h2 = stack.pop();
-        MethodHandle h1 = stack.pop();
-
-        // 1. Check for Folding Opportunity
-        if (foldingEnabled && isFoldable(h1) && isFoldable(h2)) {
-            String name = (token.kind == MathExpression.Token.OPERATOR)
-                    ? String.valueOf(token.opChar)
-                    : token.name;
-
-            // Get the raw (double, double)double handle
-            MethodHandle op = getBinaryFunctionHandle(name);
-
-            // Invoke the constants - we use a dummy array because they are (double[])
-            double v1 = (double) h1.invokeExact(new double[0]);
-            double v2 = (double) h2.invokeExact(new double[0]);
-
-            // Calculate result immediately
-            double result = (double) op.invokeExact(v1, v2);
-
-            // Push the pre-calculated result back to the stack
-            stack.push(createConstantHandle(result));
-            return; // Skip the expensive MethodHandle tree building
-        }
-
-        // 2. Broadcast to ensure we have (double[])double (Dynamic Path)
-        h1 = broadcast(h1);
-        h2 = broadcast(h2);
-
-        // Diagnostic Checks
-        if (h1.type().parameterCount() != 1 || h1.type().parameterType(0) != double[].class) {
-            throw new IllegalStateException("CRITICAL ERROR: h1 is not a wide handle! " + h1.type());
-        }
-        if (h2.type().parameterCount() != 1 || h2.type().parameterType(0) != double[].class) {
-            throw new IllegalStateException("CRITICAL ERROR: h2 is not a wide handle! " + h2.type());
-        }
-
-        String name = (token.kind == MathExpression.Token.OPERATOR)
-                ? String.valueOf(token.opChar)
-                : token.name;
-        MethodHandle op = getBinaryFunctionHandle(name);
-
-        // 3. Combine and Pinch (The "Turbo" logic)
-        MethodHandle combined = MethodHandles.filterArguments(op, 0, h1, h2);
-        MethodType wideType = MethodType.methodType(double.class, double[].class);
-        MethodHandle pinched = MethodHandles.permuteArguments(combined, wideType, 0, 0);
-
-        stack.push(pinched);
-    }
-
-    private static void applyUnaryWide(MathExpression.Token token, Stack<MethodHandle> stack, boolean foldingEnabled) throws Throwable {
-        MethodHandle h1 = stack.pop();
-
-        // 1. CONSTANT FOLDING CHECK
-        if (foldingEnabled && isFoldable(h1)) {
-            String name = (token.kind == MathExpression.Token.OPERATOR)
-                    ? String.valueOf(token.opChar)
-                    : token.name;
-
-            // Get the raw (double)double handle (e.g., Math.sin, Math.sqrt)
-            MethodHandle op = getUnaryFunctionHandle(name);
-
-            // Invoke the constant - h1 is (double[])double
-            double v1 = (double) h1.invokeExact(new double[0]);
-
-            // Calculate result at compile-time
-            double result = (double) op.invokeExact(v1);
-
-            // Push the pre-calculated result back
-            stack.push(createConstantHandle(result));
-            return;
-        }
-
-        // 2. DYNAMIC PATH (Wide Architecture)
-        h1 = broadcast(h1);
-
-        // Diagnostic
-        if (h1.type().parameterCount() != 1 || h1.type().parameterType(0) != double[].class) {
-            throw new IllegalStateException("CRITICAL ERROR: h1 is not a wide handle! " + h1.type());
-        }
-
-        String name = (token.kind == MathExpression.Token.OPERATOR)
-                ? String.valueOf(token.opChar)
-                : token.name;
-        MethodHandle op = getUnaryFunctionHandle(name); // Expected: (double)double
-
-        // 3. Transform (double)double to (double[])double using filterArguments
-        // Since h1 is (double[])double, this effectively pipes the array through h1 
-        // and then into the unary op.
-        MethodHandle pinched = MethodHandles.filterArguments(op, 0, h1);
-
-        stack.push(pinched);
-    }
-
-    /**
-     * Helper to identify if a handle is a constant literal. Works with your
-     * createConstantHandle(double value) implementation.
-     */
-    private static boolean isFoldable(MethodHandle mh) {
-        // In your architecture, constants are handles that take (double[]) and return double
-        // but don't actually reference the array (no arrayElementGetter).
-        // The most reliable way is to check if it's a 'Constant' kind if using MethodHandles.constant
-        return mh.type().parameterCount() == 1
-                && mh.type().parameterType(0) == double[].class
-                && mh.toString().contains("Constant"); // Or check internal state if custom
-    }
-
-    private static MethodHandle compileRegistryFunctionWide(MathExpression.Token t, List<MethodHandle> args, MethodType wideType) throws Throwable {
-        int methodId = MethodRegistry.getMethodID(t.name);
-
-        // 1. Point to the Object-returning version of invokeRegistryMethod
-        MethodHandle bridge = LOOKUP.findStatic(ScalarTurboEvaluator.class, "invokeRegistryMethod",
-                MethodType.methodType(Object.class, int.class, double[].class));
-
-        MethodHandle boundBridge = MethodHandles.insertArguments(bridge, 0, methodId);
-
-        // 2. Collect the arguments into the double[] for the registry
-        MethodHandle combined = boundBridge.asCollector(double[].class, args.size());
-
-        // 3. Process the arguments through the register-broadcasting system
-        for (int i = 0; i < args.size(); i++) {
-            // Ensure inputs to the function are primitive doubles
-            combined = MethodHandles.filterArguments(combined, i, broadcast(ensurePrimitive(args.get(i))));
-        }
-
-        // 4. Final alignment to the wide register signature
-        int arity = wideType.parameterCount();
-        if (arity == 0) {
-            return combined;
-        }
-
-        int[] reorder = new int[args.size() * arity];
-        for (int i = 0; i < args.size(); i++) {
-            for (int j = 0; j < arity; j++) {
-                reorder[i * arity + j] = j;
-            }
-        }
-
-// Change the return type to Object.class to match the 'combined' handle
-        return MethodHandles.permuteArguments(combined, wideType.changeReturnType(Object.class), reorder);
-    }
-
-    /**
-     * Ensures any scalar handle conforms to the standard (double[])double
-     * signature. If it's a constant ()double, it's widened. If it's already
-     * (double[])double, it's returned as-is.
-     */
-    private static MethodHandle broadcast(MethodHandle h) {
-        if (h.type().parameterCount() == 0) {
-            return MethodHandles.dropArguments(h, 0, double[].class);
-        }
-        return h;
-    }
-
     private static MethodHandle ensurePrimitive(MethodHandle handle) {
         if (handle.type().returnType() == double.class) {
             return handle;
@@ -1123,131 +839,6 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
             return arr.length > 0 ? arr[0] : Double.NaN;
         }
         return Double.NaN;
-    }
-
-    private static MethodHandle buildLegacyComplexHandle(MathExpression.Token t, String name) throws Throwable {
-        MethodHandle finalOp = null;
-        if (Method.isPureStatsMethod(name)) {
-            int arity = t.arity;
-            String[] rawArgs = t.getRawArgs();
-            double[] data = new double[arity];
-            for (int i = 0; i < arity; i++) {
-                data[i] = Double.parseDouble(rawArgs[i]);
-            }
-            if (name.equals(Declarations.SORT) || name.equals(Declarations.MODE)) {
-                finalOp = MethodHandles.insertArguments(VECTOR_GATEKEEPER_HANDLE, 0, name, data);
-            } else {
-                finalOp = MethodHandles.insertArguments(SCALAR_GATEKEEPER_HANDLE, 0, name, data);
-            }
-            finalOp = finalOp.asType(finalOp.type().changeReturnType(Object.class));
-            finalOp = MethodHandles.dropArguments(finalOp, 0, double[].class);
-
-        } else if (name.equals(Declarations.QUADRATIC) || name.equals(Declarations.TARTAGLIA_ROOTS)) {
-            String[] rawArgs = t.getRawArgs();
-            finalOp = MethodHandles.insertArguments(VECTOR_2_GATEKEEPER_HANDLE, 0, name, rawArgs[0]);
-            finalOp = finalOp.asType(finalOp.type().changeReturnType(Object.class));
-            finalOp = MethodHandles.dropArguments(finalOp, 0, double[].class);
-
-        } else if (name.equals(Declarations.GENERAL_ROOT)) {
-            String[] args = t.getRawArgs();
-            String fNameOrExpr = args[0];
-            Function f = Variable.isVariableString(fNameOrExpr) ? FunctionManager.lookUp(fNameOrExpr) : FunctionManager.add(fNameOrExpr);
-            String varName = f.getIndependentVariables().get(0).getName();
-            double lower = args.length > 1 ? Double.parseDouble(args[1]) : -2;
-            double upper = args.length > 2 ? Double.parseDouble(args[2]) : 2;
-            int iterations = args.length > 3 ? Integer.parseInt(args[3]) : TurboRootFinder.DEFAULT_ITERATIONS;
-
-            MathExpression innerExpr = f.getMathExpression();
-            int xSlot = innerExpr.getVariable(varName).getFrameIndex();
-            MethodHandle targetHandle = compileScalar(innerExpr.getCachedPostfix());
-
-            MethodHandle derivHandle = null;
-            try {
-                String diffExpr = "diff(" + fNameOrExpr + ",1)";
-                String derivString = Derivative.eval(diffExpr).textRes;
-                derivHandle = compileScalar(FunctionManager.lookUp(derivString).getMathExpression().getCachedPostfix());
-            } catch (Exception e) {
-                derivHandle = null;
-            }
-
-            MethodHandle bridge = LOOKUP.findStatic(ScalarTurboEvaluator.class, "executeTurboRoot",
-                    MethodType.methodType(double.class, MethodHandle.class, MethodHandle.class, int.class, double.class, double.class, int.class));
-            MethodHandle currentHandle = MethodHandles.insertArguments(bridge, 0, targetHandle, derivHandle, xSlot, lower, upper, iterations);
-            finalOp = MethodHandles.dropArguments(currentHandle, 0, double[].class);
-
-        } else if (name.equals("print")) {
-            String[] rawArgs = t.getRawArgs();
-            MethodHandle bridge = LOOKUP.findStatic(ScalarTurboEvaluator.class, "executePrint", MethodType.methodType(double.class, String[].class));
-            MethodHandle finalPrintHandle = MethodHandles.insertArguments(bridge, 0, (Object) rawArgs);
-            finalOp = MethodHandles.dropArguments(finalPrintHandle, 0, double[].class);
-
-        } else if (name.equals("intg")) {
-            String[] rawArgs = t.getRawArgs();
-            Function f = FunctionManager.lookUp(rawArgs[0]);
-            MathExpression innerExpr = f.getMathExpression();
-            MethodHandle compiledInner = compileScalar(innerExpr.getCachedPostfix());
-            double lower = Double.parseDouble(rawArgs[1]);
-            double upper = Double.parseDouble(rawArgs[2]);
-            int iterations = (int) ((t.arity == 4) ? (int) Double.parseDouble(rawArgs[3]) : (int) ((upper - lower) / 0.05));
-            String[] vars = innerExpr.getVariablesNames();
-            Integer[] slots = innerExpr.getSlots();
-
-            MethodHandle bridge = LOOKUP.findStatic(ScalarTurboEvaluator.class, "executeTurboIntegral",
-                    MethodType.methodType(double.class, Function.class, MethodHandle.class, double.class, double.class, int.class, String[].class, Integer[].class));
-            MethodHandle finalIntgHandle = MethodHandles.insertArguments(bridge, 0, f, compiledInner, lower, upper, iterations, vars, slots);
-            finalOp = MethodHandles.dropArguments(finalIntgHandle, 0, double[].class);
-
-        } else if (name.equals("diff")) {
-            String[] args = t.getRawArgs();
-            String returnHandle = null;
-            double evalPoint = -1;
-            int order = -1;
-            String targetExpr = args[0];
-
-            MathExpression.EvalResult solution = null;
-            switch (args.length) {
-                case 1:
-                    targetExpr = args[0];
-                    order = 1;
-                    solution = Derivative.eval("diff(" + targetExpr + "," + order + ")");
-                    break;
-                case 2:
-                    targetExpr = args[0];
-                    if (com.github.gbenroscience.parser.Number.isNumber(args[1])) {
-                        order = Integer.parseInt(args[1]);
-                        solution = Derivative.eval("diff(" + targetExpr + "," + order + ")");
-                    } else if (Variable.isVariableString(args[1])) {
-                        returnHandle = args[1];
-                        FunctionManager.lockDown(returnHandle, args);
-                        solution = Derivative.eval("diff(" + targetExpr + "," + returnHandle + ")");
-                    }
-                    break;
-                case 3:
-                    targetExpr = args[0];
-                    if (com.github.gbenroscience.parser.Number.isNumber(args[2])) {
-                        order = Integer.parseInt(args[2]);
-                    }
-                    if (com.github.gbenroscience.parser.Number.isNumber(args[1])) {
-                        evalPoint = Integer.parseInt(args[1]);
-                        solution = Derivative.eval("diff(" + targetExpr + "," + evalPoint + "," + order + ")");
-                    } else if (Variable.isVariableString(args[1])) {
-                        returnHandle = args[1];
-                        FunctionManager.lockDown(returnHandle, args);
-                        solution = Derivative.eval("diff(" + targetExpr + "," + returnHandle + "," + order + ")");
-                    }
-                    break;
-            }
-
-            if (solution.getType() == TYPE.NUMBER) {
-                double val = solution.scalar;
-                MethodHandle constant = MethodHandles.constant(double.class, val);
-                finalOp = MethodHandles.dropArguments(constant, 0, double[].class);
-            } else if (solution.getType() == TYPE.STRING) {
-                MathExpression solutionExpr = new MathExpression(solution.textRes, true);
-                finalOp = compileScalar(solutionExpr.getCachedPostfix());
-            }
-        }
-        return finalOp;
     }
 
     //////////////////////////////////////////////WIDE-METHODS///////////////////////////////////////////////////////////////////////////////////////////////////////

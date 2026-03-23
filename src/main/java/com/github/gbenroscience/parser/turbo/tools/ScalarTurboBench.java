@@ -513,7 +513,7 @@ public class ScalarTurboBench {
     private static void benchmarkUnaryOps() throws Throwable {
         System.out.println("\n=== UNARY OPS; FOLDING OFF ===\n");
 
-        String expr = "2²+3³+√9";
+        String expr = "2²+3³+√9";//
 
         MathExpression turbo = new MathExpression(expr, false);
 
