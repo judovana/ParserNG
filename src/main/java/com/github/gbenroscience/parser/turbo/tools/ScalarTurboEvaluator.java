@@ -607,17 +607,54 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
         Function f = Variable.isVariableString(fNameOrExpr) ? FunctionManager.lookUp(fNameOrExpr) : FunctionManager.add(fNameOrExpr);
 
         String varName = f.getIndependentVariables().get(0).getName();
+        System.out.println("DEBUG ROOT: fNameOrExpr=" + fNameOrExpr);
+        System.out.println("DEBUG ROOT: varName=" + varName);
+        System.out.println("DEBUG ROOT: f.getMathExpression()=" + f.getMathExpression().getExpression());
+
         double lower = args.length > 1 ? Double.parseDouble(args[1]) : -2;
         double upper = args.length > 2 ? Double.parseDouble(args[2]) : 2;
         int iterations = args.length > 3 ? Integer.parseInt(args[3]) : TurboRootFinder.DEFAULT_ITERATIONS;
 
         int xSlot = f.getMathExpression().getVariable(varName).getFrameIndex();
-        MethodHandle targetHandle = compileScalar(f.getMathExpression().getCachedPostfix());
+        System.out.println("DEBUG ROOT: xSlot=" + xSlot);
+        MathExpression.Token[] postfix = f.getMathExpression().getCachedPostfix();
+        System.out.println("DEBUG ROOT: postfix length=" + (postfix == null ? "null" : postfix.length));
 
+        MethodHandle targetHandle = compileScalar(postfix);
+        System.out.println("DEBUG ROOT: targetHandle type BEFORE normalization=" + targetHandle.type());
+
+        // CRITICAL FIX: Ensure targetHandle is in (double[])double form
+        int targetParamCount = targetHandle.type().parameterCount();
+        System.out.println("DEBUG ROOT: targetParamCount=" + targetParamCount);
+
+        if (targetParamCount == 0) {
+            System.out.println("DEBUG ROOT: Converting ()double to (double[])double");
+            targetHandle = MethodHandles.dropArguments(targetHandle, 0, double[].class);
+        } else if (targetParamCount > 1) {
+            System.out.println("DEBUG ROOT: Converting wide signature to (double[])double");
+            targetHandle = targetHandle.asSpreader(double[].class, targetParamCount)
+                    .asType(MethodType.methodType(double.class, double[].class));
+        }
+
+        System.out.println("DEBUG ROOT: targetHandle type AFTER normalization=" + targetHandle.type());
+
+        // else: already (double[])double, leave as-is
+        // Attempt to compile the derivative handle for the root finder
         MethodHandle derivHandle = null;
         try {
             String derivString = Derivative.eval("diff(" + fNameOrExpr + ",1)").textRes;
-            derivHandle = compileScalar(new MathExpression(derivString, true).getCachedPostfix());
+            MethodHandle derivCompiled = compileScalar(new MathExpression(derivString, true).getCachedPostfix());
+
+            // Same normalization for derivative
+            int derivParamCount = derivCompiled.type().parameterCount();
+            if (derivParamCount == 0) {
+                derivHandle = MethodHandles.dropArguments(derivCompiled, 0, double[].class);
+            } else if (derivParamCount > 1) {
+                derivHandle = derivCompiled.asSpreader(double[].class, derivParamCount)
+                        .asType(MethodType.methodType(double.class, double[].class));
+            } else {
+                derivHandle = derivCompiled;
+            }
         } catch (Exception e) {
             derivHandle = null;
         }
@@ -882,27 +919,109 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
     }
 
     public static double executeTurboIntegral(Function f, MethodHandle handle, double lower, double upper, int iterations, String[] vars, Integer[] slots) throws Throwable {
+        // The compiled handle might be:
+        // 1. ()double or ()Object (zero-arity constant or zero-var expression)
+        // 2. (double)double (single variable)
+        // 3. (double[])double (multi-variable, already spread)
+        // 4. (double, double, ...)double (wide signature, not yet spread)
+
         MethodHandle primitiveHandle;
-
-        if (handle.type().returnType() == Object.class) {
-            handle = MethodHandles.filterReturnValue(handle, LOOKUP.findStatic(ScalarTurboEvaluator.class, "extractFirstScalar", MT_DOUBLE_OBJ));
-        } else if (handle.type().returnType() == double[].class) {
-            handle = MethodHandles.filterReturnValue(handle.asType(handle.type().changeReturnType(Object.class)), LOOKUP.findStatic(ScalarTurboEvaluator.class, "extractFirstScalar", MT_DOUBLE_OBJ));
-        }
-
         int paramCount = handle.type().parameterCount();
 
-        if (paramCount == 1 && handle.type().parameterType(0) == double[].class) {
-            primitiveHandle = handle;
-        } else if (paramCount == 0) {
+        // Step 1: Normalize return type to double
+        if (handle.type().returnType() == Object.class) {
+            handle = MethodHandles.filterReturnValue(
+                    handle.asType(MethodType.methodType(Object.class, handle.type().parameterArray())),
+                    LOOKUP.findStatic(ScalarTurboEvaluator.class, "extractFirstScalar", MT_DOUBLE_OBJ)
+            );
+            paramCount = handle.type().parameterCount();
+        }
+
+        // Step 2: Normalize to (double[])double form
+        if (paramCount == 0) {
+            // Zero-arity: ()double -> (double[])double
             primitiveHandle = MethodHandles.dropArguments(handle, 0, double[].class);
+        } else if (paramCount == 1 && handle.type().parameterType(0) == double[].class) {
+            // Already correct form
+            primitiveHandle = handle;
+        } else if (paramCount == 1 && handle.type().parameterType(0) == double.class) {
+            // Single double: (double)double -> (double[])double
+            // Extract element at slot 0 from array
+            MethodHandle getter = MethodHandles.arrayElementGetter(double[].class);
+            MethodHandle indexBinder = MethodHandles.insertArguments(getter, 1, 0);
+            primitiveHandle = MethodHandles.collectArguments(handle, 0, indexBinder);
         } else {
+            // Multiple parameters (wide signature): (double, double, ...)double -> (double[])double
             primitiveHandle = handle.asSpreader(double[].class, paramCount)
                     .asType(MethodType.methodType(double.class, double[].class));
         }
 
         NumericalIntegrator numericalIntegrator = new NumericalIntegrator(f, primitiveHandle, lower, upper, vars, slots);
         return numericalIntegrator.integrate(f);
+    }
+
+    public static double executeTurboRoot(MethodHandle baseHandle, MethodHandle derivHandle,
+            int xSlot, double lower, double upper, int iterations) {
+        try {
+            // Same normalization as integration
+            int baseParamCount = baseHandle.type().parameterCount();
+
+            // Normalize return type
+            if (baseHandle.type().returnType() == Object.class) {
+                baseHandle = MethodHandles.filterReturnValue(
+                        baseHandle.asType(MethodType.methodType(Object.class, baseHandle.type().parameterArray())),
+                        LOOKUP.findStatic(ScalarTurboEvaluator.class, "extractFirstScalar", MT_DOUBLE_OBJ)
+                );
+                baseParamCount = baseHandle.type().parameterCount();
+            }
+
+            // Normalize to (double[])double form
+            MethodHandle wideBase;
+            if (baseParamCount == 0) {
+                wideBase = MethodHandles.dropArguments(baseHandle, 0, double[].class);
+            } else if (baseParamCount == 1 && baseHandle.type().parameterType(0) == double[].class) {
+                wideBase = baseHandle;
+            } else if (baseParamCount == 1 && baseHandle.type().parameterType(0) == double.class) {
+                MethodHandle getter = MethodHandles.arrayElementGetter(double[].class);
+                MethodHandle indexBinder = MethodHandles.insertArguments(getter, 1, xSlot);
+                wideBase = MethodHandles.collectArguments(baseHandle, 0, indexBinder);
+            } else {
+                wideBase = baseHandle.asSpreader(double[].class, baseParamCount)
+                        .asType(MethodType.methodType(double.class, double[].class));
+            }
+
+            // Same for derivative
+            MethodHandle wideDeriv = null;
+            if (derivHandle != null) {
+                int derivParamCount = derivHandle.type().parameterCount();
+
+                if (derivHandle.type().returnType() == Object.class) {
+                    derivHandle = MethodHandles.filterReturnValue(
+                            derivHandle.asType(MethodType.methodType(Object.class, derivHandle.type().parameterArray())),
+                            LOOKUP.findStatic(ScalarTurboEvaluator.class, "extractFirstScalar", MT_DOUBLE_OBJ)
+                    );
+                    derivParamCount = derivHandle.type().parameterCount();
+                }
+
+                if (derivParamCount == 0) {
+                    wideDeriv = MethodHandles.dropArguments(derivHandle, 0, double[].class);
+                } else if (derivParamCount == 1 && derivHandle.type().parameterType(0) == double[].class) {
+                    wideDeriv = derivHandle;
+                } else if (derivParamCount == 1 && derivHandle.type().parameterType(0) == double.class) {
+                    MethodHandle getter = MethodHandles.arrayElementGetter(double[].class);
+                    MethodHandle indexBinder = MethodHandles.insertArguments(getter, 1, xSlot);
+                    wideDeriv = MethodHandles.collectArguments(derivHandle, 0, indexBinder);
+                } else {
+                    wideDeriv = derivHandle.asSpreader(double[].class, derivParamCount)
+                            .asType(MethodType.methodType(double.class, double[].class));
+                }
+            }
+
+            TurboRootFinder trf = new TurboRootFinder(wideBase, wideDeriv, xSlot, lower, upper, iterations);
+            return trf.findRoots();
+        } catch (Throwable t) {
+            throw new RuntimeException("Root finding failed: " + t.getMessage(), t);
+        }
     }
 
     private static MethodHandle buildLegacyStatsHandle(MathExpression.Token t) throws Throwable {
@@ -1114,48 +1233,6 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
             default:
                 return null;
         }
-    }
-
-    public static double executeTurboRoot(MethodHandle baseHandle, MethodHandle derivHandle,
-            int xSlot, double lower, double upper, int iterations) {
-        try {
-            MethodHandle getter = MethodHandles.arrayElementGetter(double[].class);
-            MethodHandle indexBinder = MethodHandles.insertArguments(getter, 1, xSlot);
-
-            MethodHandle wideBase = adaptHandleToArrayForm(baseHandle, indexBinder);
-            MethodHandle wideDeriv = derivHandle == null ? null : adaptHandleToArrayForm(derivHandle, indexBinder);
-
-            TurboRootFinder trf = new TurboRootFinder(wideBase, wideDeriv, xSlot, lower, upper, iterations);
-            return trf.findRoots();
-        } catch (Throwable t) {
-            throw new RuntimeException("Root finding failed: " + t.getMessage(), t);
-        }
-    }
-
-    private static MethodHandle adaptHandleToArrayForm(MethodHandle handle, MethodHandle indexBinder) throws Throwable {
-        if (handle == null) {
-            return null;
-        }
-
-        if (handle.type().returnType() == Object.class) {
-            handle = MethodHandles.filterReturnValue(handle, LOOKUP.findStatic(ScalarTurboEvaluator.class, "extractFirstScalar", MT_DOUBLE_OBJ));
-        } else if (handle.type().returnType() == double[].class) {
-            handle = MethodHandles.filterReturnValue(handle.asType(handle.type().changeReturnType(Object.class)), LOOKUP.findStatic(ScalarTurboEvaluator.class, "extractFirstScalar", MT_DOUBLE_OBJ));
-        }
-
-        int paramCount = handle.type().parameterCount();
-
-        if (paramCount == 1 && handle.type().parameterType(0) == double[].class) {
-            return handle;
-        }
-        if (paramCount == 0) {
-            return MethodHandles.dropArguments(handle, 0, double[].class);
-        }
-        if (paramCount == 1 && handle.type().parameterType(0) == double.class) {
-            return MethodHandles.collectArguments(handle, 0, indexBinder);
-        }
-
-        return handle.asSpreader(double[].class, paramCount).asType(MethodType.methodType(double.class, double[].class));
     }
 
     public static double[] executeQuadraticRoot(String funcHandle) {
