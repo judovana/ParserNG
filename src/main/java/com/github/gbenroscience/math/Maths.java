@@ -169,6 +169,11 @@ public class Maths {                       //3.14159265358979323846;
     public static double antiLogToAnyBase(double num, double base) {
         return Math.pow(base, num);
     }
+    
+    
+    public static double antiLog10(double num) {
+        return Math.pow(10, num);
+    }
 
     //returns the sign of a number string
     private static String sign(String num) {
@@ -1201,6 +1206,19 @@ public class Maths {                       //3.14159265358979323846;
         return atanh(1 / x);
     }
 
+    
+    public static double sech(double x) {
+        return 1.0 / Math.cosh(x);
+    }
+
+    public static double csch(double x) {
+        return 1.0 / Math.sinh(x);
+    }
+
+    public static double coth(double x) {
+        return 1.0 / Math.tanh(x);
+    } 
+    
     /**
      * @param number The number
      * @param exponent The power. May be integer or floating point.

@@ -252,6 +252,10 @@ public class MathExpression implements Savable, Solvable {
         public String[] getRawArgs() {
             return rawArgs;
         }
+        
+        public boolean isVariable(){
+            return this.name != null && !this.name.isEmpty() && this.v != null && this.frameIndex >= 0;
+        }
 
         // Helper to get precedence for opChar
         public static int getPrec(char op) {
