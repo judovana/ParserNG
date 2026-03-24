@@ -46,7 +46,7 @@ public class TurboEvaluatorFactory {
                 break;
             }
         }
-        return involvesMatrices ? new MatrixTurboEvaluator(me) : new ScalarTurboEvaluator(me);
+        return involvesMatrices ? new MatrixTurboEvaluator(me) : new ScalarTurboEvaluator2(me);
     }
 
     private static boolean isMatrixToken(MathExpression.Token t) {

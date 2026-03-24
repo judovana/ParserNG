@@ -1072,9 +1072,14 @@ private static boolean isExactlyOne(String s) {
             if (MathExpression.isAutoInitOn()) {
                 String tk = scanner.get(i);
                 if (i + 1 < sz && Variable.isVariableString(tk) && !isOpeningBracket(scanner.get(i + 1)) && !variableManager.contains(tk)
-                        && !FunctionManager.contains(tk) && !Method.isDefinedMethod(tk)) {
+                        && !FunctionManager.containsAny(tk) && !Method.isDefinedMethod(tk)) {
                     variableManager.parseCommand(tk + "=0.0;");
                 }//end if
+                else if(i==0 && sz==1 && Variable.isVariableString(tk)){
+                    if(!FunctionManager.containsAny(tk)){
+                          variableManager.parseCommand(tk + "=0.0;");
+                    }
+                }
             }//end if
             else {
                 if (i + 1 < sz && Variable.isVariableString(scanner.get(i)) && !isOpeningBracket(scanner.get(i + 1)) && !variableManager.contains(scanner.get(i))
@@ -1210,6 +1215,11 @@ private static boolean isExactlyOne(String s) {
                         && !FunctionManager.containsAny(tk) && !Method.isDefinedMethod(tk)) {
                     varMan.parseCommand(tk + "=0.0;");
                 }//end if
+                else if(i==0 && sz==1 && Variable.isVariableString(tk)){
+                    if(!FunctionManager.containsAny(tk)){
+                          varMan.parseCommand(tk + "=0.0;");
+                    }
+                }
             }//end if
             else {
                 if (i + 1 < sz && Variable.isVariableString(scanner.get(i)) && !isOpeningBracket(scanner.get(i + 1)) && !varMan.contains(scanner.get(i))

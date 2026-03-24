@@ -302,11 +302,14 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 MathExpression expr = new MathExpression(rhs);
 
                 List<String> scanner = expr.getScanner();
-                if (scanner.size() == 3 && scanner.get(1).startsWith(ANON_PREFIX)) {//function assigments will always be like this: [(,anon1,)] when they get here
+                int sz = scanner.size();
+                if ( (sz == 3 && scanner.get(1).startsWith(ANON_PREFIX)) ||
+                        (sz == 1 && scanner.get(0).startsWith(ANON_PREFIX)) ) {//function assigments will always be like this: [(,anon1,)] when they get here
 
-                    Function f = FunctionManager.lookUp(scanner.get(1));
+                    String anonFn = sz==3 ? scanner.get(1) : scanner.get(0);
+                    Function f = FunctionManager.lookUp( anonFn );
                     if (f != null) {
-                        FunctionManager.delete(scanner.get(1));
+                        FunctionManager.delete(anonFn);
                         if (f.getType() == TYPE.ALGEBRAIC_EXPRESSION) {
                             Variable v = VariableManager.lookUp(newFuncName);
                             if (v != null) {
@@ -314,7 +317,6 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                             } else {
                                 f.setDependentVariable(new Variable(newFuncName));
                             }
-
                             FunctionManager.add(f);
                         } else if (f.getType() == TYPE.MATRIX) {
                             f.getMatrix().setName(newFuncName);
@@ -324,7 +326,6 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                         f = new Function(newFuncName + "=" + rhs + ";");
                         FunctionManager.add(f);
                     }
-
                     return true;
                 }
                 MathExpression.EvalResult val = expr.solveGeneric();
@@ -337,7 +338,6 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                             if (isVarNamesList && hasCommas) {
                                 throw new InputMismatchException("Initialize a function at a time!");
                             }
-
                             val.matrix.setName(newFuncName);
                             Function fm = new Function(val.matrix);
                             success = true;

@@ -35,19 +35,14 @@ import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import static com.github.gbenroscience.parser.TYPE.ALGEBRAIC_EXPRESSION;
 import static com.github.gbenroscience.parser.TYPE.MATRIX;
 import com.github.gbenroscience.parser.benchmarks.GG;
-import com.github.gbenroscience.parser.methods.MethodRegistry;
-import com.github.gbenroscience.parser.turbo.FastExpression;
-import com.github.gbenroscience.parser.turbo.TurboCompiler;
+import com.github.gbenroscience.parser.methods.MethodRegistry; 
 import com.github.gbenroscience.parser.turbo.tools.FastCompositeExpression;
-import com.github.gbenroscience.parser.turbo.tools.MatrixTurboEvaluator;
-import com.github.gbenroscience.parser.turbo.tools.ScalarTurboEvaluator;
+import com.github.gbenroscience.parser.turbo.tools.MatrixTurboEvaluator; 
 import java.util.HashMap;
-import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.Map; 
 import java.util.Stack;
 import static com.github.gbenroscience.parser.TYPE.VECTOR;
-import java.util.Collection;
-import java.util.Collections;
+import com.github.gbenroscience.parser.turbo.tools.ScalarTurboEvaluator; 
 import com.github.gbenroscience.parser.turbo.tools.TurboExpressionEvaluator;
 
 /**

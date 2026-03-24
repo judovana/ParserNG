@@ -158,10 +158,8 @@ class MathExpressionTest {
         //LogicalExpressionTest variablesDoNotWorks and variablestWorks
         VariableManager.clearVariables();
         
-     
         MathExpression linear = new MathExpression("M=@(3,3)(3,4,1,2,4,7,9,1,-2);N=@(3,3)(4,1,8,2,1,3,5,1,9);C=matrix_sub(M,N);C;");
-      
-        String ls = linear.solve();
+        String ls = linear.solve(); 
         if (print) {
             System.out.println("soln: " + ls);
         }
@@ -396,8 +394,7 @@ class MathExpressionTest {
     public void testMixedConstantVariableFolding() {
         MathExpression expr = new MathExpression("1+2+3+4+5+6+7+8+9+10+11+12+13+14+15+16+17+18+19+20+sin(x)");
 
-        MathExpression.Token[] cachedPostfix = expr.getCachedPostfix();
-        System.out.println("Cached postfix tokens: " + cachedPostfix.length);
+        MathExpression.Token[] cachedPostfix = expr.getCachedPostfix(); 
 
         // Print all tokens
         for (int i = 0; i < cachedPostfix.length; i++) {

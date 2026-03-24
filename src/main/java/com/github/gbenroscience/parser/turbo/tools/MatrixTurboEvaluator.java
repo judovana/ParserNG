@@ -418,7 +418,7 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
      */
     public static EvalResult executeMatrixPrint(String[] args) throws Throwable {
         // Call your existing logic
-        double result = ScalarTurboEvaluator.executePrint(args);
+        double result = ScalarTurboEvaluator2.executePrint(args);
         // Wrap the -1.0 (or whatever double) into a scalar result
         return new EvalResult().wrap(result);
     }
