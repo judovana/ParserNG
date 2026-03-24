@@ -201,8 +201,7 @@ public class Derivative {
         try {
             Parser p = new Parser(expr);
 
-            if (p.result == ParserResult.VALID) {
-
+            if (p.result == ParserResult.VALID) { 
                 expr = "diff(" + p.getFunction().getMathExpression().getExpression() + ")";
                 String baseVariable = p.getFunction().getIndependentVariables().get(0).getName();
                 int orderOfDiff = p.getOrderOfDifferentiation();

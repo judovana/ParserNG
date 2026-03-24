@@ -49,61 +49,80 @@ public class TurboRootFinder {
         this.x2 = x2;
         this.iterations = iterations;
     }
- 
-private double eval(double x) throws Throwable {
-    dataFrame[varIndex] = x;
-    
-    // The turbo-compiled handle is already (double[])double or (double[])Object
-    // Check its actual signature and invoke accordingly
-    if (targetHandle.type().parameterCount() == 1 && 
-        targetHandle.type().parameterType(0) == double[].class) {
-        // Already accepts array - invoke directly
-        Object result = targetHandle.invoke(dataFrame);
-        
-        // Extract scalar from result (may be double or double[])
-        if (result instanceof Number) {
-            return ((Number) result).doubleValue();
-        } else if (result instanceof double[]) {
-            double[] arr = (double[]) result;
-            return arr.length > 0 ? arr[0] : Double.NaN;
-        }
-        return (double) result;
-    } else if (targetHandle.type().parameterCount() > 1) {
-        // Legacy handle in (double, double, ...)double form - needs spreading
-        int paramCount = targetHandle.type().parameterCount();
-        MethodHandle spreader = targetHandle.asSpreader(double[].class, paramCount);
-        return (double) spreader.invoke(dataFrame);
-    } else {
-        // Zero-arity constant - just invoke
-        return (double) targetHandle.invoke();
-    }
-}
 
-private double evalDeriv(double x) throws Throwable {
-    if (derivativeHandle == null) return 0.0;
-    
-    dataFrame[varIndex] = x;
-    
-    // Same logic as eval()
-    if (derivativeHandle.type().parameterCount() == 1 && 
-        derivativeHandle.type().parameterType(0) == double[].class) {
-        Object result = derivativeHandle.invoke(dataFrame);
-        
-        if (result instanceof Number) {
-            return ((Number) result).doubleValue();
-        } else if (result instanceof double[]) {
-            double[] arr = (double[]) result;
-            return arr.length > 0 ? arr[0] : Double.NaN;
-        }
-        return (double) result;
-    } else if (derivativeHandle.type().parameterCount() > 1) {
-        int paramCount = derivativeHandle.type().parameterCount();
-        MethodHandle spreader = derivativeHandle.asSpreader(double[].class, paramCount);
-        return (double) spreader.invoke(dataFrame);
-    } else {
-        return (double) derivativeHandle.invoke();
+    private double eval(double x) throws Throwable {
+        dataFrame[varIndex] = x;
+        // Direct invocation: assumes (double[])double or (double[])Object
+        Object result = targetHandle.invoke(dataFrame);
+        return (result instanceof Double) ? (Double) result : ((double[]) result)[0];
     }
-}
+
+    private double evalDeriv(double x) throws Throwable {
+        if (derivativeHandle == null) {
+            return Double.NaN;
+        }
+
+        dataFrame[varIndex] = x;
+        Object result = derivativeHandle.invoke(dataFrame);
+        return (result instanceof Double) ? (Double) result : ((double[]) result)[0];
+    }
+
+    private double evalX(double x) throws Throwable {
+        dataFrame[varIndex] = x;
+
+        // The turbo-compiled handle is already (double[])double or (double[])Object
+        // Check its actual signature and invoke accordingly
+        if (targetHandle.type().parameterCount() == 1
+                && targetHandle.type().parameterType(0) == double[].class) {
+            // Already accepts array - invoke directly
+            Object result = targetHandle.invoke(dataFrame);
+
+            // Extract scalar from result (may be double or double[])
+            if (result instanceof Number) {
+                return ((Number) result).doubleValue();
+            } else if (result instanceof double[]) {
+                double[] arr = (double[]) result;
+                return arr.length > 0 ? arr[0] : Double.NaN;
+            }
+            return (double) result;
+        } else if (targetHandle.type().parameterCount() > 1) {
+            // Legacy handle in (double, double, ...)double form - needs spreading
+            int paramCount = targetHandle.type().parameterCount();
+            MethodHandle spreader = targetHandle.asSpreader(double[].class, paramCount);
+            return (double) spreader.invoke(dataFrame);
+        } else {
+            // Zero-arity constant - just invoke
+            return (double) targetHandle.invoke();
+        }
+    }
+
+    private double evalDerivX(double x) throws Throwable {
+        if (derivativeHandle == null) {
+            return 0.0;
+        }
+
+        dataFrame[varIndex] = x;
+
+        // Same logic as eval()
+        if (derivativeHandle.type().parameterCount() == 1
+                && derivativeHandle.type().parameterType(0) == double[].class) {
+            Object result = derivativeHandle.invoke(dataFrame);
+
+            if (result instanceof Number) {
+                return ((Number) result).doubleValue();
+            } else if (result instanceof double[]) {
+                double[] arr = (double[]) result;
+                return arr.length > 0 ? arr[0] : Double.NaN;
+            }
+            return (double) result;
+        } else if (derivativeHandle.type().parameterCount() > 1) {
+            int paramCount = derivativeHandle.type().parameterCount();
+            MethodHandle spreader = derivativeHandle.asSpreader(double[].class, paramCount);
+            return (double) spreader.invoke(dataFrame);
+        } else {
+            return (double) derivativeHandle.invoke();
+        }
+    }
 
     private boolean verifyRoot(double ans) {
         if (Double.isNaN(ans) || Double.isInfinite(ans)) {
