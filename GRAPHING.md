@@ -3,6 +3,10 @@
 **ParserNG** now enables easy graphing in any Java UI framework, including Swing, JavaFX, Android, and others.
 [See here](./graph.png)
 
+ParserNG basic|normal mode already allows plotting of graphs at about 100ns to 1000ns per operation. This is more than enough for many iterative processes like graphing or root finding.
+
+ParserNG turbo takes the speed extreme even further to the sub-100ns range.
+
 The library provides `DrawingContext` and `AbstractView` interfaces that can be implemented to render graphs on the target UI component (e.g., `javax.swing.JPanel` in Swing, `android.view.View` in Android, or `javafx.scene.canvas.Canvas` in JavaFX).
 
 Key packages:

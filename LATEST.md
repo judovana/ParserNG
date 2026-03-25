@@ -1,6 +1,12 @@
 # ParserNG
 
 
+ParserNG 1.0.2 has been released on maven-central!
+Version 1.0.2 retains the wild speeds of Version 1.0.1. Adds an extra widening technique of variable passing to the Turbo mode,
+In addition to the current method of array based passing. The widening technique can be sometimes faster than the array based methods,
+but their speed profiles and memory profiles are similar. Its weakness though is that it cannot use more than 63 variables per expression, whereas the array based approach allows in theory any number up to the max integer size.
+
+
 ParserNG 1.0.1 has been released on maven-central!
 This close update ensures that Turbo mode's  memory profile stays close to that of the normal mode, which is, nigh zero.
 
