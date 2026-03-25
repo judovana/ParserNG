@@ -1,4 +1,16 @@
-# ParserNG 1.0.0 Official Benchmarks
+# ParserNG 1.0.2 Official Benchmarks
+
+
+### **ParserNG vs. The Giants: Master Performance Matrix**
+
+| Battleground | Expression Type | Janino (ns/op) | **ParserNG (Turbo)** | **ParserNG Advantage** |
+| :--- | :--- | :--- | :--- | :--- |
+| **Pure Arithmetic** | `x + y + z...` | 251.08 | **119.95** | **2.1x Faster** |
+| **Structural Scale** | `500+ Variables` | **CRASH** | **SUCCESS** | **Only Survivor** |
+| **Functional Heavy** | `20+ sin() calls` | 471.43 | **362.89** | **1.3x Faster** |
+
+---
+
 
 The following data represents high-concurrency performance and memory allocation benchmarks for **ParserNG**, compared against **Janino** (Bytecode Compiler) and **exp4j** (Interpreted).
 

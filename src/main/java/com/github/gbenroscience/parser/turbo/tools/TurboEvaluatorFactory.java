@@ -34,6 +34,7 @@ public class TurboEvaluatorFactory {
      * Intelligently selects and returns the best Turbo engine for the
      * expression.
      * @param me The {@linkplain MathExpression} 
+     * @return A {@link TurboExpressionEvaluator} that can be used to evaluate expressions at turbo speed
      */
     public static TurboExpressionEvaluator getCompiler(MathExpression me) {
         MathExpression.Token[] postfix = me.getCachedPostfix();
@@ -46,7 +47,29 @@ public class TurboEvaluatorFactory {
                 break;
             }
         }
-        return involvesMatrices ? new MatrixTurboEvaluator(me) : new ScalarTurboEvaluator2(me);
+        return involvesMatrices ? new MatrixTurboEvaluator(me) : new ScalarTurboEvaluator(me);//defaults to an array based approach
+    }
+    /**
+     * 
+     * @param me The root MathExpression
+     * @param useWideningVarsPassing If true, will create a turbo evaluator that uses widening to pass variables, 
+     * else it uses an array based approach. If you are not sure, if your expression has more than 63 unique variables,
+     * definitely set this variable to false. Else test with true or false for your particular expression and see which has higher performance.
+     * They usually give performances within 1-20ns of each other.
+     * @return A {@link TurboExpressionEvaluator} that can be used to evaluate expressions at turbo speed
+     */
+        public static TurboExpressionEvaluator getCompiler(MathExpression me, boolean useWideningVarsPassing) {
+        MathExpression.Token[] postfix = me.getCachedPostfix();
+        boolean involvesMatrices = false;
+
+        // Scan tokens for Matrix indicators
+        for (MathExpression.Token t : postfix) {
+            if (isMatrixToken(t)) {
+                involvesMatrices = true;
+                break;
+            }
+        }
+        return involvesMatrices ? new MatrixTurboEvaluator(me) : new ScalarTurboEvaluator(me, useWideningVarsPassing);//defaults to an array based approach
     }
 
     private static boolean isMatrixToken(MathExpression.Token t) {

@@ -30,10 +30,12 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
      * {@link ScalarTurboEvaluator#MIN_VAR_COUNT_FOR_ARRAY_BASED_EVALUATOR}, the
      * Array based evaluator will be used
      */
-    public static final int MIN_VAR_COUNT_FOR_ARRAY_BASED_EVALUATOR = 12;
+    public static final int MIN_VAR_COUNT_FOR_ARRAY_BASED_EVALUATOR = 15;
+
+    public static final int MAX_ALLOWED_METHOD_ARGS_BY_JVM = 63;
 
     public ScalarTurboEvaluator(MathExpression me) {
-        this(me, countVariables(me.getCachedPostfix()) < MIN_VAR_COUNT_FOR_ARRAY_BASED_EVALUATOR);
+        this(me, useWidening(me.getCachedPostfix()));
     }
 
     /**
@@ -56,8 +58,8 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
     public FastCompositeExpression compile() throws Throwable {
         return delegate.compile();
     }
-    
-    public String getDelegateClass(){
+
+    public String getDelegateClass() {
         return delegate.getClass().getSimpleName();
     }
 
@@ -74,4 +76,13 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
         }
         return maxIndex + 1;
     }
+
+    private static boolean useWidening(MathExpression.Token[] postfix) {
+        int varCount = countVariables(postfix);
+        if (varCount > MAX_ALLOWED_METHOD_ARGS_BY_JVM) {//use array based if more than 63 unique variables are in expression
+            return false;
+        }
+        return varCount < MIN_VAR_COUNT_FOR_ARRAY_BASED_EVALUATOR;
+    }
+
 }

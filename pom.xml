@@ -12,9 +12,11 @@
     -->
    
     <name>ParserNG</name>
-    <description>Rich and Performant, Cross Platform Java Library(100% Java)...Version 1.0.0 explodes even higher in execution speed.
-        Version 1.0.1 retains the wild speeds of Version 1.0.0 and brings the memory usage of the turbo mode down to 0.001 B/op(same as for the normal mode)
-        but at nanosecond speeds.Matrix Algebra and other rich features have been optimized in Turbo mode also.
+    <description>Rich and Performant, Cross Platform Java Library(100% Java)...Version 1.0.2 explodes even higher in execution speed.
+        Version 1.0.2 retains the wild speeds of Version 1.0.1. Adds an extra widening technique of variable passing to the Turbo mode,
+        in addition to the current method of array based passing. The widening technique can be sometimes faster than the array based methods,
+        but their speed profiles and memory profiles are similar. Its weakness though is that it cannot use more than 63 variables per expression,
+        whereas the array based approach allows in theory any number up to the max integer size.
         </description>
     <url>https://github.com/gbenroscience/ParserNG</url>
     

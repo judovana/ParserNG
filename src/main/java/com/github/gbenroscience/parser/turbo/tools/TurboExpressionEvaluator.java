@@ -26,8 +26,7 @@ public interface TurboExpressionEvaluator {
     
     /**
      * Compile a postfix token array into a fast-executing expression.
-     *
-     * @param postfix The compiled postfix (RPN) token array 
+     * 
      * @return A FastCompositeExpression ready for evaluation
      * @throws Throwable if compilation fails
      */
