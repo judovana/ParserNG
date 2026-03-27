@@ -1,0 +1,158 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+
+package com.github.gbenroscience.math.geom;
+
+/**
+ *
+ * @author GBEMIRO
+ */
+public class Dimension {
+public double width;
+public double height;
+/**
+ * Creates a new object of this class.
+ * @param width Stores the width.
+ * @param height Stores the height.
+ */
+    public Dimension(double width, double height) {
+        this.width = width;
+        this.height = height;
+    }//end constructor
+/**
+ * Creates a Size object from
+ * a java.awt.Dimension object.
+ * @param dim The given Dimension object.
+ */
+public Dimension(java.awt.Dimension dim){
+    this.width=dim.width;
+    this.height=dim.height;
+}
+
+/**
+ * Creates a new Size object from
+ * a given Size object.
+ * The created object is exactly similar in value to the
+ * given one, but is not the same as that one.It is a sort of twin.
+ * @param size The given Size object.
+ */
+public Dimension(Dimension size){
+    this.width=size.width;
+    this.height=size.height;
+}
+
+/**
+ *
+ * @return The height
+ */
+    public double getHeight() {
+        return height;
+    }//end method
+/**
+ *
+ * @param height sets the height
+ */
+    public void setHeight(double height) {
+        this.height = height;
+    }//end method
+/**
+ *
+ * @return the width
+ */
+    public double getWidth() {
+        return width;
+    }//end method
+/**
+ *
+ * @param width sets the height
+ */
+    public void setWidth(double width) {
+        this.width = width;
+    }//end method
+    /**
+     *
+     * @param width sets the width attribute of this object
+     * @param height sets the height attribute of this object
+     */
+public void setSize(double width,double height){
+    this.width=width;
+    this.height=height;
+}//end method
+
+/**
+ *
+ * @param size sets the size of object of this class
+ * using an already known one.
+ *
+ */
+public void setSize(Dimension size){
+    this.width=size.width;
+    this.height=size.height;
+}//end method
+
+
+/**
+ *
+ * @return a new instance of Size containing
+ * information about the size of this object
+ */
+public Dimension getSize(){
+    return new Dimension(width,height);
+}//end method
+
+/**
+ *
+ * @param scaleFactor the factor by which this Size object is to be scaled.
+ */
+public void scale(double scaleFactor){
+    setSize(scaleFactor*width, scaleFactor*height);
+}
+
+/**
+ *returns a new Size object scaled to the value given by scaleFactor
+ * @param scaleFactor the factor by which this Size object is to be scaled.
+ */
+public Dimension getScaledInstance(double scaleFactor){
+    return new Dimension(scaleFactor*width, scaleFactor*height);
+}
+/**
+ *returns a new Size object scaled to the value given by scaleWidth
+ * and scaleHeight, both being multipliers for the width and the
+ * height.
+ * @param scaleWidth  the factor by which the width of this Size object is to be scaled.
+ * @param scaleHeight    the factor by which the height of this Size object is to be scaled.
+ */
+public Dimension getScaledInstance(double scaleWidth,double scaleHeight){
+    return new Dimension(scaleWidth*width, scaleHeight*height);
+}
+
+
+    @Override
+    public String toString() {
+     return "( width = "+width+  ",height = "+height+" ).";
+
+    }
+
+/**
+ *
+ * @return  the Dimension object
+ * closest in value to this Size object.
+ */
+public java.awt.Dimension getAWTDimension(){
+    return new java.awt.Dimension((int)width,(int)height   );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+}//end class

@@ -123,11 +123,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
             "cos-¹_grad", "lg-¹",
             "cot_rad", "atan_grad", "sin_grad", "cot_grad",
             "csc-¹_grad", "length", "csc-¹_deg", "cosh-¹", "cosh",
-            "csc-¹_rad", "sin_rad", "csch", "asinh"
-    
-
-    ///////////////////////////////////////////////////////
-
+            "csc-¹_rad", "sin_rad", "csch", "asinh" 
     ));
 
     public ScalarTurboEvaluator1(MathExpression me) {

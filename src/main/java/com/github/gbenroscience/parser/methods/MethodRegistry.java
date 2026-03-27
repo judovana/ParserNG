@@ -18,22 +18,29 @@ package com.github.gbenroscience.parser.methods;
 import com.github.gbenroscience.logic.DRG_MODE;
 import com.github.gbenroscience.math.Maths;
 import com.github.gbenroscience.math.differentialcalculus.Derivative;
+import com.github.gbenroscience.math.geom.Direction;
+import com.github.gbenroscience.math.geom.Line3D;
+import com.github.gbenroscience.math.geom.Point;
+import com.github.gbenroscience.math.geom.ROTOR;
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.math.numericalmethods.NumericalIntegral;
 import com.github.gbenroscience.math.numericalmethods.RootFinder;
 import com.github.gbenroscience.math.quadratic.QuadraticSolver;
-import com.github.gbenroscience.math.quadratic.Quadratic_Equation; 
+import com.github.gbenroscience.math.quadratic.Quadratic_Equation;
 import com.github.gbenroscience.math.tartaglia.Tartaglia_Equation;
 import com.github.gbenroscience.parser.Bracket;
 import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
+import com.github.gbenroscience.parser.TYPE;
+import com.github.gbenroscience.parser.Variable;
 import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.Utils;
 import com.github.gbenroscience.util.io.TextFileWriter;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map; 
-import java.util.Arrays; 
+import java.util.Map;
+import java.util.Arrays;
 import java.util.HashSet;
 
 /**
@@ -112,6 +119,7 @@ public class MethodRegistry {
     }
 
     public static final String[] expandedTrigAndHypMethodNames = new String[72];
+
     // --- Pre-register Built-ins ---
     static {
         loadInBuiltMethods();
@@ -184,31 +192,27 @@ public class MethodRegistry {
         String acotAltDeg = expandedTrigAndHypMethodNames[51] = Declarations.getTrigFuncDRGVariant(Declarations.ARC_COT_ALT, DRG_MODE.DEG);
         String acotAltRad = expandedTrigAndHypMethodNames[52] = Declarations.getTrigFuncDRGVariant(Declarations.ARC_COT_ALT, DRG_MODE.RAD);
         String acotAltGrad = expandedTrigAndHypMethodNames[53] = Declarations.getTrigFuncDRGVariant(Declarations.ARC_COT_ALT, DRG_MODE.GRAD);
-        
-        
-        
-         expandedTrigAndHypMethodNames[54] = Declarations.SINH;  
-         expandedTrigAndHypMethodNames[55] = Declarations.COSH;  
-         expandedTrigAndHypMethodNames[56] = Declarations.TANH;  
-         expandedTrigAndHypMethodNames[57] = Declarations.SECH;  
-         expandedTrigAndHypMethodNames[58] = Declarations.COSECH;  
-         expandedTrigAndHypMethodNames[59] = Declarations.COTH;  
 
-         expandedTrigAndHypMethodNames[60] = Declarations.ARC_SINH;  
-         expandedTrigAndHypMethodNames[61] = Declarations.ARC_SINH_ALT;  
-         expandedTrigAndHypMethodNames[62] = Declarations.ARC_COSH; 
-         expandedTrigAndHypMethodNames[63] = Declarations.ARC_COSH_ALT;  
-         expandedTrigAndHypMethodNames[64] = Declarations.ARC_TANH; 
-         expandedTrigAndHypMethodNames[65] = Declarations.ARC_TANH_ALT;
+        expandedTrigAndHypMethodNames[54] = Declarations.SINH;
+        expandedTrigAndHypMethodNames[55] = Declarations.COSH;
+        expandedTrigAndHypMethodNames[56] = Declarations.TANH;
+        expandedTrigAndHypMethodNames[57] = Declarations.SECH;
+        expandedTrigAndHypMethodNames[58] = Declarations.COSECH;
+        expandedTrigAndHypMethodNames[59] = Declarations.COTH;
 
-         expandedTrigAndHypMethodNames[66] = Declarations.ARC_SECH;  
-         expandedTrigAndHypMethodNames[67] = Declarations.ARC_SECH_ALT; 
-         expandedTrigAndHypMethodNames[68] = Declarations.ARC_COSECH; 
-         expandedTrigAndHypMethodNames[69] = Declarations.ARC_COSECH_ALT; 
-         expandedTrigAndHypMethodNames[70] = Declarations.ARC_COTH; 
-         expandedTrigAndHypMethodNames[71] = Declarations.ARC_COTH_ALT;  
+        expandedTrigAndHypMethodNames[60] = Declarations.ARC_SINH;
+        expandedTrigAndHypMethodNames[61] = Declarations.ARC_SINH_ALT;
+        expandedTrigAndHypMethodNames[62] = Declarations.ARC_COSH;
+        expandedTrigAndHypMethodNames[63] = Declarations.ARC_COSH_ALT;
+        expandedTrigAndHypMethodNames[64] = Declarations.ARC_TANH;
+        expandedTrigAndHypMethodNames[65] = Declarations.ARC_TANH_ALT;
 
-
+        expandedTrigAndHypMethodNames[66] = Declarations.ARC_SECH;
+        expandedTrigAndHypMethodNames[67] = Declarations.ARC_SECH_ALT;
+        expandedTrigAndHypMethodNames[68] = Declarations.ARC_COSECH;
+        expandedTrigAndHypMethodNames[69] = Declarations.ARC_COSECH_ALT;
+        expandedTrigAndHypMethodNames[70] = Declarations.ARC_COTH;
+        expandedTrigAndHypMethodNames[71] = Declarations.ARC_COTH_ALT;
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         registerMethod(sinDeg, (ctx, arity, args) -> ctx.wrap(Maths.sinDegToRad(args[0].scalar)));
@@ -326,18 +330,18 @@ public class MethodRegistry {
         registerMethod(Declarations.LG_INV, (ctx, arity, args) -> ctx.wrap(Math.pow(10, args[0].scalar)));
         registerMethod(Declarations.LG_INV_ALT, (ctx, arity, args) -> ctx.wrap(Math.pow(10, args[0].scalar)));
         registerMethod(Declarations.LOG, (ctx, arity, args) -> {
-            if(arity == 1){
-               return ctx.wrap(Maths.logToAnyBase(args[0].scalar, 10));
-            }else{
-               return ctx.wrap(Maths.logToAnyBase(args[0].scalar, args[1].scalar));
+            if (arity == 1) {
+                return ctx.wrap(Maths.logToAnyBase(args[0].scalar, 10));
+            } else {
+                return ctx.wrap(Maths.logToAnyBase(args[0].scalar, args[1].scalar));
             }
         });
         registerMethod(Declarations.LOG_INV, (ctx, arity, args) -> {
-          if(arity == 1){
-             return ctx.wrap(Maths.antiLogToAnyBase(args[0].scalar, 10));
-          }else{
-              return ctx.wrap(Maths.antiLogToAnyBase(args[0].scalar, args[1].scalar));
-          }
+            if (arity == 1) {
+                return ctx.wrap(Maths.antiLogToAnyBase(args[0].scalar, 10));
+            } else {
+                return ctx.wrap(Maths.antiLogToAnyBase(args[0].scalar, args[1].scalar));
+            }
         });
         registerMethod(Declarations.LOG_INV_ALT, (ctx, arity, args) -> ctx.wrap(Maths.antiLogToAnyBase(args[0].scalar, args[1].scalar)));
 
@@ -374,8 +378,8 @@ public class MethodRegistry {
                 return der.findDerivativeByPolynomialExpander();
                      */
                     MathExpression.EvalResult ev = Derivative.eval("diff(" + anonFunc + "," + (args[1].textRes != null ? args[1].textRes : args[1].scalar) + "," + args[2] + ")");
-                       return ctx.wrap(ev);
-                    
+                    return ctx.wrap(ev);
+
                 }
                 default:
                     return ctx.wrap(Double.NaN);
@@ -394,7 +398,179 @@ public class MethodRegistry {
             }//end else if
             return ctx.wrap(Double.NaN);
         });
-        
+        registerMethod(Declarations.ROTOR, (ctx, arity, args) -> {
+            System.out.println("ROTOR Action"); 
+            System.out.println("arity: " + arity);
+            System.out.println("args: " + Arrays.toString(args));
+            int sz = args.length;
+            if (args.length == 4) {//rot(F,a,O,D) function, angle, origin, direction vector
+                //confirm the last 3 other args
+                double angle = args[1].scalar;
+                String anonFuncOrig = args[2].textRes;
+                String anonFuncDir = args[3].textRes;
+                Function origFun = FunctionManager.lookUp(anonFuncOrig);
+                Function dirFun = FunctionManager.lookUp(anonFuncDir);
+                if (origFun == null) {
+                    return MathExpression.EvalResult.ERROR;
+                }
+                Point origin;
+                Matrix origVector = origFun.getMatrix();
+                int rows = origVector.getRows();
+                int cols = origVector.getCols();//@(1,3)
+                if ((rows == 1 && cols == 3) || (rows == 3 && cols == 1)) {
+                    double[] arr = origVector.getFlatArray();
+                    origin = new Point(arr[0], arr[1], arr[2]);
+                } else {
+                    return MathExpression.EvalResult.ERROR;
+                }
+
+                Matrix dirVector = dirFun.getMatrix();
+                rows = dirVector.getRows();
+                cols = dirVector.getCols();//@(1,3)
+                Direction dir;
+                if ((rows == 1 && cols == 3) || (rows == 3 && cols == 1)) {
+                    double[] arr = dirVector.getFlatArray();
+                    dir = new Direction(arr[0], arr[1], arr[2]);
+                } else {
+                    return MathExpression.EvalResult.ERROR;
+                }
+
+                Function f = FunctionManager.lookUp(args[0].textRes);
+                if (f == null) {
+                    return MathExpression.EvalResult.ERROR;
+                }
+                ArrayList<Variable> vars = f.getIndependentVariables();
+                int siz = vars.size();
+                if (siz > 2) {
+                    return MathExpression.EvalResult.ERROR;
+                }
+                if (f.getType() == TYPE.ALGEBRAIC_EXPRESSION) {
+                    String expr = f.getMathExpression().getExpression();
+                    ROTOR r = new ROTOR(angle, origin, dir);
+                    if (siz == 2) {
+                        r.setZAxisName(f.getDependentVariable().getName());
+                        r.setXAxisName(vars.get(0).getName());
+                        r.setYAxisName(vars.get(1).getName());
+                    }
+                    if (siz == 1) {
+                        r.setYAxisName(f.getDependentVariable().getName());
+                        r.setXAxisName(vars.get(0).getName());  
+                    }
+                    String res = r.rotate(expr);
+                    return ctx.wrap(res);
+                }
+                if (f.getType() == TYPE.MATRIX) {
+                    //rotate a point
+                    Matrix pointVector = f.getMatrix();
+                     ROTOR r = new ROTOR(angle, origin, dir);
+                     rows = pointVector.getRows();
+                     cols = pointVector.getCols();//@(1,3)
+                    if ((rows == 1 && cols == 3) || (rows == 3 && cols == 1)) {
+                        double[] arr = pointVector.getFlatArray();
+                        Point p = new Point(arr[0], arr[1], arr[2]);
+                        Point rotP = r.rotate(p);
+                        return ctx.wrap(new double[]{rotP.x, rotP.y, rotP.z});
+                    }else{
+                        return MathExpression.EvalResult.ERROR; 
+                    }
+                }
+            } else if (args.length == 5) {//rot(P1,P2,a,O,D) function, angle, origin, direction vector
+                //confirm the last 3 other args
+                double angle = args[2].scalar;
+                String anonFuncOrig = args[3].textRes;
+                String anonFuncDir = args[4].textRes;
+                Function origFun = FunctionManager.lookUp(anonFuncOrig);
+                Function dirFun = FunctionManager.lookUp(anonFuncDir);
+                if (origFun == null) {
+                    return MathExpression.EvalResult.ERROR;
+                }
+                Point origin;
+                Matrix origVector = origFun.getMatrix();
+                int rows = origVector.getRows();
+                int cols = origVector.getCols();//@(1,3)
+                if ((rows == 1 && cols == 3) || (rows == 3 && cols == 1)) {
+                    double[] arr = origVector.getFlatArray();
+                    origin = new Point(arr[0], arr[1], arr[2]);
+                } else {
+                    return MathExpression.EvalResult.ERROR;
+                }
+
+                Matrix dirVector = dirFun.getMatrix();
+                rows = dirVector.getRows();
+                cols = dirVector.getCols();//@(1,3)
+                Direction dir;
+                if ((rows == 1 && cols == 3) || (rows == 3 && cols == 1)) {
+                    double[] arr = dirVector.getFlatArray();
+                    dir = new Direction(arr[0], arr[1], arr[2]);
+                } else {
+                    return MathExpression.EvalResult.ERROR;
+                }
+
+                Function p1 = FunctionManager.lookUp(args[0].textRes);
+                Function p2 = FunctionManager.lookUp(args[1].textRes);
+                if (p1 == null) {
+                    return MathExpression.EvalResult.ERROR;
+                }
+
+                if (p1.getType() == TYPE.MATRIX && p2.getType() == TYPE.MATRIX) {
+                    ROTOR r = new ROTOR(angle, origin, dir);
+                     
+                     //rotate a point
+                    Matrix p1Vector = p1.getMatrix();
+                    Matrix p2Vector = p2.getMatrix();
+                     int r1 = p1Vector.getRows();
+                     int c1 = p1Vector.getCols();//@(1,3)
+                     int r2 = p2Vector.getRows();
+                     int c2 = p2Vector.getCols();//@(1,3)
+                    if (((r1 == 1 && c1 == 3) || (r1 == 3 && c1 == 1)) && ((r2 == 1 && c2 == 3) || (r2 == 3 && c2 == 1))  ) {
+                        double[] arr1 = p1Vector.getFlatArray();
+                        Point p11 = new Point(arr1[0], arr1[1], arr1[2]);
+                        double[] arr2 = p2Vector.getFlatArray();
+                        Point p22 = new Point(arr2[0], arr2[1], arr2[2]);
+                        
+                        Line3D l3D = new Line3D(p11, p22);
+                        
+                        Line3D rotL3D = r.rotate(l3D);
+                        
+                        Point p11Rot = r.rotate(p11);
+                        Point p22Rot = r.rotate(p22);
+                        System.out.println("passes through: "+rotL3D.passesThroughPoint(p11Rot)+", "+rotL3D.passesThroughPoint(p22Rot));
+                        
+                        return ctx.wrap(new double[]{p11Rot.x, p11Rot.y, p11Rot.z, p22Rot.x, p22Rot.y, p22Rot.z });
+                    }else{
+                        return MathExpression.EvalResult.ERROR; 
+                    } 
+                }
+                 
+            } else {
+                return MathExpression.EvalResult.ERROR;
+            }
+            switch (sz) {
+                case 1: {
+                    MathExpression.EvalResult solution = Derivative.eval("diff(" + args[0] + ",1)");//only the function handle was sent...e.g diff(F)
+                    return ctx.wrap(solution);
+                }
+                case 2: {//diff(F,v|n) F = func to be differentiated, v = new func to hold return value of differentiation, n = order of differentiation
+                    String anonFunc = args[0].textRes;
+                    MathExpression.EvalResult solution = Derivative.eval("diff(" + anonFunc + "," + (args[1].textRes != null ? args[1].textRes : args[1].scalar) + ")");
+                    return ctx.wrap(solution);
+                }
+                case 3: {
+//diff(F,v|x, n) F = func to be differentiated, v = new func to hold return value of differentiation, 
+//x = x point to evaluate final detivative at n = order of differentiation
+                    String anonFunc = args[0].textRes;
+                    int order = (int) args[2].scalar;
+                    /*  NumericalDerivative der = new NumericalDerivative(FunctionManager.lookUp(data.get(0)),Double.parseDouble(data.get(1)));
+                return der.findDerivativeByPolynomialExpander();
+                     */
+                    MathExpression.EvalResult ev = Derivative.eval("diff(" + anonFunc + "," + (args[1].textRes != null ? args[1].textRes : args[1].scalar) + "," + args[2] + ")");
+                    return ctx.wrap(ev);
+
+                }
+                default:
+                    return ctx.wrap(Double.NaN);
+            }
+        });
         registerMethod(Declarations.GENERAL_ROOT, (ctx, arity, args) -> {
             RootFinder rf;
             switch (args.length) {
@@ -846,7 +1022,6 @@ public class MethodRegistry {
             return res;
         });
 
-
         registerMethod(Declarations.QUADRATIC, (ctx, arity, args) -> {
             Function f = FunctionManager.lookUp(args[0].textRes);
             String input = f.expressionForm();
@@ -974,11 +1149,11 @@ public class MethodRegistry {
         registerMethod(Declarations.MATRIX_EIGENVALUES, (ctx, arity, args) -> {
             //System.out.println("eigValues branch: args-->>" + Arrays.deepToString(args) + ", args[0].type = " + args[0].getTypeName() + ",funcName: " + funcName);
             Matrix m = FunctionManager.lookUp(args[0].textRes).getMatrix();
-            double[] evals = m.computeEigenValues(); 
-             // Wrap the 2n array into an n-row, 2-column Matrix
-            Matrix e = new Matrix(evals, m.getRows(), 2); 
+            double[] evals = m.computeEigenValues();
+            // Wrap the 2n array into an n-row, 2-column Matrix
+            Matrix e = new Matrix(evals, m.getRows(), 2);
             return ctx.wrap(e);
-             
+
         });
         registerMethod(Declarations.MATRIX_EIGENVEC, (ctx, arity, args) -> {
             Function f = FunctionManager.lookUp(args[0].textRes);
@@ -1082,25 +1257,36 @@ public class MethodRegistry {
         }
     }
 
-    
     public static void main(String[] args) {
-        HashSet<String>data= new HashSet<>(Arrays.asList(expandedTrigAndHypMethodNames));
+        
+        MathExpression me = new MathExpression("z=@(x,y)sin(x+y-3*x);rot(z, pi, @(1,3)(1,0,1),@(1,3)(1,1,0))");
+        System.out.println("scanner = "+me.getScanner()+",\n anon2 = "+FunctionManager.lookUp("anon2")+",\n anon3 = "+FunctionManager.lookUp("anon3"));
+        System.out.println("vector = "+me.solveGeneric());
+        
+        
+            
+        MathExpression m = new MathExpression("p=@(1,3)(4,2,5);q=@(1,3)(12,3,-1);rot(p,q, pi, @(1,3)(1,0,1),@(1,3)(1,1,0))");
+        System.out.println("scanner = "+m.getScanner()+",\n anon5 = "+FunctionManager.lookUp("anon5")+",\n anon6 = "+FunctionManager.lookUp("anon6"));
+        System.out.println("vector = "+m.solveGeneric());
+        
+        
+        HashSet<String> data = new HashSet<>(Arrays.asList(expandedTrigAndHypMethodNames));
         StringBuilder sb = new StringBuilder();
-    
-        for(String s: methodIds.keySet()){
+
+        for (String s : methodIds.keySet()) {
             data.add(s);
         }
         int i = 0;
-        for(String s: data){
-            if(i%6==0){
-            sb.append("\"").append(s).append("\",\n");
-            }else{
-            sb.append("\"").append(s).append("\",");
+        for (String s : data) {
+            if (i % 6 == 0) {
+                sb.append("\"").append(s).append("\",\n");
+            } else {
+                sb.append("\"").append(s).append("\",");
             }
             i++;
         }
-        
-        TextFileWriter.writeText(new File(System.getProperty("user.home")+"/tokens.txt"), sb.toString());
-        System.out.println("Saved at "+new File(System.getProperty("user.home")+"/tokens.txt").getAbsolutePath());
+
+        TextFileWriter.writeText(new File(System.getProperty("user.home") + "/tokens.txt"), sb.toString());
+        System.out.println("Saved at " + new File(System.getProperty("user.home") + "/tokens.txt").getAbsolutePath());
     }
 }

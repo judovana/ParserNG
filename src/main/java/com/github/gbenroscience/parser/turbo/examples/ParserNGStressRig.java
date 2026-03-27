@@ -30,10 +30,11 @@ import com.github.gbenroscience.parser.turbo.tools.TurboExpressionEvaluator;
 public class ParserNGStressRig {
     private static final int THREADS = Runtime.getRuntime().availableProcessors();
     private static final int ITERATIONS_PER_THREAD = 1_000_000;
+    private static final String TEST_EXPR_0 = "linear_sys(3,1,-2,4, 2,5)"; // Replace with complex Matrix ops
     private static final String TEST_EXPR_1 = "linear_sys(3,1,-2,4, 2,5,-8,6, 4,3,12,-18)"; // Replace with complex Matrix ops
     private static final String TEST_EXPR_2= "linear_sys(3,1,-2,4,5,-8, 2,5,-8,6,12,23, ,23,4,3,12,8,14, 1,3,2,5,4,7, 4,19,12,-3,18,50)"; // Replace with complex Matrix ops
 
-    private static final String TEST_EXPR = "linear_sys(" +
+    private static final String TEST_EXPR_X = "linear_sys(" +
     "10, 1, 0, 2, 3, 0, 1, 0, 4, 1, 50, " +  // Row 1
     "1, 12, 1, 0, 0, 4, 1, 2, 0, 3, 60, " +  // Row 2
     "0, 1, 15, 2, 1, 0, 3, 1, 4, 2, 70, " +  // Row 3
@@ -45,13 +46,13 @@ public class ParserNGStressRig {
     "4, 0, 4, 2, 3, 1, 2, 1, 45, 2, 130, " + // Row 9
     "1, 3, 2, 1, 4, 0, 1, 3, 2, 50, 140"  + // Row 10
 ")";
+       private static final String TEST_EXPR = TEST_EXPR_0;
     public static void main(String args[]) throws InterruptedException {
         ExecutorService executor = Executors.newFixedThreadPool(THREADS);
         CountDownLatch startGate = new CountDownLatch(1);
         CountDownLatch endGate = new CountDownLatch(THREADS);
         
-        long[] latencies = new long[THREADS * 1000]; // Sample every 1000th op for jitter analysis
-
+         
         System.out.printf("Starting Stress Test: %d threads, %d ops each...%n", THREADS, ITERATIONS_PER_THREAD);
         TurboExpressionEvaluator compiler = TurboEvaluatorFactory.getCompiler(new MathExpression(TEST_EXPR));
         for (int t = 0; t < THREADS; t++) {

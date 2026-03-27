@@ -17,10 +17,10 @@ package com.github.gbenroscience.parser.turbo.tools;
 
 import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
-import com.github.gbenroscience.parser.Variable;
 import com.github.gbenroscience.util.FunctionManager;
-import com.github.gbenroscience.util.VariableManager;
 import java.util.Arrays;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -28,7 +28,6 @@ import java.util.Arrays;
  * Tests basic arithmetic, trig functions, and complex expressions.
  */
 public class ScalarTurboBench {
-     
 
     private static final int N = 1000000;
     private static boolean useWidening = true;
@@ -37,9 +36,10 @@ public class ScalarTurboBench {
         System.out.println("=".repeat(80));
         System.out.println("SCALAR TURBO COMPILER BENCHMARKS");
         System.out.println("=".repeat(80));
-        
-         runVariableStressTest();
 
+        // runVariableStressTest();
+        coldRun("x=3;3*x^2+4*x+5", true);
+        coldRun("x=3;3*x^2+4*x+5", false);
         testQuadratic();
         testTartaglia();
         testGeneralRoot();
@@ -58,9 +58,9 @@ public class ScalarTurboBench {
         benchmarkConstantFolding();
         benchmarkUnaryOps();
     }
-    
-    private static FastCompositeExpression get(MathExpression me) throws Throwable{
-       return new ScalarTurboEvaluator(me, useWidening).compile();
+
+    private static FastCompositeExpression get(MathExpression me) throws Throwable {
+        return new ScalarTurboEvaluator(me, useWidening).compile();
     }
 
     private static void benchmarkPrinting() throws Throwable {
@@ -447,7 +447,7 @@ public class ScalarTurboBench {
 
         double[] vars = new double[0];
 
-        double[] v = interpreted.solveGeneric().vector; 
+        double[] v = interpreted.solveGeneric().vector;
         FastCompositeExpression compiled = get(interpreted);
         double[] v1 = compiled.apply(vars).vector;
         System.out.println("v = " + Arrays.toString(v));
@@ -463,7 +463,7 @@ public class ScalarTurboBench {
 
         double[] vars = new double[0];
 
-        double[] v = interpreted.solveGeneric().vector; 
+        double[] v = interpreted.solveGeneric().vector;
         FastCompositeExpression compiled = get(interpreted);
         double[] v1 = compiled.apply(vars).vector;
         System.out.println("v = " + Arrays.toString(v));
@@ -479,8 +479,8 @@ public class ScalarTurboBench {
 
         double[] vars = new double[0];
 
-        double v = interpreted.solveGeneric().scalar; 
-         FastCompositeExpression compiled = get(interpreted);
+        double v = interpreted.solveGeneric().scalar;
+        FastCompositeExpression compiled = get(interpreted);
         double v1 = compiled.applyScalar(vars);
         System.out.println("v = " + v);
         System.out.println("v1 = " + v1);
@@ -492,7 +492,7 @@ public class ScalarTurboBench {
         String expr = "2^10 + 3^5 - 4! + sqrt(256)";
 
         MathExpression turbo = new MathExpression(expr, true);
-       FastCompositeExpression compiled = get(turbo);  //folding info will be picked up automatically!
+        FastCompositeExpression compiled = get(turbo);  //folding info will be picked up automatically!
 
         double[] vars = new double[0];
         double[] res = new double[1];
@@ -524,7 +524,6 @@ public class ScalarTurboBench {
 
         MathExpression turbo = new MathExpression(expr, false);
 
-        
         double[] res = new double[1];
         long start = System.nanoTime();
         for (int i = 0; i < N; i++) {
@@ -550,45 +549,84 @@ public class ScalarTurboBench {
         System.out.printf("Turbo:     %.2f ns/op%n", turboDur / N);
         System.out.printf("Speedup:     %.1fx%n", (double) interpretedDur / turboDur);
     }
-    
-    private static void runVariableStressTest() throws Throwable {
-    System.out.println("\n" + "=".repeat(40));
-    System.out.println("FINDING THE CROSSOVER POINT (WIDENING VS ARRAY)");
-    System.out.println("=".repeat(40));
 
-    for (int varCount = 1; varCount <= 40; varCount++) {
-        // Create a simple sum expression: x0 + x1 + x2 ... + xN
-        StringBuilder sb = new StringBuilder("x0");
-        for (int i = 1; i < varCount; i++) {
-            sb.append("+x").append(i);
-        }
-        String expr = sb.toString();
-        MathExpression me = new MathExpression(expr, false);
-      
-        double[] vals = new double[varCount];
-        Arrays.fill(vals, 1.0);
-        // Benchmark Widening (Evaluator 2)
-        FastCompositeExpression wide = new ScalarTurboEvaluator(me, true).compile();
-        for(int i=0; i<20000; i++) wide.applyScalar(vals); // Deep Warmup
-        long start = System.nanoTime();
-        for(int i=0; i<N; i++) wide.applyScalar(vals);
-        double wideDur = (System.nanoTime() - start) / (double) N;
+    private static void coldRun(String expr, boolean normalMode) {
+            int n = 0;
+        MathExpression me = new MathExpression(expr);
+        if (normalMode) { 
+            for (int i = 0; i < n; i++) {
+                me.solveGeneric();
+            }
 
-        // Benchmark Array (Evaluator 1)
-        FastCompositeExpression array = new ScalarTurboEvaluator(me, false).compile();
-        for(int i=0; i<20000; i++) array.applyScalar(vals); // Deep Warmup
-        start = System.nanoTime();
-        for(int i=0; i<N; i++) array.applyScalar(vals);
-        double arrayDur = (System.nanoTime() - start) / (double) N;
+            long start = System.nanoTime();
+            double v = me.solveGeneric().scalar;
+            double dur = System.nanoTime() - start;
+            System.out.println("value = " + v + ", dur: " + dur + "ns");
+        } else {
+            try {
+                FastCompositeExpression fce = get(me);
+                double vars[] = new double[10];
+                vars[0] = 3;
+                for (int i = 0; i < n; i++) {
+                    fce.applyScalar(vars);
+                }
 
-        String winner = wideDur < arrayDur ? "WIDENING" : "ARRAY";
-        System.out.printf("Vars: %2d | Wide: %6.2f ns | Array: %6.2f ns | Winner: %s%n", 
-                          varCount, wideDur, arrayDur, winner);
-        
-        // If Array wins three times in a row, we've found the definitive threshold
-        if (arrayDur < wideDur && varCount > 8) {
-             // You can use this data to tune MIN_VAR_COUNT_FOR_ARRAY_BASED_EVALUATOR
+                long start = System.nanoTime();
+                double v = fce.applyScalar(vars);
+                double dur = System.nanoTime() - start;
+                System.out.println("value = " + v + ", dur: " + dur + "ns");
+            } catch (Throwable ex) {
+                Logger.getLogger(ScalarTurboBench.class.getName()).log(Level.SEVERE, null, ex);
+            }
         }
     }
-}
+
+    private static void runVariableStressTest() throws Throwable {
+        System.out.println("\n" + "=".repeat(40));
+        System.out.println("FINDING THE CROSSOVER POINT (WIDENING VS ARRAY)");
+        System.out.println("=".repeat(40));
+
+        for (int varCount = 1; varCount <= 40; varCount++) {
+            // Create a simple sum expression: x0 + x1 + x2 ... + xN
+            StringBuilder sb = new StringBuilder("x0");
+            for (int i = 1; i < varCount; i++) {
+                sb.append("+x").append(i);
+            }
+            String expr = sb.toString();
+            MathExpression me = new MathExpression(expr, false);
+
+            double[] vals = new double[varCount];
+            Arrays.fill(vals, 1.0);
+            // Benchmark Widening (Evaluator 2)
+            FastCompositeExpression wide = new ScalarTurboEvaluator(me, true).compile();
+            for (int i = 0; i < 20000; i++) {
+                wide.applyScalar(vals); // Deep Warmup
+            }
+            long start = System.nanoTime();
+            for (int i = 0; i < N; i++) {
+                wide.applyScalar(vals);
+            }
+            double wideDur = (System.nanoTime() - start) / (double) N;
+
+            // Benchmark Array (Evaluator 1)
+            FastCompositeExpression array = new ScalarTurboEvaluator(me, false).compile();
+            for (int i = 0; i < 20000; i++) {
+                array.applyScalar(vals); // Deep Warmup
+            }
+            start = System.nanoTime();
+            for (int i = 0; i < N; i++) {
+                array.applyScalar(vals);
+            }
+            double arrayDur = (System.nanoTime() - start) / (double) N;
+
+            String winner = wideDur < arrayDur ? "WIDENING" : "ARRAY";
+            System.out.printf("Vars: %2d | Wide: %6.2f ns | Array: %6.2f ns | Winner: %s%n",
+                    varCount, wideDur, arrayDur, winner);
+
+            // If Array wins three times in a row, we've found the definitive threshold
+            if (arrayDur < wideDur && varCount > 8) {
+                // You can use this data to tune MIN_VAR_COUNT_FOR_ARRAY_BASED_EVALUATOR
+            }
+        }
+    }
 }

@@ -5,7 +5,6 @@
 package com.github.gbenroscience.parser;
 
 import com.github.gbenroscience.interfaces.Savable;
-import com.github.gbenroscience.parser.methods.Method;
 
 import java.util.ArrayList;
 import java.util.InputMismatchException;
@@ -18,7 +17,6 @@ import static com.github.gbenroscience.util.FunctionManager.ANON_PREFIX;
 import static com.github.gbenroscience.util.FunctionManager.FUNCTIONS;
 import com.github.gbenroscience.util.Serializer;
 import com.github.gbenroscience.util.VariableManager;
-import java.util.Arrays;
 
 /**
  *
@@ -755,8 +753,10 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         } else {
             throw new InputMismatchException("Syntax Error In Parameter List " + paramList);
         }
-
     }
+    
+    
+   
 
     /**
      *
@@ -968,7 +968,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      * variables and constants.
      */
     public String eval() {
-        return mathExpression.solve();
+        return mathExpression != null ? mathExpression.solve() : null;
     }
 
     /**

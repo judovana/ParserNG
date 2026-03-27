@@ -285,7 +285,7 @@ public class Method {
     public static boolean isStatsMethod(String op) {
         return (isUserDefinedFunction(op) || isLogOrAntiLogToAnyBase(op) || isBasicNumericalFunction(op)
                 || isMatrixMethod(op) || isHardcodedStatsMethod(op)
-                || op.equals(POW) || op.equals(DIFFERENTIATION)
+                || op.equals(POW) || op.equals(DIFFERENTIATION) || op.equals(ROTOR)
                 || op.equals(INTEGRATION) || op.equals(GENERAL_ROOT) || op.equals(QUADRATIC)
                 || op.equals(TARTAGLIA_ROOTS) || op.equals(PERMUTATION) || op.equals(COMBINATION)
                 || op.equals(LOG) || op.equals(LOG_INV) || op.equals(LOG_INV_ALT) || op.equals(PRINT));

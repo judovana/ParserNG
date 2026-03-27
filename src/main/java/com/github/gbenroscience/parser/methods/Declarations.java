@@ -106,6 +106,7 @@ public class Declarations {
     public static final String QUADRATIC = "quadratic";
     public static final String TARTAGLIA_ROOTS = "t_root";
     public static final String GENERAL_ROOT = "root";
+    public static final String ROTOR = "rot";
     public static final String NOW = "now";
     public static final String NANOS = "nanos";
     /**
@@ -294,7 +295,7 @@ public class Declarations {
             ECHELON_MATRIX, MATRIX_MULTIPLY, MATRIX_DIVIDE, MATRIX_ADD,
             MATRIX_SUBTRACT, MATRIX_POWER, MATRIX_TRANSPOSE, MATRIX_EDIT,
             MATRIX_COFACTORS, MATRIX_ADJOINT, MATRIX_EIGENVEC, MATRIX_EIGENVALUES,
-            MATRIX_EIGENPOLY, HELP, NOW, NANOS
+            MATRIX_EIGENPOLY, HELP, NOW, NANOS, ROTOR
         };
 
         List<String> rest = Arrays.asList(functionConstants);

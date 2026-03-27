@@ -475,24 +475,7 @@ public class MathExpression implements Savable, Solvable {
         scanner.replaceAll((String t) -> this.commaAlias.equals(t) ? "," : t);
     }
 
-    /**
-     * Compile expression to native bytecode using MethodHandles +
-     * LambdaMetafactory. First call takes ~5-10ms, subsequent calls return
-     * cached version. Runtime performance: ~10-20 ns/op (vs 55 ns/op
-     * interpreted).
-     *
-     * public FastExpression compileTurbo() { if (turboCompiled) { return
-     * compiledTurbo; }
-     *
-     * if (!isScannedAndOptimized() || cachedPostfix == null) { throw new
-     * IllegalStateException("Expression not properly compiled. Call solve()
-     * first."); }
-     *
-     * try { compiledTurbo = TurboCompiler.compile(cachedPostfix, registry);
-     * turboCompiled = true; return compiledTurbo; } catch (Throwable e) { throw
-     * new RuntimeException("Failed to compile expression to turbo mode: " +
-     * e.getMessage(), e); } }
-     */
+ 
     /**
      * Check if turbo mode is available.
      */
@@ -2204,6 +2187,10 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
          * etc.
          */
         public String textRes;
+        /**
+         * Use this to say what happened when this Object is of TYPE_ERROR
+         */
+        private String errorText;
 
         // Helper to reset the object for reuse
         public EvalResult wrap(double s) {
@@ -2211,6 +2198,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
             this.type = TYPE_SCALAR;
             return this;
         }
+        
 
         public EvalResult wrap(double[] v) {
             this.vector = v;
@@ -2268,6 +2256,15 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
             this.type = evr.type;
             return this;
         }
+
+        public void setErrorText(String errorText) {
+            this.errorText = errorText;
+        }
+
+        public String getErrorText() {
+            return errorText;
+        }
+        
 
 // In EvalResult class:
         public void reset() {
