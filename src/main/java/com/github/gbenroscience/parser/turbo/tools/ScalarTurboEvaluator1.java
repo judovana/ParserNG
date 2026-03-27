@@ -13,10 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.gbenroscience.parser.turbo.tools; 
+package com.github.gbenroscience.parser.turbo.tools;
 
 import com.github.gbenroscience.math.Maths;
 import com.github.gbenroscience.math.differentialcalculus.Derivative;
+import com.github.gbenroscience.math.geom.Direction;
+import com.github.gbenroscience.math.geom.Line3D;
+import com.github.gbenroscience.math.geom.Point;
+import com.github.gbenroscience.math.geom.ROTOR;
+import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.math.numericalmethods.NumericalIntegrator;
 import com.github.gbenroscience.math.numericalmethods.TurboRootFinder;
 import com.github.gbenroscience.math.quadratic.QuadraticSolver;
@@ -37,11 +42,11 @@ import com.github.gbenroscience.util.VariableManager;
 import java.lang.invoke.*;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
- 
- 
+
 /**
- * Turbo compiler optimized for PURE SCALAR expressions.
- * Uses an array based technique to pass variables to the evaluator
+ * Turbo compiler optimized for PURE SCALAR expressions. Uses an array based
+ * technique to pass variables to the evaluator
+ *
  * @author GBEMIRO
  */
 public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
@@ -123,7 +128,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
             "cos-¹_grad", "lg-¹",
             "cot_rad", "atan_grad", "sin_grad", "cot_grad",
             "csc-¹_grad", "length", "csc-¹_deg", "cosh-¹", "cosh",
-            "csc-¹_rad", "sin_rad", "csch", "asinh" 
+            "csc-¹_rad", "sin_rad", "csch", "asinh"
     ));
 
     public ScalarTurboEvaluator1(MathExpression me) {
@@ -237,6 +242,21 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
             public MathExpression.EvalResult apply(double[] variables) {
                 try {
                     Object result = scalarHandle.invoke(variables);
+                    if (result instanceof MathExpression.EvalResult) {
+                        return (MathExpression.EvalResult) result;
+                    }
+                    if (result instanceof double[]) {
+                        return new MathExpression.EvalResult().wrap((double[]) result);
+                    }
+                    return new MathExpression.EvalResult().wrap((double) result);
+                } catch (Throwable t) {
+                    return execute();
+                }
+            }
+
+            private MathExpression.EvalResult execute() {
+                try {
+                    Object result = scalarHandle.invoke(MathExpression.EvalResult.ERROR);
                     if (result instanceof MathExpression.EvalResult) {
                         return (MathExpression.EvalResult) result;
                     }
@@ -498,11 +518,35 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                             MethodHandle constant = MethodHandles.constant(double.class, val);
                             stack.push(MethodHandles.dropArguments(constant, 0, double[].class));
                         } else if (solution.getType() == TYPE.STRING) {
-                            MathExpression solutionExpr = new MathExpression(solution.textRes, true);
+                            MethodHandle constant = MethodHandles.constant(MathExpression.EvalResult.class, solution);
+                            stack.push(MethodHandles.dropArguments(constant, 0, MathExpression.EvalResult.class));
+
+                            /*MathExpression solutionExpr = new MathExpression(solution.textRes, true);
                             stack.push(compileScalar(solutionExpr.getCachedPostfix()));
+                            System.out.println("TYPE_STRING---"+solution.textRes+",\n "+Arrays.toString(solutionExpr.getCachedPostfix()));*/
                         } else {
                             throw new RuntimeException("Invalid expression passed to `diff` method: " + FunctionManager.lookUp(targetExpr));
                         }
+                        break;
+                    } else if (name.equals("rot")) {
+                        for (int i = 0; i < t.arity; i++) {
+                            stack.pop();
+                        }
+
+                        String[] args = t.getRawArgs();
+
+                        if (args == null || args.length == 0) {
+                            throw new IllegalArgumentException("Method 'diff' requires arguments.");
+                        }
+                        if (args.length != t.arity) {
+                            throw new RuntimeException("Invalid input. Expression did not pass token compiler phase");
+                        }
+                        if (args.length != 4 && args.length != 5) {
+                            throw new RuntimeException("Invalid input. Argument count for general root is invalid. Expected: <=3 Found " + args.length);
+                        }
+                        MathExpression.EvalResult solution = executeRotor(t.arity, args);
+                        MethodHandle constant = MethodHandles.constant(MathExpression.EvalResult.class, solution);
+                        stack.push(MethodHandles.dropArguments(constant, 0, MathExpression.EvalResult.class));
                         break;
                     }
 
@@ -561,10 +605,17 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
         if (result.type().parameterCount() == 0) {
             result = MethodHandles.dropArguments(result, 0, double[].class);
         }
-
-        return (result.type().returnType() == double.class)
-                ? result
-                : result.asType(MethodType.methodType(Object.class, double[].class));
+        if (result.type().returnType() == double.class) {
+            return result;
+        } else if (result.type().returnType() == double[].class) {
+            return result.asType(MethodType.methodType(Object.class, double[].class));
+        } else {
+            return result.asType(MethodType.methodType(Object.class, MathExpression.EvalResult.class));
+        }
+//
+//        return (result.type().returnType() == double.class)
+//                ? result
+//                : result.asType(MethodType.methodType(Object.class, double[].class));
     }
 
     private static MethodHandle compileFunction(MathExpression.Token t, List<MethodHandle> argumentHandles) throws Throwable {
@@ -747,8 +798,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
         // It accepts the array but ignores it, always returning 'value'
         return MethodHandles.dropArguments(c, 0, double[].class);
     }
- 
- 
+
     private static MethodHandle ensurePrimitive(MethodHandle handle) {
         if (handle.type().returnType() == double.class) {
             return handle;
@@ -1163,6 +1213,159 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
         return solns;
     }
 
+     static final MathExpression.EvalResult executeRotor(int arity, String[] args) {
+        MathExpression.EvalResult ctx = new MathExpression.EvalResult();
+        int sz = args.length;
+        if (args.length == 4) {//rot(F,a,O,D) function, angle, origin, direction vector
+            //confirm the last 3 other args
+            double angle = Variable.getConstantValue(args[1]);
+            if (Double.isNaN(angle)) {
+                angle = Double.parseDouble(args[1]);
+            }
+            String anonFuncOrig = args[2];
+            String anonFuncDir = args[3];
+            Function origFun = FunctionManager.lookUp(anonFuncOrig);
+            Function dirFun = FunctionManager.lookUp(anonFuncDir);
+            if (origFun == null) {
+                return MathExpression.EvalResult.ERROR;
+            }
+            Point origin;
+            Matrix origVector = origFun.getMatrix();
+            int rows = origVector.getRows();
+            int cols = origVector.getCols();//@(1,3)
+            if ((rows == 1 && cols == 3) || (rows == 3 && cols == 1)) {
+                double[] arr = origVector.getFlatArray();
+                origin = new Point(arr[0], arr[1], arr[2]);
+            } else {
+                return MathExpression.EvalResult.ERROR;
+            }
+
+            Matrix dirVector = dirFun.getMatrix();
+            rows = dirVector.getRows();
+            cols = dirVector.getCols();//@(1,3)
+            Direction dir;
+            if ((rows == 1 && cols == 3) || (rows == 3 && cols == 1)) {
+                double[] arr = dirVector.getFlatArray();
+                dir = new Direction(arr[0], arr[1], arr[2]);
+            } else {
+                return MathExpression.EvalResult.ERROR;
+            }
+
+            Function f = FunctionManager.lookUp(args[0]);
+            if (f == null) {
+                return MathExpression.EvalResult.ERROR;
+            }
+            ArrayList<Variable> vars = f.getIndependentVariables();
+            int siz = vars.size();
+            if (siz > 2) {
+                return MathExpression.EvalResult.ERROR;
+            }
+            if (f.getType() == TYPE.ALGEBRAIC_EXPRESSION) {
+                String expr = f.getMathExpression().getExpression();
+                ROTOR r = new ROTOR(angle, origin, dir);
+                if (siz == 2) {
+                    r.setZAxisName(f.getDependentVariable().getName());
+                    r.setXAxisName(vars.get(0).getName());
+                    r.setYAxisName(vars.get(1).getName());
+                }
+                if (siz == 1) {
+                    r.setYAxisName(f.getDependentVariable().getName());
+                    r.setXAxisName(vars.get(0).getName());
+                }
+                String res = r.rotate(expr);
+                return ctx.wrap(res);
+            }
+            if (f.getType() == TYPE.MATRIX) {
+                //rotate a point
+                Matrix pointVector = f.getMatrix();
+                ROTOR r = new ROTOR(angle, origin, dir);
+                rows = pointVector.getRows();
+                cols = pointVector.getCols();//@(1,3)
+                if ((rows == 1 && cols == 3) || (rows == 3 && cols == 1)) {
+                    double[] arr = pointVector.getFlatArray();
+                    Point p = new Point(arr[0], arr[1], arr[2]);
+                    Point rotP = r.rotate(p);
+                    return ctx.wrap(new double[]{rotP.x, rotP.y, rotP.z});
+                } else {
+                    return MathExpression.EvalResult.ERROR;
+                }
+            }
+        } else if (args.length == 5) {//rot(P1,P2,a,O,D) function, angle, origin, direction vector---- rotates lines, P1 and P2 are point matrices that define a line
+            //confirm the last 3 other args
+            double angle = Variable.getConstantValue(args[2]);
+            if (Double.isNaN(angle)) {
+                angle = Double.parseDouble(args[2]);
+            }
+            String anonFuncOrig = args[3];
+            String anonFuncDir = args[4];
+            Function origFun = FunctionManager.lookUp(anonFuncOrig);
+            Function dirFun = FunctionManager.lookUp(anonFuncDir);
+            if (origFun == null) {
+                return MathExpression.EvalResult.ERROR;
+            }
+            Point origin;
+            Matrix origVector = origFun.getMatrix();
+            int rows = origVector.getRows();
+            int cols = origVector.getCols();//@(1,3)
+            if ((rows == 1 && cols == 3) || (rows == 3 && cols == 1)) {
+                double[] arr = origVector.getFlatArray();
+                origin = new Point(arr[0], arr[1], arr[2]);
+            } else {
+                return MathExpression.EvalResult.ERROR;
+            }
+
+            Matrix dirVector = dirFun.getMatrix();
+            rows = dirVector.getRows();
+            cols = dirVector.getCols();//@(1,3)
+            Direction dir;
+            if ((rows == 1 && cols == 3) || (rows == 3 && cols == 1)) {
+                double[] arr = dirVector.getFlatArray();
+                dir = new Direction(arr[0], arr[1], arr[2]);
+            } else {
+                return MathExpression.EvalResult.ERROR;
+            }
+
+            Function p1 = FunctionManager.lookUp(args[0]);
+            Function p2 = FunctionManager.lookUp(args[1]);
+            if (p1 == null) {
+                return MathExpression.EvalResult.ERROR;
+            }
+
+            if (p1.getType() == TYPE.MATRIX && p2.getType() == TYPE.MATRIX) {
+                ROTOR r = new ROTOR(angle, origin, dir);
+
+                //rotate a point
+                Matrix p1Vector = p1.getMatrix();
+                Matrix p2Vector = p2.getMatrix();
+                int r1 = p1Vector.getRows();
+                int c1 = p1Vector.getCols();//@(1,3)
+                int r2 = p2Vector.getRows();
+                int c2 = p2Vector.getCols();//@(1,3)
+                if (((r1 == 1 && c1 == 3) || (r1 == 3 && c1 == 1)) && ((r2 == 1 && c2 == 3) || (r2 == 3 && c2 == 1))) {
+                    double[] arr1 = p1Vector.getFlatArray();
+                    Point p11 = new Point(arr1[0], arr1[1], arr1[2]);
+                    double[] arr2 = p2Vector.getFlatArray();
+                    Point p22 = new Point(arr2[0], arr2[1], arr2[2]);
+
+                    Line3D l3D = new Line3D(p11, p22);
+
+                    Line3D rotL3D = r.rotate(l3D);
+
+                    Point p11Rot = r.rotate(p11);
+                    Point p22Rot = r.rotate(p22);
+                    return ctx.wrap(new double[]{p11Rot.x, p11Rot.y, p11Rot.z, p22Rot.x, p22Rot.y, p22Rot.z});
+                } else {
+                    return MathExpression.EvalResult.ERROR;
+                }
+            }
+
+        } else {
+            return MathExpression.EvalResult.ERROR;
+        }
+        return MathExpression.EvalResult.ERROR;
+
+    }
+
     /**
      * Get the MethodHandle for a unary operator.
      */
@@ -1224,7 +1427,6 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
     }
 
     // ========== FUNCTIONS ==========
- 
     /**
      * Checks if the prefix is a standard math function that supports unit
      * suffixes like _deg, _rad, or _grad.

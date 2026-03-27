@@ -32,6 +32,7 @@ import com.github.gbenroscience.parser.Variable;
 import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
+import static com.github.gbenroscience.parser.turbo.tools.ScalarTurboEvaluator1.executeRotor;
 import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.VariableManager;
 
@@ -266,124 +267,6 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
         return resultContainer;
     }
 
-    public FastCompositeExpression compile1() throws Throwable {
-        int varCount = countVariables(postfix);
-        boolean foldConstants = this.willFoldConstants;
-
-        try {
-            MethodHandle wideHandle = compileScalarWide(postfix, varCount, foldConstants);
-
-            if (varCount == 0) {
-                return new FastCompositeExpression() {
-                    @Override
-                    public double applyScalar(double[] variables) {
-                        try {
-                            Object result = wideHandle.invoke();
-                            if (result instanceof double[]) {
-                                double[] arr = (double[]) result;
-                                return arr.length > 0 ? arr[0] : Double.NaN;
-                            }
-                            return ((Number) result).doubleValue();
-                        } catch (Throwable t) {
-                            throw new RuntimeException("Turbo scalar evaluation failed: " + t.getMessage(), t);
-                        }
-                    }
-
-                    @Override
-                    public MathExpression.EvalResult apply(double[] variables) {
-                        try {
-                            Object result = wideHandle.invoke();
-                            MathExpression.EvalResult res = new MathExpression.EvalResult();
-                            if (result instanceof double[]) {
-                                res.type = MathExpression.EvalResult.TYPE_VECTOR;
-                                res.vector = (double[]) result;
-                                return res;
-                            } else if (result instanceof Number) {
-                                res.type = MathExpression.EvalResult.TYPE_SCALAR;
-                                res.scalar = ((Number) result).doubleValue();
-                                return res;
-                            }
-                            res.type = MathExpression.EvalResult.TYPE_SCALAR;
-                            res.scalar = (double) result;
-                            return res;
-                        } catch (Throwable t) {
-                            throw new RuntimeException("Turbo evaluation failed: " + t.getMessage(), t);
-                        }
-                    }
-                };
-            }
-
-            // MULTI-VARIABLE PATH
-            MethodHandle spreado;
-            try {
-                spreado = wideHandle.asSpreader(double[].class, varCount);
-            } catch (IllegalArgumentException e) {
-                MethodHandle arrayGetter = MethodHandles.arrayElementGetter(double[].class);
-                spreado = wideHandle;
-                for (int i = 0; i < varCount; i++) {
-                    MethodHandle getter = MethodHandles.insertArguments(arrayGetter, 1, i);
-                    spreado = MethodHandles.collectArguments(spreado, i, getter);
-                }
-            }
-
-            spreado = spreado.asType(MethodType.methodType(Object.class, double[].class));
-            final MethodHandle spreader = spreado;
-
-            return new FastCompositeExpression() {
-                @Override
-                public double applyScalar(double[] variables) {
-                    try {
-                        double[] args = variables;
-                        if (args.length != varCount) {
-                            args = new double[varCount];
-                            System.arraycopy(variables, 0, args, 0, Math.min(variables.length, varCount));
-                        }
-
-                        Object result = spreader.invoke(args);
-                        if (result instanceof double[]) {
-                            double[] arr = (double[]) result;
-                            return arr.length > 0 ? arr[0] : Double.NaN;
-                        }
-                        return ((Number) result).doubleValue();
-                    } catch (Throwable t) {
-                        throw new RuntimeException("Turbo scalar execution failed: " + t.getMessage(), t);
-                    }
-                }
-
-                @Override
-                public MathExpression.EvalResult apply(double[] variables) {
-                    try {
-                        double[] args = variables;
-                        if (args.length != varCount) {
-                            args = new double[varCount];
-                            System.arraycopy(variables, 0, args, 0, Math.min(variables.length, varCount));
-                        }
-
-                        Object result = spreader.invoke(args);
-                        MathExpression.EvalResult res = new MathExpression.EvalResult();
-                        if (result instanceof double[]) {
-                            res.type = MathExpression.EvalResult.TYPE_VECTOR;
-                            res.vector = (double[]) result;
-                            return res;
-                        } else if (result instanceof Number) {
-                            res.type = MathExpression.EvalResult.TYPE_SCALAR;
-                            res.scalar = ((Number) result).doubleValue();
-                            return res;
-                        }
-                        res.type = MathExpression.EvalResult.TYPE_SCALAR;
-                        res.scalar = (double) result;
-                        return res;
-                    } catch (Throwable t) {
-                        throw new RuntimeException("Turbo execution failed: " + t.getMessage(), t);
-                    }
-                }
-            };
-
-        } catch (Throwable t) {
-            throw new RuntimeException("Failed to compile Turbo expression: " + t.getMessage(), t);
-        }
-    }
-
     @Override
     public FastCompositeExpression compile() throws Throwable {
         int varCount = countVariables(postfix);
@@ -401,8 +284,11 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
                 MethodHandle getFirst = MethodHandles.arrayElementGetter(double[].class);
                 scalarOnlyHandle = MethodHandles.filterReturnValue(wideHandle,
                         MethodHandles.insertArguments(getFirst, 1, 0));
+            } else if (returnType == MathExpression.EvalResult.class) {
+                scalarOnlyHandle = scalarOnlyHandle.asType(scalarOnlyHandle.type().changeReturnType(MathExpression.EvalResult.class));
+            } else {
+                scalarOnlyHandle = scalarOnlyHandle.asType(scalarOnlyHandle.type().changeReturnType(double.class));
             }
-            scalarOnlyHandle = scalarOnlyHandle.asType(scalarOnlyHandle.type().changeReturnType(double.class));
 
             // 3. The "Manual Spreader" Strategy (The Fix for 64 B/op)
             // This binds the handle to array indices instead of using asSpreader.
@@ -469,6 +355,8 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
                         if (result instanceof double[]) {
                             res.type = MathExpression.EvalResult.TYPE_VECTOR;
                             res.vector = (double[]) result;
+                        } else if (result instanceof MathExpression.EvalResult) {
+                            return (MathExpression.EvalResult) result;
                         } else {
                             res.type = MathExpression.EvalResult.TYPE_SCALAR;
                             res.scalar = (double) result;
@@ -566,8 +454,8 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
                     String name = t.name.toLowerCase();
 
                     if (name.equals(Declarations.QUADRATIC) || name.equals(Declarations.TARTAGLIA_ROOTS)
-                            || name.equals(Declarations.GENERAL_ROOT) || name.equals("diff") || name.equals("intg")
-                            || name.equals("print")) {
+                            || name.equals(Declarations.GENERAL_ROOT) || name.equals(Declarations.DIFFERENTIATION) || name.equals(Declarations.INTEGRATION)
+                            || name.equals(Declarations.PRINT) || name.equals(Declarations.ROTOR)) {
                         MethodHandle legacy = compileComplexFunction(t);
 
                         if (legacy.type().parameterCount() == 0) {
@@ -625,7 +513,6 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
                         stack.push(combined);
                     } else {
                         MethodHandle legacy = compileComplexFunction(t);
-
                         name = t.name.toLowerCase();
                         if (name.equals("diff") || name.equals("intg") || name.equals(Declarations.GENERAL_ROOT)) {
                             if (legacy.type().returnType() != Object.class) {
@@ -658,6 +545,23 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
 
     public static double[] collectToArray(double... values) {
         return values;
+    }
+
+    private static MethodHandle compileRotorHandle(MathExpression.Token t) throws Throwable {
+        int arity = t.arity;
+        String[] args = t.getRawArgs();
+        if (args == null || args.length == 0) {
+            throw new IllegalArgumentException("Method 'rot' requires arguments.");
+        }
+        if (args.length != t.arity) {
+            throw new RuntimeException("Invalid input. Expression did not pass token compiler phase");
+        }
+        if (args.length != 4 && args.length != 5) {
+            throw new RuntimeException("Invalid input. Argument count for general root is invalid. Expected: 4 or 5 args: Found " + t.arity + " args");
+        }
+        MathExpression.EvalResult solution = ScalarTurboEvaluator1.executeRotor(arity, args);
+        MethodHandle constant = MethodHandles.constant(MathExpression.EvalResult.class, solution);
+        return constant;
     }
 
     private static MethodHandle compileDerivativeHandle(MathExpression.Token t) throws Throwable {
@@ -696,9 +600,12 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
 
         if (solution.getType() == TYPE.NUMBER) {
             return createConstantHandle(solution.scalar);
+        } else if (solution.getType() == TYPE.STRING) {
+            MethodHandle constant = MethodHandles.constant(MathExpression.EvalResult.class, solution);
+            return constant;
+        } else {
+            throw new RuntimeException("Invalid expression passed to `diff` method: " + FunctionManager.lookUp(targetExpr));
         }
-        MathExpression solutionExpr = new MathExpression(solution.textRes, true);
-        return compileScalar(solutionExpr.getCachedPostfix());
     }
 
     private static MethodHandle compileIntegrationHandle(MathExpression.Token t) throws Throwable {
@@ -779,12 +686,14 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
         String name = t.name.toLowerCase();
 
         switch (name) {
-            case "diff":
+            case Declarations.DIFFERENTIATION:
                 return compileDerivativeHandle(t);
-            case "intg":
+            case Declarations.INTEGRATION:
                 return compileIntegrationHandle(t);
             case Declarations.GENERAL_ROOT:
                 return compileRootHandle(t);
+            case Declarations.ROTOR:
+                return compileRotorHandle(t);
             case Declarations.QUADRATIC:
             case Declarations.TARTAGLIA_ROOTS:
                 String funcHandle = t.getRawArgs()[0];

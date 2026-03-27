@@ -47,7 +47,8 @@ public class Variable implements Savable {
      * The constant PI
      */
     public static final Variable PI = new Variable("pi", Math.PI, true);
-    public static final Variable PI_ALT = new Variable("π", Math.PI, true);
+    public static final Variable PI_ALT = new Variable("PI", Math.PI, true);
+    public static final Variable PI_ALT_1 = new Variable("π", Math.PI, true);
     public static final Variable GOLDEN_RATIO = new Variable("φ", (1.0 + Math.sqrt(5)) / 2, true);
 
     /**
@@ -328,6 +329,9 @@ public class Variable implements Savable {
     public static boolean isExpNumber(String str) {
         return str.equals("e");
     }
+        public static boolean isGoldenRatio(String str) {
+        return str.equals("φ");
+    }
 
     /**
      *
@@ -336,8 +340,22 @@ public class Variable implements Savable {
      *
      */
     public static boolean isPI(String str) {
-        return str.equals("pi");
+        return str.equals("pi") || str.equals("PI") ||str.equals("π");
     }
+    
+    public static double getConstantValue(String str) {
+        if(isPI(str)){
+            return PI.value;
+        }
+        if(isExpNumber(str)){
+            return Variable.e.value;
+        }
+        if(isGoldenRatio(str)){
+            return Variable.GOLDEN_RATIO.value;
+        }
+        return Double.NaN;
+    }
+    
 
     /**
      *

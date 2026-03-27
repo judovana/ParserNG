@@ -386,7 +386,7 @@ public class MethodRegistry {
             }
         });
         registerMethod(Declarations.INTEGRATION, (ctx, arity, args) -> {
-            boolean hasIterations = args.length == 4;//[F, 2.0, 3.0, 10000]
+            boolean hasIterations = args.length == 4;//[F, 2.0, 3.0, 10000] ---rotates any function in 3D including points and planes and generic functions
             boolean hasNoIterations = args.length == 3;//[F, 2.0, 3.0]
             if (hasNoIterations) {
                 NumericalIntegral intg = new NumericalIntegral(args[1].scalar, args[2].scalar, 0, args[0].textRes);
@@ -398,6 +398,7 @@ public class MethodRegistry {
             }//end else if
             return ctx.wrap(Double.NaN);
         });
+
         registerMethod(Declarations.ROTOR, (ctx, arity, args) -> {
             int sz = args.length;
             if (args.length == 4) {//rot(F,a,O,D) function, angle, origin, direction vector
@@ -451,7 +452,7 @@ public class MethodRegistry {
                     }
                     if (siz == 1) {
                         r.setYAxisName(f.getDependentVariable().getName());
-                        r.setXAxisName(vars.get(0).getName());  
+                        r.setXAxisName(vars.get(0).getName());
                     }
                     String res = r.rotate(expr);
                     return ctx.wrap(res);
@@ -459,19 +460,19 @@ public class MethodRegistry {
                 if (f.getType() == TYPE.MATRIX) {
                     //rotate a point
                     Matrix pointVector = f.getMatrix();
-                     ROTOR r = new ROTOR(angle, origin, dir);
-                     rows = pointVector.getRows();
-                     cols = pointVector.getCols();//@(1,3)
+                    ROTOR r = new ROTOR(angle, origin, dir);
+                    rows = pointVector.getRows();
+                    cols = pointVector.getCols();//@(1,3)
                     if ((rows == 1 && cols == 3) || (rows == 3 && cols == 1)) {
                         double[] arr = pointVector.getFlatArray();
                         Point p = new Point(arr[0], arr[1], arr[2]);
                         Point rotP = r.rotate(p);
                         return ctx.wrap(new double[]{rotP.x, rotP.y, rotP.z});
-                    }else{
-                        return MathExpression.EvalResult.ERROR; 
+                    } else {
+                        return MathExpression.EvalResult.ERROR;
                     }
                 }
-            } else if (args.length == 5) {//rot(P1,P2,a,O,D) function, angle, origin, direction vector
+            } else if (args.length == 5) {//rot(P1,P2,a,O,D) function, angle, origin, direction vector---- rotates lines, P1 and P2 are point matrices that define a line
                 //confirm the last 3 other args
                 double angle = args[2].scalar;
                 String anonFuncOrig = args[3].textRes;
@@ -511,63 +512,37 @@ public class MethodRegistry {
 
                 if (p1.getType() == TYPE.MATRIX && p2.getType() == TYPE.MATRIX) {
                     ROTOR r = new ROTOR(angle, origin, dir);
-                     
-                     //rotate a point
+
+                    //rotate a point
                     Matrix p1Vector = p1.getMatrix();
                     Matrix p2Vector = p2.getMatrix();
-                     int r1 = p1Vector.getRows();
-                     int c1 = p1Vector.getCols();//@(1,3)
-                     int r2 = p2Vector.getRows();
-                     int c2 = p2Vector.getCols();//@(1,3)
-                    if (((r1 == 1 && c1 == 3) || (r1 == 3 && c1 == 1)) && ((r2 == 1 && c2 == 3) || (r2 == 3 && c2 == 1))  ) {
+                    int r1 = p1Vector.getRows();
+                    int c1 = p1Vector.getCols();//@(1,3)
+                    int r2 = p2Vector.getRows();
+                    int c2 = p2Vector.getCols();//@(1,3)
+                    if (((r1 == 1 && c1 == 3) || (r1 == 3 && c1 == 1)) && ((r2 == 1 && c2 == 3) || (r2 == 3 && c2 == 1))) {
                         double[] arr1 = p1Vector.getFlatArray();
                         Point p11 = new Point(arr1[0], arr1[1], arr1[2]);
                         double[] arr2 = p2Vector.getFlatArray();
                         Point p22 = new Point(arr2[0], arr2[1], arr2[2]);
-                        
                         Line3D l3D = new Line3D(p11, p22);
-                        
                         Line3D rotL3D = r.rotate(l3D);
-                        
+
                         Point p11Rot = r.rotate(p11);
                         Point p22Rot = r.rotate(p22);
-                        System.out.println("passes through: "+rotL3D.passesThroughPoint(p11Rot)+", "+rotL3D.passesThroughPoint(p22Rot));
-                        
-                        return ctx.wrap(new double[]{p11Rot.x, p11Rot.y, p11Rot.z, p22Rot.x, p22Rot.y, p22Rot.z });
-                    }else{
-                        return MathExpression.EvalResult.ERROR; 
-                    } 
+                         return ctx.wrap(new double[]{p11Rot.x, p11Rot.y, p11Rot.z, p22Rot.x, p22Rot.y, p22Rot.z});
+                    } else {
+                        return MathExpression.EvalResult.ERROR;
+                    }
                 }
-                 
+
             } else {
                 return MathExpression.EvalResult.ERROR;
             }
-            switch (sz) {
-                case 1: {
-                    MathExpression.EvalResult solution = Derivative.eval("diff(" + args[0] + ",1)");//only the function handle was sent...e.g diff(F)
-                    return ctx.wrap(solution);
-                }
-                case 2: {//diff(F,v|n) F = func to be differentiated, v = new func to hold return value of differentiation, n = order of differentiation
-                    String anonFunc = args[0].textRes;
-                    MathExpression.EvalResult solution = Derivative.eval("diff(" + anonFunc + "," + (args[1].textRes != null ? args[1].textRes : args[1].scalar) + ")");
-                    return ctx.wrap(solution);
-                }
-                case 3: {
-//diff(F,v|x, n) F = func to be differentiated, v = new func to hold return value of differentiation, 
-//x = x point to evaluate final detivative at n = order of differentiation
-                    String anonFunc = args[0].textRes;
-                    int order = (int) args[2].scalar;
-                    /*  NumericalDerivative der = new NumericalDerivative(FunctionManager.lookUp(data.get(0)),Double.parseDouble(data.get(1)));
-                return der.findDerivativeByPolynomialExpander();
-                     */
-                    MathExpression.EvalResult ev = Derivative.eval("diff(" + anonFunc + "," + (args[1].textRes != null ? args[1].textRes : args[1].scalar) + "," + args[2] + ")");
-                    return ctx.wrap(ev);
+             return MathExpression.EvalResult.ERROR;
 
-                }
-                default:
-                    return ctx.wrap(Double.NaN);
-            }
         });
+
         registerMethod(Declarations.GENERAL_ROOT, (ctx, arity, args) -> {
             RootFinder rf;
             switch (args.length) {
@@ -1255,18 +1230,15 @@ public class MethodRegistry {
     }
 
     public static void main(String[] args) {
-        
+
         MathExpression me = new MathExpression("z=@(x,y)sin(x+y-3*x);rot(z, pi, @(1,3)(1,0,1),@(1,3)(1,1,0))");
-        System.out.println("scanner = "+me.getScanner()+",\n anon2 = "+FunctionManager.lookUp("anon2")+",\n anon3 = "+FunctionManager.lookUp("anon3"));
-        System.out.println("vector = "+me.solveGeneric());
-        
-        
-            
+        System.out.println("scanner = " + me.getScanner() + ",\n anon2 = " + FunctionManager.lookUp("anon2") + ",\n anon3 = " + FunctionManager.lookUp("anon3"));
+        System.out.println("vector = " + me.solveGeneric());
+
         MathExpression m = new MathExpression("p=@(1,3)(4,2,5);q=@(1,3)(12,3,-1);rot(p,q, pi, @(1,3)(1,0,1),@(1,3)(1,1,0))");
-        System.out.println("scanner = "+m.getScanner()+",\n anon5 = "+FunctionManager.lookUp("anon5")+",\n anon6 = "+FunctionManager.lookUp("anon6"));
-        System.out.println("vector = "+m.solveGeneric());
-        
-        
+        System.out.println("scanner = " + m.getScanner() + ",\n anon5 = " + FunctionManager.lookUp("anon5") + ",\n anon6 = " + FunctionManager.lookUp("anon6"));
+        System.out.println("vector = " + m.solveGeneric());
+
         HashSet<String> data = new HashSet<>(Arrays.asList(expandedTrigAndHypMethodNames));
         StringBuilder sb = new StringBuilder();
 
