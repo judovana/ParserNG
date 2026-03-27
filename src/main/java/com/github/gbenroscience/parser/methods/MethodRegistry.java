@@ -399,9 +399,6 @@ public class MethodRegistry {
             return ctx.wrap(Double.NaN);
         });
         registerMethod(Declarations.ROTOR, (ctx, arity, args) -> {
-            System.out.println("ROTOR Action"); 
-            System.out.println("arity: " + arity);
-            System.out.println("args: " + Arrays.toString(args));
             int sz = args.length;
             if (args.length == 4) {//rot(F,a,O,D) function, angle, origin, direction vector
                 //confirm the last 3 other args
