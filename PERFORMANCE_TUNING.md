@@ -1,4 +1,4 @@
-This section is designed to help you squeeze every last nanosecond out of **ParserNG 1.0.2**. Because the engine utilizes a JIT-native architecture via `MethodHandle` trees, its performance characteristics differ significantly from traditional interpreted parsers.
+This section is designed to help you squeeze every last nanosecond out of **ParserNG 1.0.3**. Because the engine utilizes a JIT-native architecture via `MethodHandle` trees, its performance characteristics differ significantly from traditional interpreted parsers.
 
 ---
 
@@ -17,7 +17,7 @@ ParserNG offers two primary execution paths. Choosing the right one depends on y
 ---
 
 ### 2. The Power of Constant Folding
-Version 1.0.2 introduces aggressive **Constant Folding**. This optimization happens during the compilation phase, where the parser identifies sub-expressions that result in a constant value and "pre-calculates" them.
+Version 1.0.3 introduces aggressive **Constant Folding**. This optimization happens during the compilation phase, where the parser identifies sub-expressions that result in a constant value and "pre-calculates" them.
 
 * **Static Expression:** `sin(3.14159 / 2) + x`
 * **Folded Expression:** `1.0 + x`
@@ -72,7 +72,7 @@ for (int i = 0; i < 1_000_000; i++) {
 ---
 
 ### 6. JDK Version Matters
-ParserNG 1.0.2 is optimized for **modern JDKs (17, 21, and 24)**. Improvements in the `java.lang.invoke` package in later versions directly translate to faster "Turbo" execution. If you are running on JDK 8 or 11, you may see slightly higher latencies due to less efficient `MethodHandle` inlining.
+ParserNG 1.0.3 is optimized for **modern JDKs (17, 21, and 24)**. Improvements in the `java.lang.invoke` package in later versions directly translate to faster "Turbo" execution. If you are running on JDK 8 or 11, you may see slightly higher latencies due to less efficient `MethodHandle` inlining.
 
 ---
 

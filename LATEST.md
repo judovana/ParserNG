@@ -1,5 +1,8 @@
 # ParserNG
 
+Parser 1.0.3 has been released on maven-central!
+Maintaining the industry standard besting speeds of v1.0.x, it adds the functionality of rotational geometry.
+In v1.0.3, you can use the rotor function, `rot` to rotate raw points in 3D space and other functions such as curves, lines, surfaces(both plane and curved) and 3D equations of all sorts.
 
 ParserNG 1.0.2 has been released on maven-central!
 Version 1.0.2 retains the wild speeds of Version 1.0.1. Adds an extra widening technique of variable passing to the Turbo mode,
