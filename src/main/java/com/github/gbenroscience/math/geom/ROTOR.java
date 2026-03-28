@@ -395,7 +395,7 @@ public class ROTOR {
         sb.append(formatTerm(cz, parameters[2], sb.length() == 0));
 
         if (Math.abs(cConst) > 1e-10) {
-            sb.append(cConst > 0 ? "+" : "").append(String.format("%.4f", cConst));
+            sb.append(cConst > 0 ? "+" : "").append(String.format("%.16f", cConst));
         }
 
         return sb.toString();
@@ -426,7 +426,7 @@ public class ROTOR {
         sb.append(formatTerm(cz, parameters[2], sb.length() == 0));
 
         if (Math.abs(cConst) > 1e-10) {
-            sb.append(cConst > 0 ? "+" : "").append(String.format("%.4f", cConst));
+            sb.append(cConst > 0 ? "+" : "").append(String.format("%.16f", cConst));
         }
 
         return sb.toString();

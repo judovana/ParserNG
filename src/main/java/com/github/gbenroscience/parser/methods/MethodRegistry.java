@@ -1231,7 +1231,7 @@ public class MethodRegistry {
 
     public static void main(String[] args) {
 
-        MathExpression me = new MathExpression("z=@(x,y)sin(x+y-3*x);rot(z, pi, @(1,3)(1,0,1),@(1,3)(1,1,0))");
+        MathExpression me = new MathExpression("y=@(x)sin(x);rot(y, pi/2, @(1,3)(0,0,0),@(1,3)(0,0,1))");
         System.out.println("scanner = " + me.getScanner() + ",\n anon2 = " + FunctionManager.lookUp("anon2") + ",\n anon3 = " + FunctionManager.lookUp("anon3"));
         System.out.println("vector = " + me.solveGeneric());
 
