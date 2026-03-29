@@ -2,7 +2,7 @@
 
 **ParserNG 1.0.3** is a **blazing-fast**, nigh zero allocation(memory wise), **pure Java**, **zero-native-dependencies** math expression parser and evaluator.
 
-It **beats Janino, exp4J, and com.expression.parser on evaluation speed** across every kind of expression — from simple algebra to heavy trig, matrices, and calculus.  
+It **beats exp4J, and com.expression.parser on evaluation speed** across every kind of expression — from simple algebra to heavy trig, matrices, and calculus; and manages to beat Janino, the gold standard on some, while rivalling it on a host of other expressions  
 The normal mode routinely does about **3-10 million evaluations per second** while the new Turbo mode easily peaks at about **10 million to 90 million evaluations per second**.
 
 It goes far beyond basic parsing — offering **symbolic differentiation**, **resilient numerical integration**, **full matrix algebra**, **statistics**, **equation solving**, **user-defined functions**, **2D graphing**, and more — all in one lightweight, cross-platform library.
@@ -18,7 +18,7 @@ Perfect for scientific computing, simulations, real-time systems, education tool
 
 ## ✨ Highlights (v1.0.3)
 
-- **Speed champion** — beats Janino in most benchmarks, and exp4J, com.expression.parser and Parsii in every benchmark (see [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md))
+- **Speed champion** — rivals Janino in most benchmarks, and beats exp4J, com.expression.parser and Parsii in every benchmark (see [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md))
 - **Turbo Mode** — compile once, evaluate millions of times per second (Scalar + Matrix paths)
 - Symbolic differentiation (`diff`) + resilient numerical integration (`intg`) that handles difficult expressions
 - Full matrix algebra (`det`, `eigvalues`, `eigvec`, `adjoint`, `cofactor`, matrix division, `linear_sys`, …)
