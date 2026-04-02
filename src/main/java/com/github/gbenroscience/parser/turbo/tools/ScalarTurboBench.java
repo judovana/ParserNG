@@ -662,17 +662,17 @@ public class ScalarTurboBench {
     }
 
     private static void runVariableStressTest() throws Throwable {
-          String rpt = STRING.repeat("=", 80);
-          String rptHalf = STRING.repeat("=", 40);
+ String rpt = STRING.repeat("=", 40);
+
         System.out.println("\n" + rpt);
         System.out.println("FINDING THE CROSSOVER POINT (WIDENING VS ARRAY)");
-        System.out.println(rptHalf);
+        System.out.println(rpt);
 
         for (int varCount = 1; varCount <= 40; varCount++) {
             // Create a simple sum expression: x0 + x1 + x2 ... + xN
             StringBuilder sb = new StringBuilder("x0");
             for (int i = 1; i < varCount; i++) {
-                sb.append("+x").append(i);
+                sb.append("+x").append(i); 
             }
             String expr = sb.toString();
             MathExpression me = new MathExpression(expr, false);
