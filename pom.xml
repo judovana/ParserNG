@@ -13,7 +13,7 @@
    
     <name>ParserNG</name>
     <description>Rich and Performant, Cross Platform Java Library(100% Java)...Version 1.0.3 retains high frequency execution and multi-mode/multi-functional nature
-      And it adds a function, the rotor function, `rot` which allows users to rotates point, lines, planesand cuved surfaces, curves and functions in 3D space. Now you can know what a curve will look like when it is rotated about a certain point in a given direction.
+        And it adds a function, the rotor function, `rot` which allows users to rotates point, lines, planesand cuved surfaces, curves and functions in 3D space. Now you can know what a curve will look like when it is rotated about a certain point in a given direction.
     </description>
     <url>https://github.com/gbenroscience/ParserNG</url>
     
@@ -36,8 +36,8 @@
         <developerConnection>scm:git:ssh://github.com/gbenroscience/ParserNG.git</developerConnection>
         <url>https://github.com/gbenroscience/ParserNG</url>
     </scm>
-    <dependencies>
-        <!-- For tests -->
+    <!--    <dependencies>
+         For tests 
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
@@ -57,8 +57,27 @@
             <scope>test</scope>
             <type>jar</type>
         </dependency>
+    </dependencies>-->
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.10.3</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>5.10.3</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>5.10.3</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
-  
     <build>
         <plugins>
             <!-- Central Publishing Plugin (new way to deploy to Maven Central) -->
