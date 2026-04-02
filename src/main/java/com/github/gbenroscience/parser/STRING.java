@@ -112,8 +112,7 @@ public class STRING {
         return sb.toString();
     }
 
-
-    public static String repeat(String val, int count){
+    public static String repeating(String val, int count){
         if (val == null) {
             return null;
         }

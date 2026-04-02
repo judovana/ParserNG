@@ -330,7 +330,7 @@ public class MatrixTurbo {
     }
 
     public static void main(String[] args) throws Throwable {
-          String rpt = STRING.repeat("=", 80);
+          String rpt = STRING.repeating("=", 80);
         System.out.println(rpt);
         System.out.println("MATRIX OPERATIONS WITH TURBO MODE");
         System.out.println(rpt);

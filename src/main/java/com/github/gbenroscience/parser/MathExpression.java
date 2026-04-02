@@ -2492,7 +2492,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
     static class Test_Strength_Reduction {
 
         public static void main(String... args) {
-            String rpt = STRING.repeat("=", 80);
+            String rpt = STRING.repeating("=", 80);
             System.out.println( rpt );
             System.out.println("SAFE CONSTANT FOLDING WITH STRENGTH REDUCTION");
             System.out.println(rpt);
@@ -2574,7 +2574,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
     static class Test {
 
         public static void main(String... args) {
-              String rpt = STRING.repeat("=", 80);
+              String rpt = STRING.repeating("=", 80);
             System.out.println(rpt);
             System.out.println("POSTFIX EVALUATION ACCURACY TESTS");
             System.out.println(rpt);

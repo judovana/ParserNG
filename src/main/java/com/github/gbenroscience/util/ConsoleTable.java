@@ -49,7 +49,7 @@ public class ConsoleTable {
     private void printDivider() {
         StringBuilder sb = new StringBuilder("+");
         for (int width : columnWidths) {
-            sb.append(STRING.repeat("-", width + 2)).append("+");
+            sb.append(STRING.repeating("-", width + 2)).append("+");
         }
         System.out.println(sb.toString());
     }
