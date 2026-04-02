@@ -112,6 +112,20 @@ public class STRING {
         return sb.toString();
     }
 
+
+    public static String repeat(String val, int count){
+        if (val == null) {
+            return null;
+        }
+        if (count <= 0) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder(val.length() * count);
+        for (int i = 0; i < count; i++) {
+            sb.append(val);
+        }
+        return sb.toString();
+    }
 //abcdabcde
 //  234567
     /**

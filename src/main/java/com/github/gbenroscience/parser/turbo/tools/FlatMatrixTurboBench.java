@@ -28,9 +28,10 @@ import com.github.gbenroscience.util.FunctionManager;
 public class FlatMatrixTurboBench {
 
     public static void main(String[] args) throws Throwable {
-        System.out.println("=".repeat(80));
+          String rpt = STRING.repeat("=", 80);
+        System.out.println(rpt);
         System.out.println("PARSERNG FLAT-ARRAY MATRIX TURBO BENCHMARKS");
-        System.out.println("=".repeat(80));
+        System.out.println(rpt);
 
         benchmarkScalar();
         benchmarkScalar1();

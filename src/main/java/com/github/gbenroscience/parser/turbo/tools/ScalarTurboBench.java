@@ -17,6 +17,7 @@ package com.github.gbenroscience.parser.turbo.tools;
 
 import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
+import com.github.gbenroscience.parser.STRING;
 import com.github.gbenroscience.util.FunctionManager;
 import java.util.Arrays;
 import java.util.logging.Level;
@@ -33,9 +34,10 @@ public class ScalarTurboBench {
     private static boolean useWidening = true;
 
     public static void main(String[] args) throws Throwable {
-        System.out.println("=".repeat(80));
+          String rpt = STRING.repeat("=", 80);
+        System.out.println(rpt);
         System.out.println("SCALAR TURBO COMPILER BENCHMARKS");
-        System.out.println("=".repeat(80));
+        System.out.println(rpt);
 
         benchmarkExpressionRotor();
         benchmarkPointRotor();
@@ -660,9 +662,11 @@ public class ScalarTurboBench {
     }
 
     private static void runVariableStressTest() throws Throwable {
-        System.out.println("\n" + "=".repeat(40));
+          String rpt = STRING.repeat("=", 80);
+          String rptHalf = STRING.repeat("=", 40);
+        System.out.println("\n" + rpt);
         System.out.println("FINDING THE CROSSOVER POINT (WIDENING VS ARRAY)");
-        System.out.println("=".repeat(40));
+        System.out.println(rptHalf);
 
         for (int varCount = 1; varCount <= 40; varCount++) {
             // Create a simple sum expression: x0 + x1 + x2 ... + xN

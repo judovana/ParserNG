@@ -52,7 +52,7 @@ public class TwGMBP {
     }
 
     public static double evaluate(List<String> tokens) {
-        String[] toks = tokens.toArray(String[]::new);
+        String[] toks = tokens.toArray(new String[0]);
         int[] index = {0};
         double result = evaluateExpr(toks, index);
         if (index[0] != toks.length) {

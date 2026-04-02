@@ -4,46 +4,50 @@
  */
 package com.github.gbenroscience.parser;
 
-import com.github.gbenroscience.util.FunctionManager;
-import com.github.gbenroscience.util.Serializer;
-import com.github.gbenroscience.util.VariableManager;
-import com.github.gbenroscience.interfaces.Savable;
-import com.github.gbenroscience.interfaces.Solvable;
 import java.util.ArrayDeque;
-import com.github.gbenroscience.logic.DRG_MODE;
-import com.github.gbenroscience.math.Main;
-import com.github.gbenroscience.parser.methods.Declarations;
-import com.github.gbenroscience.parser.methods.Help;
-import com.github.gbenroscience.parser.methods.Method;
-
-import com.github.gbenroscience.math.Maths;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.InputMismatchException;
 import java.util.Iterator;
-
 import java.util.List;
+import java.util.Map;
+import java.util.Stack;
 
-import static com.github.gbenroscience.parser.Variable.*;
-import static com.github.gbenroscience.parser.Number.*;
-import static com.github.gbenroscience.parser.Operator.*;
-
+import com.github.gbenroscience.interfaces.Savable;
+import com.github.gbenroscience.interfaces.Solvable;
+import com.github.gbenroscience.logic.DRG_MODE;
+import com.github.gbenroscience.math.Main;
+import com.github.gbenroscience.math.Maths;
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
-
+import static com.github.gbenroscience.parser.Number.fastParseDouble;
+import static com.github.gbenroscience.parser.Number.isNumber;
+import static com.github.gbenroscience.parser.Operator.isAssignmentOperator;
+import static com.github.gbenroscience.parser.Operator.isBinaryOperator;
+import static com.github.gbenroscience.parser.Operator.isBracket;
+import static com.github.gbenroscience.parser.Operator.isComma;
+import static com.github.gbenroscience.parser.Operator.isLogicOperator;
+import static com.github.gbenroscience.parser.Operator.isOpeningBracket;
+import static com.github.gbenroscience.parser.Operator.isUnaryPostOperator;
+import static com.github.gbenroscience.parser.Operator.isUnaryPreOperator;
+import static com.github.gbenroscience.parser.Operator.validateAll;
 import static com.github.gbenroscience.parser.TYPE.ALGEBRAIC_EXPRESSION;
 import static com.github.gbenroscience.parser.TYPE.MATRIX;
-import com.github.gbenroscience.parser.benchmarks.GG;
-import com.github.gbenroscience.parser.methods.MethodRegistry; 
-import com.github.gbenroscience.parser.turbo.tools.FastCompositeExpression;
-import com.github.gbenroscience.parser.turbo.tools.MatrixTurboEvaluator; 
-import java.util.HashMap;
-import java.util.Map; 
-import java.util.Stack;
 import static com.github.gbenroscience.parser.TYPE.VECTOR;
+import static com.github.gbenroscience.parser.Variable.isVariableString;
+import com.github.gbenroscience.parser.benchmarks.GG;
+import com.github.gbenroscience.parser.methods.Declarations; 
+import com.github.gbenroscience.parser.methods.Help;
+import com.github.gbenroscience.parser.methods.Method;
+import com.github.gbenroscience.parser.methods.MethodRegistry;
+import com.github.gbenroscience.parser.turbo.tools.FastCompositeExpression;
+import com.github.gbenroscience.parser.turbo.tools.MatrixTurboEvaluator;
 import com.github.gbenroscience.parser.turbo.tools.ScalarTurboEvaluator; 
 import com.github.gbenroscience.parser.turbo.tools.TurboExpressionEvaluator;
+import com.github.gbenroscience.util.FunctionManager;
+import com.github.gbenroscience.util.Serializer;
+import com.github.gbenroscience.util.VariableManager;
 
 /**
  *
@@ -2488,9 +2492,10 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
     static class Test_Strength_Reduction {
 
         public static void main(String... args) {
-            System.out.println("=".repeat(80));
+            String rpt = STRING.repeat("=", 80);
+            System.out.println( rpt );
             System.out.println("SAFE CONSTANT FOLDING WITH STRENGTH REDUCTION");
-            System.out.println("=".repeat(80));
+            System.out.println(rpt);
 
             testConstantFolding();
             testWithVariables();
@@ -2569,9 +2574,10 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
     static class Test {
 
         public static void main(String... args) {
-            System.out.println("=".repeat(80));
+              String rpt = STRING.repeat("=", 80);
+            System.out.println(rpt);
             System.out.println("POSTFIX EVALUATION ACCURACY TESTS");
-            System.out.println("=".repeat(80));
+            System.out.println(rpt);
 
             // Test 1: Basic arithmetic
             testExpression("2+3", 5.0, "Basic addition");
@@ -2627,9 +2633,9 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
             testExpression("1*1", 1.0, "One multiplication");
             testExpression("5-5", 0.0, "Subtraction to zero");
 
-            System.out.println("\n" + "=".repeat(80));
+            System.out.println("\n" + rpt); 
             System.out.println("ACCURACY TEST SUMMARY");
-            System.out.println("=".repeat(80));
+            System.out.println(rpt);
         }
 
         private static void testExpression(String expr, double expected, String description) {

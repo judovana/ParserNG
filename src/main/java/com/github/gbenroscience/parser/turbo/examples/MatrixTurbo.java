@@ -17,6 +17,7 @@ package com.github.gbenroscience.parser.turbo.examples;
  
 
 import com.github.gbenroscience.parser.MathExpression; 
+import com.github.gbenroscience.parser.STRING;
 import com.github.gbenroscience.util.FunctionManager; 
 import com.github.gbenroscience.parser.turbo.tools.FastCompositeExpression;
 
@@ -329,9 +330,10 @@ public class MatrixTurbo {
     }
 
     public static void main(String[] args) throws Throwable {
-        System.out.println("=".repeat(80));
+          String rpt = STRING.repeat("=", 80);
+        System.out.println(rpt);
         System.out.println("MATRIX OPERATIONS WITH TURBO MODE");
-        System.out.println("=".repeat(80));
+        System.out.println(rpt);
 
         example1_BasicMatrixOps();
         example2_MixedOperations();
@@ -343,8 +345,8 @@ public class MatrixTurbo {
         example8_RecommendedWorkflow();
         example9_Limitations();
 
-        System.out.println("\n" + "=".repeat(80));
+        System.out.println("\n" + rpt);
         System.out.println("EXAMPLES COMPLETE");
-        System.out.println("=".repeat(80));
+        System.out.println(rpt);
     }
 }

@@ -15,6 +15,8 @@
  */
 package com.github.gbenroscience.util;
 
+import com.github.gbenroscience.parser.STRING;
+
 /**
  *
  * @author GBEMIRO
@@ -47,7 +49,7 @@ public class ConsoleTable {
     private void printDivider() {
         StringBuilder sb = new StringBuilder("+");
         for (int width : columnWidths) {
-            sb.append("-".repeat(width + 2)).append("+");
+            sb.append(STRING.repeat("-", width + 2)).append("+");
         }
         System.out.println(sb.toString());
     }
