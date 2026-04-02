@@ -17,8 +17,7 @@ package com.github.gbenroscience.parser.turbo.tools;
 
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.parser.Function;
-import com.github.gbenroscience.parser.MathExpression;
-import com.github.gbenroscience.parser.STRING;
+import com.github.gbenroscience.parser.MathExpression; 
 import com.github.gbenroscience.util.FunctionManager;
 
 /**
@@ -29,7 +28,7 @@ import com.github.gbenroscience.util.FunctionManager;
 public class FlatMatrixTurboBench {
 
     public static void main(String[] args) throws Throwable {
-          String rpt = STRING.repeat("=", 80);
+          String rpt = com.github.gbenroscience.parser.STRING.repeat("=", 80);
         System.out.println(rpt);
         System.out.println("PARSERNG FLAT-ARRAY MATRIX TURBO BENCHMARKS");
         System.out.println(rpt);
