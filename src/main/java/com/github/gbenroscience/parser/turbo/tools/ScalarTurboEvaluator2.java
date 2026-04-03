@@ -56,7 +56,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
 
     protected final double[] turboArgs;
     protected final int[] slots;
-
+ 
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
     private static final MethodHandle QUAD_HANDLE;
     private static final MethodHandle TARTAGLIA_HANDLE;
@@ -235,6 +235,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
     public ScalarTurboEvaluator2(MathExpression me) {
         this.postfix = me.getCachedPostfix();
         this.willFoldConstants = me.isWillFoldConstants();
+ 
         int num_vars = me.getVariablesNames().length;
         slots = me.getSlots();
         turboArgs = new double[num_vars];

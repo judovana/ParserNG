@@ -233,69 +233,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
     /**
      * Updated compile() method to use the new wide compiler.
      */  
-    public FastCompositeExpression compile1() throws Throwable {
-        // Use the proven compileScalar() that was already working
-        MethodHandle scalarHandle = compileScalar(postfix);
-
-        return new FastCompositeExpression() {
-            @Override
-            public double applyScalar(double[] variables) {
-                try {
-                    return (double) scalarHandle.invokeExact(variables);
-                } catch (Throwable t) {
-                    throw new RuntimeException("Turbo evaluation failed", t);
-                }
-            }
-
-            @Override
-            public MathExpression.EvalResult apply(double[] variables) {
-                try {
-                    // Use invoke instead of invokeExact to allow for boxed return types
-                    Object result = scalarHandle.invoke(variables);
-
-                    if (result == null) {
-                        return MathExpression.EvalResult.ERROR;
-                    }
-
-                    // 1. Check for EvalResult first
-                    if (result instanceof MathExpression.EvalResult) {
-                        return (MathExpression.EvalResult) result;
-                    }
-
-                    // 2. Check for double array [D
-                    if (result instanceof double[]) {
-                        return new MathExpression.EvalResult().wrap((double[]) result);
-                    }
-
-                    // 3. Check for scalar double (boxed)
-                    if (result instanceof Double) {
-                        return new MathExpression.EvalResult().wrap((double) result);
-                    }
-
-                    throw new RuntimeException("Unexpected return type: " + result.getClass());
-                } catch (Throwable t) {
-                    // Only fallback to execute() if the variables themselves caused the error
-                    return execute();
-                }
-            }
-
-            private MathExpression.EvalResult execute() {
-                try {
-                    Object result = scalarHandle.invoke(new double[0]);
-                    if (result instanceof MathExpression.EvalResult) {
-                        return (MathExpression.EvalResult) result;
-                    }
-                    if (result instanceof double[]) {
-                        return new MathExpression.EvalResult().wrap((double[]) result);
-                    }
-                    return new MathExpression.EvalResult().wrap((double) result);
-                } catch (Throwable t) {
-                    throw new RuntimeException("Turbo execution failed", t);
-                }
-            }
-        };
-    }
-
+ 
     @Override
     public FastCompositeExpression compile() throws Throwable {
         // 1. The RAW handle: Returns primitive double, accepts double[]
@@ -310,12 +248,13 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
 
         ScalarTurboEvaluator1 sc = this;
         return new FastCompositeExpression() {
-            
-            private void loadVars(double[]variables){
-                  for (int i = 0; i < turboArgs.length; i++) {
-                        turboArgs[slots[i]] = variables[i];
-                    }
+ 
+            private void loadVars(double[] variables) {
+                for (int i = 0; i < turboArgs.length; i++) {
+                    turboArgs[slots[i]] = variables[i];
+                }
             }
+
             @Override
             public double applyScalar(double[] variables) {
                 try {
