@@ -53,6 +53,9 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
 
     private boolean willFoldConstants;
 
+    protected final double[] turboArgs;
+    protected final int[] slots;
+
     public static final MethodHandle SCALAR_GATEKEEPER_HANDLE;
     public static final MethodHandle VECTOR_GATEKEEPER_HANDLE;
     public static final MethodHandle VECTOR_2_GATEKEEPER_HANDLE;
@@ -134,6 +137,9 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
     public ScalarTurboEvaluator1(MathExpression me) {
         this.postfix = me.getCachedPostfix();
         this.willFoldConstants = me.isWillFoldConstants();
+        int num_vars = me.getVariablesNames().length;
+        slots = me.getSlots();
+        turboArgs = new double[num_vars];
     }
 
     public void setWillFoldConstants(boolean willFoldConstants) {
@@ -142,6 +148,10 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
 
     public boolean isWillFoldConstants() {
         return willFoldConstants;
+    }
+
+    public double[] getTurboArgs() {
+        return turboArgs;
     }
 
     /**
@@ -298,14 +308,22 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                 java.lang.invoke.MethodType.methodType(Object.class, double[].class)
         );
 
+        ScalarTurboEvaluator1 sc = this;
         return new FastCompositeExpression() {
+            
+            private void loadVars(double[]variables){
+                  for (int i = 0; i < turboArgs.length; i++) {
+                        turboArgs[slots[i]] = variables[i];
+                    }
+            }
             @Override
             public double applyScalar(double[] variables) {
                 try {
+                    loadVars(variables);
                     // HIGH PERFORMANCE PATH
                     // invokeExact here is as fast as a direct method call.
                     // No boxing, no extra objects.
-                    return (double) rawScalarHandle.invokeExact(variables);
+                    return (double) rawScalarHandle.invokeExact(turboArgs);
                 } catch (Throwable t) {
                     throw new RuntimeException("Turbo evaluation failed", t);
                 }
@@ -314,10 +332,12 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
             @Override
             public MathExpression.EvalResult apply(double[] variables) {
                 try {
+                    loadVars(variables);
                     // FLEXIBLE PATH
                     // We use the generic handle to avoid ClassCastExceptions
-                    return handleResult(genericHandle.invokeExact(variables));
+                    return handleResult(genericHandle.invokeExact(turboArgs));
                 } catch (Throwable t) {
+                    t.printStackTrace();
                     return execute();
                 }
             }
@@ -1286,7 +1306,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
         }
         Tartaglia_Equation solver = new Tartaglia_Equation(input);
         solver.getAlgorithm().solve();
-        double[] solns = solver.getAlgorithm().solutions; 
+        double[] solns = solver.getAlgorithm().solutions;
         return solns;
     }
 

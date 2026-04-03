@@ -84,7 +84,8 @@ public class FlatMatrixTurboBench {
         
         FunctionManager.add(new Function(v));
 
-        MathExpression expr = new MathExpression("2*T+V");
+        String exp = "2*T+V";
+        MathExpression expr = new MathExpression(exp);
         FastCompositeExpression turbo = expr.compileTurbo();
         double[] vars = {};
         MathExpression.EvalResult er = null;
@@ -96,7 +97,7 @@ public class FlatMatrixTurboBench {
         long duration = System.nanoTime() - start;
 
         System.out.println("res: "+er);
-        System.out.printf("Expression: 2*x + 3*sin(y) - 5%n");
+        System.out.printf("Expression: %s%n", exp);
         System.out.printf("Speed: %.2f ns/op%n", duration / 1_000_000.0);
         System.out.printf("Throughput: %.2f ops/sec%n", 1_000_000.0 / (duration / 1e9));
     }

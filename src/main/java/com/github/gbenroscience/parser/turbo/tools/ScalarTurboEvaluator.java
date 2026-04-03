@@ -34,8 +34,6 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
 
     public static final int MAX_ALLOWED_METHOD_ARGS_BY_JVM = 63;
     
-    protected final double[]turboArgs;
-    protected final int[]slots;
 
     public ScalarTurboEvaluator(MathExpression me) {
         this(me, useWidening(me.getCachedPostfix()));
@@ -55,14 +53,8 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
         } else {
             this.delegate = new ScalarTurboEvaluator1(me);
         }
-        int num_vars = me.getVariablesNames().length;
-        slots = me.getSlots();
-        turboArgs = new double[num_vars];
       }
 
-    public double[] getTurboArgs() {
-        return turboArgs;
-    }
     
     
 

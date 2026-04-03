@@ -28,6 +28,7 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
     private boolean willFoldConstants;
     protected final double[] turboArgs;
+    protected final int[] slots;
 
     // ========== THE RESULT CACHE ==========
     /**
@@ -103,7 +104,10 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
     public MatrixTurboEvaluator(MathExpression me) {
         this.postfix = me.getCachedPostfix();
         this.willFoldConstants = me.isWillFoldConstants();
-        turboArgs = new double[me.getVariablesNames().length];
+
+        int num_vars = me.getVariablesNames().length;
+        slots = me.getSlots();
+        turboArgs = new double[num_vars];
     }
 
     public void setWillFoldConstants(boolean willFoldConstants) {
@@ -247,11 +251,17 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
         final MethodHandle finalHandle = resultHandle.asType(
                 MethodType.methodType(EvalResult.class, double[].class));
 
-        return new FastCompositeExpression() {
+        return new FastCompositeExpression() { 
+            private void loadVars(double[] variables) {
+                for (int i = 0; i < turboArgs.length; i++) {
+                    turboArgs[slots[i]] = variables[i];
+                }
+            }
             @Override
             public EvalResult apply(double[] variables) {
                 try {
-                    return (EvalResult) finalHandle.invokeExact(variables);
+                    loadVars(variables);
+                    return (EvalResult) finalHandle.invokeExact(turboArgs);
                 } catch (Throwable e) {
                     throw new RuntimeException("Turbo matrix execution failed", e);
                 }
@@ -259,9 +269,8 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
             @Override
             public double applyScalar(double[] variables) {
-                return -1.0;
+                return apply(variables).scalar;
             }
-
         };
     }
 

@@ -12,7 +12,7 @@ import java.util.List;
 
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
-import com.github.gbenroscience.parser.turbo.tools.*; 
+import com.github.gbenroscience.parser.turbo.tools.*;
 import com.github.gbenroscience.util.FunctionManager;
 import static com.github.gbenroscience.util.FunctionManager.*;
 import com.github.gbenroscience.util.Serializer;
@@ -45,8 +45,8 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      * The math expression on the RHS.
      */
     private MathExpression mathExpression;
- 
-    private FastCompositeExpression fastCompositeExpression; 
+
+    private FastCompositeExpression fastCompositeExpression;
 
     /**
      * If the object is a {@link Matrix} its data is stored here.
@@ -304,11 +304,11 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
                 List<String> scanner = expr.getScanner();
                 int sz = scanner.size();
-                if ( (sz == 3 && scanner.get(1).startsWith(ANON_PREFIX)) ||
-                        (sz == 1 && scanner.get(0).startsWith(ANON_PREFIX)) ) {//function assigments will always be like this: [(,anon1,)] when they get here
+                if ((sz == 3 && scanner.get(1).startsWith(ANON_PREFIX))
+                        || (sz == 1 && scanner.get(0).startsWith(ANON_PREFIX))) {//function assigments will always be like this: [(,anon1,)] when they get here
 
-                    String anonFn = sz==3 ? scanner.get(1) : scanner.get(0);
-                    Function f = FunctionManager.lookUp( anonFn );
+                    String anonFn = sz == 3 ? scanner.get(1) : scanner.get(0);
+                    Function f = FunctionManager.lookUp(anonFn);
                     if (f != null) {
                         FunctionManager.delete(anonFn);
                         if (f.getType() == TYPE.ALGEBRAIC_EXPRESSION) {
@@ -555,17 +555,35 @@ public class Function implements Savable, MethodRegistry.MethodAction {
     }
 
     public void setMathExpression(MathExpression mathExpression) {
-        MathExpression oldMe =  this.mathExpression;
+        MathExpression oldMe = this.mathExpression;
         try {
             this.mathExpression = mathExpression;
-            this.fastCompositeExpression = TurboEvaluatorFactory.getCompiler(mathExpression, true).compile();
-            this.type = TYPE.ALGEBRAIC_EXPRESSION; 
+            this.fastCompositeExpression = TurboEvaluatorFactory.getCompiler(mathExpression, false).compile();
+            this.type = TYPE.ALGEBRAIC_EXPRESSION;
         } catch (Throwable ex) {
             //revert
             this.mathExpression = oldMe;
             this.fastCompositeExpression = null;
             Logger.getLogger(Function.class.getName()).log(Level.SEVERE, null, ex);
         }
+    }
+
+    public FastCompositeExpression getWideningArgsExpression() {
+        try {
+            this.fastCompositeExpression = TurboEvaluatorFactory.getCompiler(mathExpression, true).compile();
+        } catch (Throwable ex) {
+            ex.printStackTrace();
+        }
+        return this.fastCompositeExpression;
+    }
+
+    public FastCompositeExpression getArrayArgsExpression() {
+        try {
+            this.fastCompositeExpression = TurboEvaluatorFactory.getCompiler(mathExpression, false).compile();
+        } catch (Throwable ex) {
+            ex.printStackTrace();
+        }
+        return this.fastCompositeExpression;
     }
 
     public void setMatrix(Matrix m) {
@@ -766,9 +784,6 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             throw new InputMismatchException("Syntax Error In Parameter List " + paramList);
         }
     }
-    
-    
-   
 
     /**
      *
@@ -958,8 +973,8 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         return results;
 
     }//end method
-    
-       public double[][] evalRange(double xLower, double xUpper, double xStep, String variableName, int DRG, boolean turbo) {
+
+    public double[][] evalRange(double xLower, double xUpper, double xStep, String variableName, int DRG, boolean turbo) {
 
         if (xLower > xUpper) {
             double p = xLower;
@@ -1293,7 +1308,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 copy.matrix.setName(matrix.getName());
             }
             copy.type = this.type;
-  
+
             return copy;
 
         } catch (Exception e) {
