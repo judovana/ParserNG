@@ -34,15 +34,15 @@ public class FlatMatrixTurboBench {
         System.out.println("PARSERNG FLAT-ARRAY MATRIX TURBO BENCHMARKS");
         System.out.println(rpt);
 
+        benchmarkMatrixAlgrebra();
         benchmarkScalar();
-        benchmarkScalar1();
         benchmarkSmallMatrix();
         benchmarkLargeMatrix();
         benchmarkMatrixMultiplication();
         benchmarkMatrixPower();
     }
 
-    private static void benchmarkScalar1() throws Throwable {
+    private static void benchmarkScalar() throws Throwable {
         System.out.println("\n--- SCALAR EXPRESSIONS 1---");
 
         String ex = "2*x^8 + 3*sin(y^3) - 5*x+2";
@@ -59,19 +59,19 @@ public class FlatMatrixTurboBench {
         }
         long duration = System.nanoTime() - start;
 
-        System.out.printf("Expression: %n", ex);
-        System.out.printf("Value = %n", v);
+        System.out.printf("Expression: %s%n", ex);
+        System.out.printf("Value =  %.18f%n", v);
         System.out.printf("Speed: %.2f ns/op%n", duration / 1_000_000.0);
         System.out.printf("Throughput: %.2f ops/sec%n", 1_000_000.0 / (duration / 1e9));
     }
 
-    private static void benchmarkScalar() throws Throwable {
+    private static void benchmarkMatrixAlgrebra() throws Throwable {
         System.out.println("\n--- MATRIX ALGEBRA ---");
         int n = 20;
         Matrix t = new Matrix(n, n);
         t.setName("T");
         t.randomFill(35);
-        //t.print();
+        t.print();
         System.out.println("T: After fill-----\n");
          
         FunctionManager.add(new Function(t));
@@ -79,24 +79,26 @@ public class FlatMatrixTurboBench {
         Matrix v = new Matrix(n, n);
         v.setName("V");
         v.randomFill(35);
-        //v.print();
+        v.print();
         System.out.println("V: After fill-----\n");
         
         FunctionManager.add(new Function(v));
 
-        MathExpression expr = new MathExpression("2*T+V");
+        String ex = "2*T+V";
+        MathExpression expr = new MathExpression(ex);
         FastCompositeExpression turbo = expr.compileTurbo();
         double[] vars = {};
         MathExpression.EvalResult er = null;
-        System.out.println("Looping!");
+   
         long start = System.nanoTime();
         for (int i = 0; i < 1_000_000; i++) {
             er = turbo.apply(vars);
         }
         long duration = System.nanoTime() - start;
 
+        
+        System.out.printf("Expression: %s%n", ex);
         System.out.println("res: "+er);
-        System.out.printf("Expression: 2*x + 3*sin(y) - 5%n");
         System.out.printf("Speed: %.2f ns/op%n", duration / 1_000_000.0);
         System.out.printf("Throughput: %.2f ops/sec%n", 1_000_000.0 / (duration / 1e9));
     }

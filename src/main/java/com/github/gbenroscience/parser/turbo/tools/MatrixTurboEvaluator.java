@@ -8,6 +8,7 @@ import com.github.gbenroscience.parser.ParserResult;
 import com.github.gbenroscience.parser.TYPE;
 import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.Method;
+import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.util.FunctionManager;
 import java.lang.invoke.*;
 import java.util.*;
@@ -28,6 +29,24 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
     private boolean willFoldConstants;
     protected final double[] turboArgs;
+
+    private MathExpression.Token[] postfix;
+
+    public MatrixTurboEvaluator(MathExpression me) {
+        this.postfix = me.getCachedPostfix();
+        this.willFoldConstants = me.isWillFoldConstants();
+        turboArgs = new double[me.getVariablesNames().length];
+    }
+
+    // 1. ThreadLocal holding a reusable array of EvalResults to avoid GC pressure
+    private static final ThreadLocal<MathExpression.EvalResult[]> WRAPPER_CACHE
+            = ThreadLocal.withInitial(() -> {
+                MathExpression.EvalResult[] arr = new MathExpression.EvalResult[12];
+                for (int i = 0; i < 12; i++) {
+                    arr[i] = new MathExpression.EvalResult();
+                }
+                return arr;
+            });
 
     // ========== THE RESULT CACHE ==========
     /**
@@ -98,14 +117,6 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
         }
     }
 
-    private MathExpression.Token[] postfix;
-
-    public MatrixTurboEvaluator(MathExpression me) {
-        this.postfix = me.getCachedPostfix();
-        this.willFoldConstants = me.isWillFoldConstants();
-        turboArgs = new double[me.getVariablesNames().length];
-    }
-
     public void setWillFoldConstants(boolean willFoldConstants) {
         this.willFoldConstants = willFoldConstants;
     }
@@ -116,6 +127,23 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
     public double[] getTurboArgs() {
         return turboArgs;
+    }
+
+    /**
+     * Hardened production bridge.
+     *
+     * @param methodId
+     * @param argsValues
+     * @return
+     */
+    public static MathExpression.EvalResult invokeRegistryMethod(int methodId, EvalResult[] argsValues) {
+        int arity = argsValues.length;
+        MathExpression.EvalResult resultContainer = new MathExpression.EvalResult();
+        // Execute the registry action
+        MethodRegistry.getAction(methodId).calc(resultContainer, arity, argsValues);
+        // BULLETPROOF: Return the whole object. 
+        // If it's a number, the caller can cast it; if it's an array, it's preserved.
+        return resultContainer;
     }
 
     // ========== COMPILER CORE ==========
@@ -224,13 +252,20 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
                         // 4. Adapt to the required signature: EvalResult(double[])
                         // This makes it compatible with your matrix stack
                         stack.push(MethodHandles.dropArguments(finalPrintHandle, 0, double[].class));
-                    } else {
+                    } else if (Method.isMatrixMethod(t.name)) {
                         // Standard matrix function logic
                         MethodHandle[] args = new MethodHandle[t.arity];
                         for (int i = t.arity - 1; i >= 0; i--) {
                             args[i] = stack.pop();
                         }
                         stack.push(compileMatrixFunction(t, args));
+                    } else {
+                        // Standard matrix function logic
+                        MethodHandle[] args = new MethodHandle[t.arity];
+                        for (int i = t.arity - 1; i >= 0; i--) {
+                            args[i] = stack.pop();
+                        }
+                        stack.push(compileFunction(t, args));
                     }
                     break;
                 default:
@@ -259,7 +294,7 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
             @Override
             public double applyScalar(double[] variables) {
-                return -1.0;
+                return apply(variables).scalar;
             }
 
         };
@@ -453,6 +488,30 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
     public static EvalResult[] collectArgsArray(EvalResult... args) {
         return args;
+    }
+
+    private static MethodHandle compileFunction(MathExpression.Token t, MethodHandle[] args) throws Throwable {
+        // 1. Get the unique ID from MethodRegistry
+        int methodId = MethodRegistry.getMethodID(t.name);
+
+        // 2. Setup the bridge handle: (int methodId, EvalResult[] args) -> EvalResult
+        MethodHandle bridge = LOOKUP.findStatic(MatrixTurboEvaluator.class, "invokeRegistryMethod",
+                MethodType.methodType(MathExpression.EvalResult.class, int.class, EvalResult[].class));
+
+        // 3. Bind the methodId so the resulting handle only needs the double[]
+        MethodHandle boundBridge = MethodHandles.insertArguments(bridge, 0, methodId);
+
+        // 4. Transform the handle to accept N individual double arguments instead of one double[]
+        // Signature changes from (EvalResult[]) -> EvalResult   TO   (EvalResult, EvalResult, ...) -> EvalResult
+        MethodHandle collector = boundBridge.asCollector(EvalResult[].class, args.length);
+
+        // 5. Pipe the results of the sub-expression handles into the collector's arguments
+        // We use collectArguments to "pre-fill" the collector with the outputs of our argument tree
+        for (int i = 0; i < args.length; i++) {
+            collector = MethodHandles.collectArguments(collector, i, args[i]);
+        }
+
+        return collector;
     }
 
     // ========== RUNTIME DISPATCHERS ==========

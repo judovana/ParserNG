@@ -130,11 +130,13 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
             "csc-¹_grad", "length", "csc-¹_deg", "cosh-¹", "cosh",
             "csc-¹_rad", "sin_rad", "csch", "asinh"
     ));
-
+    
+    
     public ScalarTurboEvaluator1(MathExpression me) {
         this.postfix = me.getCachedPostfix();
         this.willFoldConstants = me.isWillFoldConstants();
     }
+
 
     public void setWillFoldConstants(boolean willFoldConstants) {
         this.willFoldConstants = willFoldConstants;
