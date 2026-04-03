@@ -54,6 +54,8 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
 
     private boolean willFoldConstants;
 
+    protected final double[] turboArgs;
+    protected final int[] slots;
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
     private static final MethodHandle QUAD_HANDLE;
     private static final MethodHandle TARTAGLIA_HANDLE;
@@ -228,6 +230,10 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
     public ScalarTurboEvaluator2(MathExpression me) {
         this.postfix = me.getCachedPostfix();
         this.willFoldConstants = me.isWillFoldConstants();
+
+        int num_vars = me.getVariablesNames().length;
+        slots = me.getSlots();
+        turboArgs = new double[num_vars];
     }
 
     public void setWillFoldConstants(boolean willFoldConstants) {
@@ -335,12 +341,19 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
 
 // ... applyScalar calls finalScalar.invokeExact(variables) ...
             return new FastCompositeExpression() {
+                private void loadVars(double[] variables) {
+                    for (int i = 0; i < turboArgs.length; i++) {
+                        turboArgs[slots[i]] = variables[i];
+                    }
+                }
+
                 @Override
                 public double applyScalar(double[] variables) {
                     try {
+                        loadVars(variables);
                         // Now this will always work because even if varCount is 0, 
                         // the handle now expects a double[]
-                        return (double) finalScalar.invokeExact(variables);
+                        return (double) finalScalar.invokeExact(turboArgs);
                     } catch (Throwable t) {
                         throw new RuntimeException("Turbo scalar execution failed", t);
                     }
@@ -349,8 +362,9 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
                 @Override
                 public MathExpression.EvalResult apply(double[] variables) {
                     try {
+                        loadVars(variables);
                         // invokeExact is now safe here too
-                        Object result = finalGeneric.invokeExact(variables);
+                        Object result = finalGeneric.invokeExact(turboArgs);
                         MathExpression.EvalResult res = new MathExpression.EvalResult();
                         if (result instanceof double[]) {
                             res.type = MathExpression.EvalResult.TYPE_VECTOR;

@@ -53,6 +53,9 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
 
     private boolean willFoldConstants;
 
+    protected final double[] turboArgs;
+    protected final int[] slots;
+
     public static final MethodHandle SCALAR_GATEKEEPER_HANDLE;
     public static final MethodHandle VECTOR_GATEKEEPER_HANDLE;
     public static final MethodHandle VECTOR_2_GATEKEEPER_HANDLE;
@@ -130,13 +133,14 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
             "csc-¹_grad", "length", "csc-¹_deg", "cosh-¹", "cosh",
             "csc-¹_rad", "sin_rad", "csch", "asinh"
     ));
-    
-    
+
     public ScalarTurboEvaluator1(MathExpression me) {
         this.postfix = me.getCachedPostfix();
         this.willFoldConstants = me.isWillFoldConstants();
+        int num_vars = me.getVariablesNames().length;
+        slots = me.getSlots();
+        turboArgs = new double[num_vars];
     }
-
 
     public void setWillFoldConstants(boolean willFoldConstants) {
         this.willFoldConstants = willFoldConstants;
@@ -225,69 +229,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
     /**
      * Updated compile() method to use the new wide compiler.
      */  
-    public FastCompositeExpression compile1() throws Throwable {
-        // Use the proven compileScalar() that was already working
-        MethodHandle scalarHandle = compileScalar(postfix);
-
-        return new FastCompositeExpression() {
-            @Override
-            public double applyScalar(double[] variables) {
-                try {
-                    return (double) scalarHandle.invokeExact(variables);
-                } catch (Throwable t) {
-                    throw new RuntimeException("Turbo evaluation failed", t);
-                }
-            }
-
-            @Override
-            public MathExpression.EvalResult apply(double[] variables) {
-                try {
-                    // Use invoke instead of invokeExact to allow for boxed return types
-                    Object result = scalarHandle.invoke(variables);
-
-                    if (result == null) {
-                        return MathExpression.EvalResult.ERROR;
-                    }
-
-                    // 1. Check for EvalResult first
-                    if (result instanceof MathExpression.EvalResult) {
-                        return (MathExpression.EvalResult) result;
-                    }
-
-                    // 2. Check for double array [D
-                    if (result instanceof double[]) {
-                        return new MathExpression.EvalResult().wrap((double[]) result);
-                    }
-
-                    // 3. Check for scalar double (boxed)
-                    if (result instanceof Double) {
-                        return new MathExpression.EvalResult().wrap((double) result);
-                    }
-
-                    throw new RuntimeException("Unexpected return type: " + result.getClass());
-                } catch (Throwable t) {
-                    // Only fallback to execute() if the variables themselves caused the error
-                    return execute();
-                }
-            }
-
-            private MathExpression.EvalResult execute() {
-                try {
-                    Object result = scalarHandle.invoke(new double[0]);
-                    if (result instanceof MathExpression.EvalResult) {
-                        return (MathExpression.EvalResult) result;
-                    }
-                    if (result instanceof double[]) {
-                        return new MathExpression.EvalResult().wrap((double[]) result);
-                    }
-                    return new MathExpression.EvalResult().wrap((double) result);
-                } catch (Throwable t) {
-                    throw new RuntimeException("Turbo execution failed", t);
-                }
-            }
-        };
-    }
-
+ 
     @Override
     public FastCompositeExpression compile() throws Throwable {
         // 1. The RAW handle: Returns primitive double, accepts double[]
@@ -301,13 +243,21 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
         );
 
         return new FastCompositeExpression() {
+            private void loadVars(double[] variables) {
+                for (int i = 0; i < turboArgs.length; i++) {
+                    turboArgs[slots[i]] = variables[i];
+                }
+            }
+
             @Override
             public double applyScalar(double[] variables) {
                 try {
                     // HIGH PERFORMANCE PATH
                     // invokeExact here is as fast as a direct method call.
                     // No boxing, no extra objects.
-                    return (double) rawScalarHandle.invokeExact(variables);
+
+                    loadVars(variables);
+                    return (double) rawScalarHandle.invokeExact(turboArgs);
                 } catch (Throwable t) {
                     throw new RuntimeException("Turbo evaluation failed", t);
                 }
@@ -316,9 +266,10 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
             @Override
             public MathExpression.EvalResult apply(double[] variables) {
                 try {
+                    loadVars(variables);
                     // FLEXIBLE PATH
                     // We use the generic handle to avoid ClassCastExceptions
-                    return handleResult(genericHandle.invokeExact(variables));
+                    return handleResult(genericHandle.invokeExact(turboArgs));
                 } catch (Throwable t) {
                     return execute();
                 }
@@ -1288,7 +1239,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
         }
         Tartaglia_Equation solver = new Tartaglia_Equation(input);
         solver.getAlgorithm().solve();
-        double[] solns = solver.getAlgorithm().solutions; 
+        double[] solns = solver.getAlgorithm().solutions;
         return solns;
     }
 

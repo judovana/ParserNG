@@ -31,7 +31,7 @@ import java.util.logging.Logger;
 public class ScalarTurboBench {
 
     private static final int N = 1000000;
-    private static boolean useWidening = true;
+    private static boolean useWidening = false;
 
     public static void main(String[] args) throws Throwable {
           String rpt = STRING.repeating("=", 80);
@@ -530,8 +530,7 @@ public class ScalarTurboBench {
         double[] v = interpreted.solveGeneric().vector;
         FastCompositeExpression compiled = get(interpreted);
         MathExpression.EvalResult evv = compiled.apply(vars);
-        double[] v1 = evv.vector;
-        System.out.println("v1* = "+evv);
+        double[] v1 = evv.vector; 
         System.out.println("v = " + Arrays.toString(v));
         System.out.println("v1 = " + Arrays.toString(v1));
     }
