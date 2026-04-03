@@ -744,7 +744,7 @@ public class MathExpression implements Savable, Solvable {
         return registry.getVariables();
     }
 
-    public Integer[] getSlots() {
+    public int[] getSlots() {
         return registry.getSlots();
     }
 
@@ -2446,8 +2446,8 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
             return vars;
         }
 
-        private Integer[] getSlots() {
-            Integer[] slots = new Integer[nameToSlot.size()];
+        private int[] getSlots() {
+            int[] slots = new int[nameToSlot.size()];
             int i = 0;
             for (Map.Entry<String, Integer> entry : nameToSlot.entrySet()) {
                 slots[i++] = entry.getValue();

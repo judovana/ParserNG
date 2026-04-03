@@ -28,7 +28,6 @@ import com.github.gbenroscience.parser.MathExpression;
  * - Small matrices: 50-200 ns
  * - Large matrices: linear to problem size (excellent cache locality)
  */
- 
 public interface FastCompositeExpression {
     
     /**

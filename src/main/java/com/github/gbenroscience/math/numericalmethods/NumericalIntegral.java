@@ -60,14 +60,14 @@ public class NumericalIntegral {
     private int iterations = 0;
 
     private String vars[];
-    private Integer slots[];
+    private int slots[];
     double dx = 0.2;
 
     public NumericalIntegral() {
         this.targetHandle = null;
     }
 
-    public NumericalIntegral(Function f, MethodHandle methodHandle, String[] vars, Integer[] slots) {
+    public NumericalIntegral(Function f, MethodHandle methodHandle, String[] vars, int[] slots) {
         this.function = f;
         this.targetHandle = methodHandle;
         this.slots = slots;
@@ -75,7 +75,7 @@ public class NumericalIntegral {
     }
 
     // New constructor for Turbo mode
-    public NumericalIntegral(Function f, double lower, double upper, int iterations, MethodHandle targetHandle, String[] vars, Integer[] slots) {
+    public NumericalIntegral(Function f, double lower, double upper, int iterations, MethodHandle targetHandle, String[] vars, int[] slots) {
         this.function = f;
         this.xLower = lower;
         this.xUpper = upper;
@@ -448,7 +448,6 @@ public class NumericalIntegral {
      * @return the integral of the function using the trapezoidal rule.
      */
     public double findHighRangeIntegral() {
-              System.out.println("USING GAUSSIAN");
         NumericalIntegral integral = new NumericalIntegral(function, targetHandle, vars, slots);
 
         try {

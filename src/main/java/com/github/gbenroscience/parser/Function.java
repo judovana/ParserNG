@@ -9,14 +9,16 @@ import com.github.gbenroscience.interfaces.Savable;
 import java.util.ArrayList;
 import java.util.InputMismatchException;
 import java.util.List;
+
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
-import static com.github.gbenroscience.parser.TYPE.VECTOR;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
+import com.github.gbenroscience.parser.turbo.tools.*; 
 import com.github.gbenroscience.util.FunctionManager;
-import static com.github.gbenroscience.util.FunctionManager.ANON_PREFIX;
-import static com.github.gbenroscience.util.FunctionManager.FUNCTIONS;
+import static com.github.gbenroscience.util.FunctionManager.*;
 import com.github.gbenroscience.util.Serializer;
 import com.github.gbenroscience.util.VariableManager;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -43,6 +45,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      * The math expression on the RHS.
      */
     private MathExpression mathExpression;
+ 
+    private FastCompositeExpression fastCompositeExpression; 
+
     /**
      * If the object is a {@link Matrix} its data is stored here.
      */
@@ -70,9 +75,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         if (oldFunc != null) {//function does not exist in registry
             FunctionManager.delete(fName);
         }
-
         FunctionManager.add(this);
-
         FunctionManager.update();
     }
 
@@ -471,7 +474,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             anonFn.setDependentVariable(new Variable(dependentVar));
             anonFn.setIndependentVariables(indVars);
             anonFn.type = TYPE.ALGEBRAIC_EXPRESSION;
-            anonFn.mathExpression = new MathExpression(expr);
+            anonFn.setMathExpression(new MathExpression(expr));
             //FunctionManager.update(anonFn);
         } else if (isMatrix) {
             int rows = Integer.parseInt(varList.get(0));
@@ -552,8 +555,17 @@ public class Function implements Savable, MethodRegistry.MethodAction {
     }
 
     public void setMathExpression(MathExpression mathExpression) {
-        this.mathExpression = mathExpression;
-        this.type = TYPE.ALGEBRAIC_EXPRESSION;
+        MathExpression oldMe =  this.mathExpression;
+        try {
+            this.mathExpression = mathExpression;
+            this.fastCompositeExpression = TurboEvaluatorFactory.getCompiler(mathExpression, true).compile();
+            this.type = TYPE.ALGEBRAIC_EXPRESSION; 
+        } catch (Throwable ex) {
+            //revert
+            this.mathExpression = oldMe;
+            this.fastCompositeExpression = null;
+            Logger.getLogger(Function.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     public void setMatrix(Matrix m) {
@@ -946,6 +958,29 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         return results;
 
     }//end method
+    
+       public double[][] evalRange(double xLower, double xUpper, double xStep, String variableName, int DRG, boolean turbo) {
+
+        if (xLower > xUpper) {
+            double p = xLower;
+            xLower = xUpper;
+            xUpper = p;
+        }
+        int sz = (int) ((xUpper - xLower) / xStep);
+
+        double[][] results = new double[2][sz + 1];
+        int len = sz + 1;
+        int i = 0;
+        int xSlot = mathExpression.getVariable(variableName).getFrameIndex();
+        for (double x = xLower; i < len && x <= xUpper; x += xStep, i++) {
+            mathExpression.updateSlot(xSlot, x);
+            results[0][i] = mathExpression.solveGeneric().scalar;
+            results[1][i] = x;
+        }//end for
+
+        return results;
+
+    }//end method
 
     /**
      * Prints the content of a 2D array
@@ -1099,7 +1134,6 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             default:
                 return "";
         }
-
     }
 
     /**
@@ -1259,11 +1293,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 copy.matrix.setName(matrix.getName());
             }
             copy.type = this.type;
- 
-            // Do NOT copy:
-            // - this.x (thread-local state)
-            // - this.lastResult (evaluation cache)
-            // - Any other mutable temporary state
+  
             return copy;
 
         } catch (Exception e) {

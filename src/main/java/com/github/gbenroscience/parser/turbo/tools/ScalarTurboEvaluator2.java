@@ -620,10 +620,10 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
         int iterations = (rawArgs.length == 4) ? (int) Double.parseDouble(rawArgs[3]) : (int) ((upper - lower) / 0.05);
 
         String[] vars = innerExpr.getVariablesNames();
-        Integer[] slots = innerExpr.getSlots();
+        int[] slots = innerExpr.getSlots();
 
         MethodHandle bridge = LOOKUP.findStatic(ScalarTurboEvaluator2.class, "executeTurboIntegral",
-                MethodType.methodType(double.class, Function.class, MethodHandle.class, double.class, double.class, int.class, String[].class, Integer[].class));
+                MethodType.methodType(double.class, Function.class, MethodHandle.class, double.class, double.class, int.class, String[].class, int[].class));
 
         return MethodHandles.insertArguments(bridge, 0, f, compiledInner, lower, upper, iterations, vars, slots);
     }
@@ -939,7 +939,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
         return Double.NaN;
     }
 
-    public static double executeTurboIntegral(Function f, MethodHandle handle, double lower, double upper, int iterations, String[] vars, Integer[] slots) throws Throwable {
+    public static double executeTurboIntegral(Function f, MethodHandle handle, double lower, double upper, int iterations, String[] vars, int[] slots) throws Throwable {
         MethodHandle primitiveHandle;
         int paramCount = handle.type().parameterCount();
 

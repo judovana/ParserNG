@@ -121,7 +121,7 @@ public class NumericalIntegrator {
     private double xUpper;
     //These 2 fields are for compatibility with NumericalIntegral class which may be called for simpler functions
     private String[]vars;
-    private Integer[]slots;
+    private int[]slots;
     
     private int strategy = THIS_STRATEGY;
     public static final int GAUSSIAN_STRATEGY = 1;
@@ -135,7 +135,7 @@ public class NumericalIntegrator {
     }
     
     
-    public NumericalIntegrator(Function function, MethodHandle gaussianHandle, double xLower, double xUpper, String[]vars, Integer[]slots){
+    public NumericalIntegrator(Function function, MethodHandle gaussianHandle, double xLower, double xUpper, String[]vars, int[]slots){
         this.gaussianHandle = gaussianHandle;
         this.xLower = xLower;
         this.xUpper = xUpper;

@@ -1,6 +1,5 @@
 package com.github.gbenroscience.parser.turbo.tools;
 
-import com.github.gbenroscience.math.Maths;
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
@@ -27,7 +26,8 @@ import java.util.concurrent.ThreadLocalRandom;
 public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
-        private boolean willFoldConstants;
+    private boolean willFoldConstants;
+    protected final double[] turboArgs;
 
     // ========== THE RESULT CACHE ==========
     /**
@@ -103,6 +103,7 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
     public MatrixTurboEvaluator(MathExpression me) {
         this.postfix = me.getCachedPostfix();
         this.willFoldConstants = me.isWillFoldConstants();
+        turboArgs = new double[me.getVariablesNames().length];
     }
 
     public void setWillFoldConstants(boolean willFoldConstants) {
@@ -112,8 +113,10 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
     public boolean isWillFoldConstants() {
         return willFoldConstants;
     }
-    
-    
+
+    public double[] getTurboArgs() {
+        return turboArgs;
+    }
 
     // ========== COMPILER CORE ==========
     @Override

@@ -525,11 +525,13 @@ public class ScalarTurboBench {
 
         MathExpression interpreted = new MathExpression(expr, false);
 
-        double[] vars = new double[0];
+        double[] vars = new double[1];
 
         double[] v = interpreted.solveGeneric().vector;
         FastCompositeExpression compiled = get(interpreted);
-        double[] v1 = compiled.apply(vars).vector;
+        MathExpression.EvalResult evv = compiled.apply(vars);
+        double[] v1 = evv.vector;
+        System.out.println("v1* = "+evv);
         System.out.println("v = " + Arrays.toString(v));
         System.out.println("v1 = " + Arrays.toString(v1));
     }
