@@ -851,6 +851,8 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
     /**
      * @param args
+     * @deprecated Deprecated this in favor of {@link Function#evalArgs(double...)} which is far faster
+     * due to direct passing of args
      * @return the value of a function when valid arguments are passed into its
      * parentheses. e.g if the fullname of the Function is f(x,y,c), this method
      * could be passed..f(3,-4,9)
@@ -904,6 +906,13 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         mathExpression.updateArgs(args);
         return mathExpression.solve();
     }//end method
+    
+        public double evalArgsTurbo(double... args) {
+        if (type != TYPE.ALGEBRAIC_EXPRESSION) {
+            return Double.NaN;
+        }
+        return turboExpr.applyScalar(args);
+    }//end method
 
     /**
      *
@@ -913,7 +922,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      * the values that the Function object will have for all values specified
      * for the range of the independent variable. The second array contains the
      * values that the independent variable will assume in its given range. If
-     * the rangeDescr parameter is not valid.. it returns a2D array containing 2
+     * the rangeDescr parameter is not valid.. it returns a 2D array containing 2
      * null arrays.
      */
     public double[][] evalRange(String rangeDescr) {

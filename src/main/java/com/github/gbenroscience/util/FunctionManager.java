@@ -9,6 +9,7 @@ import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.TYPE;
 import com.github.gbenroscience.parser.Variable;
+import com.github.gbenroscience.parser.turbo.QuickTime;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -123,8 +124,8 @@ public class FunctionManager {
             f.setMathExpression(new MathExpression());
             f.setType(TYPE.ALGEBRAIC_EXPRESSION);
         }
-         FUNCTIONS.put(fName, f);
-         return FUNCTIONS.get(fName);
+        FUNCTIONS.put(fName, f);
+        return FUNCTIONS.get(fName);
 
     }//end method
 
@@ -138,11 +139,13 @@ public class FunctionManager {
         String fName = ANON_PREFIX + ANON_CURSOR.incrementAndGet();
         return lockDown(fName, independentVars);
     }//end method
-/**
- * Creates the anonymous copy of a Function
- * @param f
- * @return 
- */
+
+    /**
+     * Creates the anonymous copy of a Function
+     *
+     * @param f
+     * @return
+     */
     public static synchronized Function lockDownAnon(Function f) {
         String fName = ANON_PREFIX + ANON_CURSOR.incrementAndGet();
         if (f.getType() == TYPE.MATRIX || f.getType() == TYPE.VECTOR) {
@@ -239,9 +242,9 @@ public class FunctionManager {
     public static void update(String oldFuncName, String newName) {
         try {
             Function f = FUNCTIONS.remove(oldFuncName);
-            if(f!=null && f.getType() == TYPE.MATRIX){
+            if (f != null && f.getType() == TYPE.MATRIX) {
                 f.getMatrix().setName(newName);
-            } 
+            }
             FUNCTIONS.put(newName, f);
         } catch (Exception ex) {
             Logger.getLogger(FunctionManager.class.getName()).log(Level.SEVERE, null, ex);
@@ -342,10 +345,21 @@ public class FunctionManager {
         System.out.println(FUNCTIONS);
         update(new Function("v=@(x,y,z,w)3*x-2*y+z-4*w"));
         System.out.println(FUNCTIONS);
-        f = FunctionManager.lookUp("v");
+        Function func = FunctionManager.lookUp("v");
         System.out.println("Function = " + f.toString());
-        System.out.println("Evaluate: " + f.evalArgs("v(2,3,4,5)"));
-        System.out.println("Evaluate: " + f.evalArgs(2,3,4,5));
+
+        int wm = 1000000;
+        int n = 1000000;
+//        QuickTime.benchmarkNano("func-string-args", wm, n, () -> {
+//            func.evalArgs("v(2,3,4,5)");
+//        });
+        QuickTime.benchmarkNano("func-std-mode", wm, n, () -> {
+            func.evalArgs(2, 3, 4, 5);
+        });
+        QuickTime.benchmarkNano("func-turbo-mode", wm, n, () -> {
+            func.evalArgsTurbo(2, 3, 4, 5);
+        });
+
     }
 
 }//end class

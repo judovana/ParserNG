@@ -1209,10 +1209,18 @@ public class MathExpression implements Savable, Solvable {
         return EvalResult.ERROR;
     }
 
+    public EvalResult solveGeneric(double... args) {
+        this.executionFrame = args;
+        return solveGeneric();
+    }
+
     @Override
     public String solve() {
         return solveGeneric().toString();
+    }//end method solve()
 
+    public String solve(double... args) {
+        return solveGeneric(args).toString();
     }//end method solve()
 
     protected List<String> solve(List<String> list) {
@@ -1632,6 +1640,11 @@ public class MathExpression implements Savable, Solvable {
             }
 
             return stack[0];
+        }
+
+        public EvalResult evaluate(double... arguments) {
+            MathExpression.this.executionFrame = arguments;
+            return evaluate();
         }
 
         private void applyUnary(char op, EvalResult res) {
@@ -2364,6 +2377,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
      * per MathExpression compilation.
      */
     public static final class VariableRegistry {
+
         private final Map<String, Integer> nameToSlot = new LinkedHashMap<>();
         private int nextAvailableSlot = 0;
 
