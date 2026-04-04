@@ -626,6 +626,7 @@ public class MathScanner {
             if (i + 1 >= scanner.size()) {
                 break;
             }
+            
             String nextToken = scanner.get(i + 1);
             if (token.equals("diff") && nextToken.equals("(")) {
                 ///diff,(,@,(x),log,(,x, , ,2,), , ,4,)
@@ -1139,7 +1140,6 @@ private static boolean isExactlyOne(String s) {
 
          }//end for
          */
-
  /*
          * The for loop above does not properly handle
          * negative exponents of 10, e.g -3E-10
@@ -1163,6 +1163,7 @@ private static boolean isExactlyOne(String s) {
             }//end catch
         }//end for
 
+     
 //enable interpretation of things like 3^-4 or 3^+4 i.e ^- or ^+ patterns
         for (int i = 0; i < scanner.size(); i++) {
             try {
@@ -1183,8 +1184,11 @@ private static boolean isExactlyOne(String s) {
 
             }
         }//end for
+        
+   
         validateTokens();
 
+   
         /**
          * Automatically initialize and store undeclared variables to 0 in the
          * first if block. To enforce variable declaration and initialization,
@@ -1224,6 +1228,7 @@ private static boolean isExactlyOne(String s) {
             else {
                 if (i + 1 < sz && Variable.isVariableString(scanner.get(i)) && !isOpeningBracket(scanner.get(i + 1)) && !varMan.contains(scanner.get(i))
                         && !FunctionManager.containsAny(scanner.get(i))) {
+                        System.out.println("scanner-debug-001: " + scanner);
                     errorList.add(" Unknown Variable: " + scanner.get(i) + "\n Please Declare And Initialize This Variable Before Using It.\n"
                             + "Use The Command, \'variableName=value\' To Accomplish This.");
                     parser_Result = ParserResult.STRANGE_INPUT;
@@ -1233,6 +1238,7 @@ private static boolean isExactlyOne(String s) {
             }//end else
         }//end for loop
 
+    
         if (!runnable) {
             errorList.add("\n"
                     + "Sorry, Errors Were Found In Your Expression."
@@ -1245,6 +1251,7 @@ private static boolean isExactlyOne(String s) {
 
         plusAndMinusStringHandler();
 
+         
         return scanner;
     }
 
@@ -1713,7 +1720,7 @@ private static boolean isExactlyOne(String s) {
         System.out.println("s2:\n"+new MathScanner(s2).scanner());
         String s3 = "3*x+y-z^2";
         System.out.println("s3:\n"+new MathScanner(s3).scanner());
-        MathExpression me = new MathExpression(s3);
+        MathExpression me = new MathExpression(s2);
         System.out.println("scanner- "+me.getScanner());
         System.out.println("correct? "+me.isCorrectFunction());
         System.out.println("postfix? "+me.getCachedPostfix());

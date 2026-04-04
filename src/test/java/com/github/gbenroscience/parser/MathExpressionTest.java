@@ -115,6 +115,7 @@ class MathExpressionTest {
         Declarations.unregisterBasicNumericalMethod(b2.getClass());
         me = new MathExpression("b2(1,2,3)");
         Assertions.assertEquals(MathExpression.isAutoInitOn() ? "0.0" : MathExpression.SYNTAX_ERROR, me.solve());
+         MathExpression.setAutoInitOn(true);//restore the switch
     }
 
     @Test

@@ -300,7 +300,21 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
                 success = true;
             } else {
-                MathExpression expr = new MathExpression(rhs);
+                MathExpression expr = null;
+                if (rhs.startsWith("@")) {
+                    Function anonFunc = new Function(rhs);
+                    FunctionManager.update(anonFunc.dependentVariable.getName(), newFuncName);
+                    if (anonFunc.isMatrix()) {
+                        anonFunc.getMatrix().setName(newFuncName);
+                    } else {
+                        anonFunc.dependentVariable = new Variable(newFuncName);
+                    }
+                    
+                        FunctionManager.update(anonFunc);
+                    return true;
+                } else {
+                    expr = new MathExpression(rhs);
+                }
 
                 List<String> scanner = expr.getScanner();
                 int sz = scanner.size();
@@ -473,15 +487,16 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             //input = dependentVar + "="+input;
             anonFn.setDependentVariable(new Variable(dependentVar));
             anonFn.setIndependentVariables(indVars);
-            anonFn.type = TYPE.ALGEBRAIC_EXPRESSION;
-            anonFn.setMathExpression(new MathExpression(expr));
+            anonFn.type = TYPE.ALGEBRAIC_EXPRESSION; 
+            MathExpression me = new MathExpression(expr);
+            
+            anonFn.setMathExpression(me);
             //FunctionManager.update(anonFn);
         } else if (isMatrix) {
             int rows = Integer.parseInt(varList.get(0));
             int cols = Integer.parseInt(varList.get(1));
             List<String> entries = new Scanner(expr, false, "(", ")", ",", ";").scan();
             int sz = entries.size();
-            System.out.println("entries: " + entries);
 
             if (rows * cols != sz) {
                 throw new RuntimeException("Invalid matrix! rows x cols must be equal to items supplied in matrix list. Expected: " + (rows * cols) + ", Found: " + sz + " items");
@@ -533,7 +548,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
         //DONE PROCESSIING anon function side of F=@(args)expr
         //Now deal with normal function assignments e.g F=@(x,y,z,...)expr, Use a recursive hack!
-        this.dependentVariable = anonFn.isMatrix() ? anonFn.dependentVariable : (funcName == null ? null : new Variable(funcName) );
+        this.dependentVariable = anonFn.isMatrix() ? anonFn.dependentVariable : (funcName != null ? new Variable(funcName) : (anonFn.dependentVariable != null ? anonFn.dependentVariable : null));
         this.independentVariables = anonFn.independentVariables;
         this.mathExpression = anonFn.mathExpression;
         this.turboExpr = anonFn.turboExpr;
@@ -566,7 +581,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
     public void setMathExpression(MathExpression mathExpression) {
         MathExpression oldMe = this.mathExpression;
-        try {System.out.println("expression = "+mathExpression.getExpression());
+        try {
             this.mathExpression = mathExpression;
             this.turboExpr = TurboEvaluatorFactory.getCompiler(mathExpression, false).compile();
             this.type = TYPE.ALGEBRAIC_EXPRESSION;
@@ -851,8 +866,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
     /**
      * @param args
-     * @deprecated Deprecated this in favor of {@link Function#evalArgs(double...)} which is far faster
-     * due to direct passing of args
+     * @deprecated Deprecated this in favor of
+     * {@link Function#evalArgs(double...)} which is far faster due to direct
+     * passing of args
      * @return the value of a function when valid arguments are passed into its
      * parentheses. e.g if the fullname of the Function is f(x,y,c), this method
      * could be passed..f(3,-4,9)
@@ -902,12 +918,12 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         if (type != TYPE.ALGEBRAIC_EXPRESSION) {
             return null;
         }
-       
+
         mathExpression.updateArgs(args);
         return mathExpression.solve();
     }//end method
-    
-        public double evalArgsTurbo(double... args) {
+
+    public double evalArgsTurbo(double... args) {
         if (type != TYPE.ALGEBRAIC_EXPRESSION) {
             return Double.NaN;
         }
@@ -922,8 +938,8 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      * the values that the Function object will have for all values specified
      * for the range of the independent variable. The second array contains the
      * values that the independent variable will assume in its given range. If
-     * the rangeDescr parameter is not valid.. it returns a 2D array containing 2
-     * null arrays.
+     * the rangeDescr parameter is not valid.. it returns a 2D array containing
+     * 2 null arrays.
      */
     public double[][] evalRange(String rangeDescr) {
 
@@ -1393,8 +1409,8 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         double start = System.nanoTime();
         for (int i = 1; i <= count; i++) {
             String val = func.evalArgs("p(" + i + ")");
-            System.out.println("val = "+val);
-            System.out.println(func.evalArgs(i)); 
+            System.out.println("val = " + val);
+            System.out.println(func.evalArgs(i));
         }
         double duration = System.nanoTime() - start;
         System.out.println("Eval took: " + (duration / (count * 1.0E6)) + "ms");

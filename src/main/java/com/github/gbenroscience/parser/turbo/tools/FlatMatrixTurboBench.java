@@ -186,7 +186,7 @@ public class FlatMatrixTurboBench {
         long duration = System.nanoTime() - start;
 
         System.out.printf("Operation: matrix_mul(10x10, 10x10)%n");
-        System.out.printf("Speed: %.2f μs/op%n", duration / 1_000.0 / 1000.0);
+        System.out.printf("Speed: %d ns/op%n", duration );
         System.out.printf("Complexity: O(n^3) = O(1000) operations%n");
     }
 
