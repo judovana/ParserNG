@@ -533,7 +533,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
         //DONE PROCESSIING anon function side of F=@(args)expr
         //Now deal with normal function assignments e.g F=@(x,y,z,...)expr, Use a recursive hack!
-        this.dependentVariable = anonFn.isMatrix() ? anonFn.dependentVariable : new Variable(funcName);
+        this.dependentVariable = anonFn.isMatrix() ? anonFn.dependentVariable : (funcName == null ? null : new Variable(funcName) );
         this.independentVariables = anonFn.independentVariables;
         this.mathExpression = anonFn.mathExpression;
         this.turboExpr = anonFn.turboExpr;
@@ -566,7 +566,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
     public void setMathExpression(MathExpression mathExpression) {
         MathExpression oldMe = this.mathExpression;
-        try {
+        try {System.out.println("expression = "+mathExpression.getExpression());
             this.mathExpression = mathExpression;
             this.turboExpr = TurboEvaluatorFactory.getCompiler(mathExpression, false).compile();
             this.type = TYPE.ALGEBRAIC_EXPRESSION;
