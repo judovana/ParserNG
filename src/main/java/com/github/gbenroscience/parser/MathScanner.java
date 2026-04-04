@@ -1709,6 +1709,14 @@ private static boolean isExactlyOne(String s) {
         FunctionManager.add("M=@(4,5)(3,1,2,4,5,9,2,3,12,7,12,8,7,-2,3,15,4,-5,3,8)");
         System.out.println("FUNCTIONS: " + FunctionManager.FUNCTIONS);
 
+        String s2 = "F=@(x,y,z)3*x+y-z^2";
+        System.out.println("s2:\n"+new MathScanner(s2).scanner());
+        String s3 = "3*x+y-z^2";
+        System.out.println("s3:\n"+new MathScanner(s3).scanner());
+        MathExpression me = new MathExpression(s3);
+        System.out.println("scanner- "+me.getScanner());
+        System.out.println("correct? "+me.isCorrectFunction());
+        System.out.println("postfix? "+me.getCachedPostfix());
         String s6 = "2a-3b";
         String s7 = "2*M-3*M";
         String s8 = "linear_sys(M)";

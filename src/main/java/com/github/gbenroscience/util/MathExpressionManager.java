@@ -28,7 +28,7 @@ public class MathExpressionManager {
     private ArrayList<MathExpression> functions = new ArrayList<>();
     /**
      * Determines the maximum number of MathExpression objects that objects of
-     * this class use to optimize an evaluation of an expression.
+this class use to optimize an evaluation of an expression.
      */
     private int maxSize = 200;
 
@@ -53,7 +53,7 @@ public class MathExpressionManager {
     /**
      *
      * @param functions the store of MathExpression objects that this
-     * MathExpressionManager object will store
+MathExpressionManager object will store
      */
     public void setFunctions(ArrayList<MathExpression> functions) {
         this.functions = functions;
@@ -91,7 +91,7 @@ public class MathExpressionManager {
      * only accessing the same set and copy of variables and constants.
      *
      * @return the VariableManager object associated with the first
-     * MathExpression object stored by objects of this class.
+MathExpression object stored by objects of this class.
      */
     public VariableManager getVariableManager() {
         if (functions.size() > 0) {
@@ -103,7 +103,7 @@ public class MathExpressionManager {
 
     /**
      * checks if the MathExpression object passed to it as an argument can be
-     * optimized or not
+optimized or not
      *
      * @param expression: The expression to evaluate
      * @return true if the MathExpression is optimizable
@@ -144,7 +144,7 @@ public class MathExpressionManager {
     /**
      *
      * @param index the location from which we wish to retrieve the
-     * MathExpression object
+MathExpression object
      * @return the MathExpression object stored at the specified index.
      */
     public MathExpression getFunctionAt(int index) {
@@ -159,7 +159,7 @@ public class MathExpressionManager {
      *
      * @param expression the String representation of the MathExpression object
      * @return the MathExpression object in the store that goes by that name or
-     * null if none is found.
+null if none is found.
      * @throws NullPointerException
      */
     public MathExpression getFunctionByExpression(String expression) throws NullPointerException {
@@ -178,7 +178,7 @@ public class MathExpressionManager {
      *
      * @param scanner the scanner object to search for in the store
      * @return the MathExpression object in the store that possesses that
-     * scanned form
+scanned form
      */
     public MathExpression getFunctionByScanner(ArrayList<String> scanner) {
         int size = functions.size();
@@ -234,9 +234,9 @@ public class MathExpressionManager {
     /**
      *
      * @param name the name or String format of the MathExpression object to be
-     * optimized
+optimized
      * @return the optimized MathExpression object such that it is given its
-     * attributes already processed and ready for use
+attributes already processed and ready for use
      */
     public MathExpression optimizeFunction(String name) {
         return getFunctionByExpression(name);
@@ -253,7 +253,7 @@ public class MathExpressionManager {
     /**
      *
      * @param expr The expression to be evaluated by the MathExpression to be
-     * created.
+created.
      */
     public MathExpression createFunction(String expr) {
         MathExpression f = new MathExpression(expr);

@@ -105,7 +105,7 @@ public class NumericalDerivative {
                 expression = expression.substring(0,expression.length()-1);//remove the last bracket.
                 expression = expression.substring(expression.indexOf("(")+1);//remove the starting command and the first bracket.
 
-                double xPoint =  Double.parseDouble( new MathExpression(expression.substring(expression.lastIndexOf(",")+1).trim()).solve() ) ;
+                double xPoint =  Double.parseDouble(new MathExpression(expression.substring(expression.lastIndexOf(",")+1).trim()).solve() ) ;
                 String func = expression.substring(0, expression.lastIndexOf(",")).trim();
 
                 try{
@@ -122,7 +122,7 @@ public class NumericalDerivative {
                 catch(IndexOutOfBoundsException boundsException){
 
                 }//end catch
-            }//end try
+            }//end try//end try//end try//end try
             catch(NumberFormatException formatException){
                 throw new InputMismatchException("SYNTAX ERROR! CHECK THE HELP FILE FOR THE VALID COMMAND TO USE NEAR \"diff\"");
             }//end catch

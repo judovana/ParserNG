@@ -21,7 +21,7 @@ public class Number {
     private String num;
     /**
      * The location of the Number in the scanner output of the parent
-     * MathExpression object that contains this Number object.
+MathExpression object that contains this Number object.
      */
     private int index;
 
@@ -37,7 +37,7 @@ public class Number {
      *
      * @param num The string of digits that represent this Number object.
      * @param index the location of this Operator object in its parent
-     * MathExpression object's scanned ArrayList object.
+MathExpression object's scanned ArrayList object.
      */
     public Number(String num, int index, ArrayList<String> scan) {
         this.num = isNumber(num) ? num : "";
@@ -56,7 +56,7 @@ public class Number {
     /**
      *
      * @param index sets the location of this Operator object in its parent
-     * MathExpression
+MathExpression
      */
     public void setIndex(int index) {
         this.index = index;

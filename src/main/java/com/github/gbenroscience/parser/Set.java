@@ -1275,18 +1275,20 @@ public class Set {
      */
     public String evaluateUserDefinedFunction(String fName) throws ClassNotFoundException {
         int sz = data.size();
-        String fullname = fName.concat("(");
+        Function func = FunctionManager.lookUp(fName);
+        if(func==null){
+            return null;
+        }
+        double[]vars = new double[func.getIndependentVariables().size()]; 
         for (int i = 0; i < sz; i++) {
-            fullname = fullname.concat(data.get(i).concat(","));
+            vars[i] = Number.fastParseDouble(data.get(i));
         }//end for loop
-
-        fullname = fullname.substring(0, fullname.length() - 1);
-        fullname = fullname.concat(")");
+ 
         try {
-            return FunctionManager.lookUp(fName).evalArgs(fullname);
+            return func.evalArgs(vars);
         }//end try
         catch (Exception cnfe) {
-            throw new ClassNotFoundException("Could Not Find Function! " + fullname);
+            throw new ClassNotFoundException("Could Not Find Function! " + fName);
         }
 
     }

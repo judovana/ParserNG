@@ -33,7 +33,7 @@ public class TurboEvaluatorFactory {
     /**
      * Intelligently selects and returns the best Turbo engine for the
      * expression.
-     * @param me The {@linkplain MathExpression} 
+     * @param me The {@link MathExpression} 
      * @return A {@link TurboExpressionEvaluator} that can be used to evaluate expressions at turbo speed
      */
     public static TurboExpressionEvaluator getCompiler(MathExpression me) {
@@ -59,11 +59,12 @@ public class TurboEvaluatorFactory {
      * @return A {@link TurboExpressionEvaluator} that can be used to evaluate expressions at turbo speed
      */
         public static TurboExpressionEvaluator getCompiler(MathExpression me, boolean useWideningVarsPassing) {
-        MathExpression.Token[] postfix = me.getCachedPostfix();
+        MathExpression.Token[] postfix = me.getCachedPostfix(); 
         boolean involvesMatrices = false;
 
         // Scan tokens for Matrix indicators
-        for (MathExpression.Token t : postfix) {
+        for (int i=0;i<postfix.length;i++) {
+            MathExpression.Token t = postfix[i];
             if (isMatrixToken(t)) {
                 involvesMatrices = true;
                 break;

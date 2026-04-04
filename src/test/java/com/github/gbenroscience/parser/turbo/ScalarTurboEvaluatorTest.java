@@ -43,7 +43,7 @@ public class ScalarTurboEvaluatorTest {
 
     @Test
     public void testPrinting() throws Throwable {
-        String expr = "F=@(x,y,z)3*x+y-z^2";
+        String expr = "F=@(x,y,z)3*x+y-z^2"; 
         Function f = FunctionManager.add(expr);
 
         String ex = "z=3;A=@(2,2)(4,2,-1,9);print(A,F,x,y,z)";
@@ -55,8 +55,8 @@ public class ScalarTurboEvaluatorTest {
         // Compile to turbo
         FastCompositeExpression compiled = interpreted.compileTurbo();
         // Warm up turbo JIT
-        double[] vars = new double[0];
-        MathExpression.EvalResult evr = compiled.apply(vars);
+        double[] vars = new double[3];
+        MathExpression.EvalResult evr = compiled.apply(vars); 
         Assertions.assertEquals(-1, evr.scalar);
 
     }

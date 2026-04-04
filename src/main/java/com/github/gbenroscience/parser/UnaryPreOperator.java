@@ -27,7 +27,7 @@ public final class UnaryPreOperator extends Operator implements Validatable {
 
     /**
      * The index of this operator in the scanned MathExpression that it belongs
-     * to.
+to.
      */
     private int index;
 
@@ -121,7 +121,7 @@ public final class UnaryPreOperator extends Operator implements Validatable {
     /**
      *
      * @param function the MathExpression object that contains the power
-     * operator
+operator
      */
     public static void assignCompoundTokens(MathExpression function) {
         List<String> scan = function.getScanner();

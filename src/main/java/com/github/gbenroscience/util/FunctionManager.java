@@ -340,9 +340,12 @@ public class FunctionManager {
     public static void main(String[] args) {
         Function f = FunctionManager.lockDown("v", "x", "y", "z", "w");
         System.out.println(FUNCTIONS);
+        update(new Function("v=@(x,y,z,w)3*x-2*y+z-4*w"));
+        System.out.println(FUNCTIONS);
+        f = FunctionManager.lookUp("v");
         System.out.println("Function = " + f.toString());
         System.out.println("Evaluate: " + f.evalArgs("v(2,3,4,5)"));
-
+        System.out.println("Evaluate: " + f.evalArgs(2,3,4,5));
     }
 
 }//end class

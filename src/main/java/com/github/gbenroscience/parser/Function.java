@@ -5,6 +5,7 @@
 package com.github.gbenroscience.parser;
 
 import com.github.gbenroscience.interfaces.Savable;
+import com.github.gbenroscience.logic.DRG_MODE;
 
 import java.util.ArrayList;
 import java.util.InputMismatchException;
@@ -46,7 +47,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      */
     private MathExpression mathExpression;
 
-    private FastCompositeExpression fastCompositeExpression;
+    private FastCompositeExpression turboExpr;
 
     /**
      * If the object is a {@link Matrix} its data is stored here.
@@ -95,7 +96,6 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             e.printStackTrace();
             throw new InputMismatchException("Bad Function Syntax--" + input);
         }
-
     }//end constructor
 
     /**
@@ -479,8 +479,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         } else if (isMatrix) {
             int rows = Integer.parseInt(varList.get(0));
             int cols = Integer.parseInt(varList.get(1));
-            List<String> entries = new Scanner(expr, false, "(", ")", ",").scan();
+            List<String> entries = new Scanner(expr, false, "(", ")", ",", ";").scan();
             int sz = entries.size();
+            System.out.println("entries: " + entries);
 
             if (rows * cols != sz) {
                 throw new RuntimeException("Invalid matrix! rows x cols must be equal to items supplied in matrix list. Expected: " + (rows * cols) + ", Found: " + sz + " items");
@@ -532,9 +533,10 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
         //DONE PROCESSIING anon function side of F=@(args)expr
         //Now deal with normal function assignments e.g F=@(x,y,z,...)expr, Use a recursive hack!
-        this.dependentVariable = anonFn.dependentVariable;
+        this.dependentVariable = anonFn.isMatrix() ? anonFn.dependentVariable : new Variable(funcName);
         this.independentVariables = anonFn.independentVariables;
         this.mathExpression = anonFn.mathExpression;
+        this.turboExpr = anonFn.turboExpr;
         this.matrix = anonFn.matrix;
         if (this.matrix != null && funcName != null) {
             this.matrix.setName(funcName);
@@ -545,6 +547,14 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         }
 
     }//end method
+
+    public void setTurboExpr(FastCompositeExpression turboExpr) {
+        this.turboExpr = turboExpr;
+    }
+
+    public FastCompositeExpression getTurboExpr() {
+        return turboExpr;
+    }
 
     public void setDependentVariable(Variable dependentVariable) {
         this.dependentVariable = dependentVariable;
@@ -558,32 +568,32 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         MathExpression oldMe = this.mathExpression;
         try {
             this.mathExpression = mathExpression;
-            this.fastCompositeExpression = TurboEvaluatorFactory.getCompiler(mathExpression, false).compile();
+            this.turboExpr = TurboEvaluatorFactory.getCompiler(mathExpression, false).compile();
             this.type = TYPE.ALGEBRAIC_EXPRESSION;
         } catch (Throwable ex) {
             //revert
             this.mathExpression = oldMe;
-            this.fastCompositeExpression = null;
+            this.turboExpr = null;
             Logger.getLogger(Function.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
     public FastCompositeExpression getWideningArgsExpression() {
         try {
-            this.fastCompositeExpression = TurboEvaluatorFactory.getCompiler(mathExpression, true).compile();
+            this.turboExpr = TurboEvaluatorFactory.getCompiler(mathExpression, true).compile();
         } catch (Throwable ex) {
             ex.printStackTrace();
         }
-        return this.fastCompositeExpression;
+        return this.turboExpr;
     }
 
     public FastCompositeExpression getArrayArgsExpression() {
         try {
-            this.fastCompositeExpression = TurboEvaluatorFactory.getCompiler(mathExpression, false).compile();
+            this.turboExpr = TurboEvaluatorFactory.getCompiler(mathExpression, false).compile();
         } catch (Throwable ex) {
             ex.printStackTrace();
         }
-        return this.fastCompositeExpression;
+        return this.turboExpr;
     }
 
     public void setMatrix(Matrix m) {
@@ -886,6 +896,15 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
     }//end method
 
+    public String evalArgs(double... args) {
+        if (type != TYPE.ALGEBRAIC_EXPRESSION) {
+            return null;
+        }
+       
+        mathExpression.updateArgs(args);
+        return mathExpression.solve();
+    }//end method
+
     /**
      *
      * @param rangeDescr Describes the range between which this Function object
@@ -975,7 +994,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
     }//end method
 
     public double[][] evalRange(double xLower, double xUpper, double xStep, String variableName, int DRG, boolean turbo) {
-
+        if (!turbo) {
+            return evalRange(xLower, xUpper, xStep, variableName, DRG);
+        }
         if (xLower > xUpper) {
             double p = xLower;
             xLower = xUpper;
@@ -986,10 +1007,10 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         double[][] results = new double[2][sz + 1];
         int len = sz + 1;
         int i = 0;
-        int xSlot = mathExpression.getVariable(variableName).getFrameIndex();
+        double[] args = new double[1];
         for (double x = xLower; i < len && x <= xUpper; x += xStep, i++) {
-            mathExpression.updateSlot(xSlot, x);
-            results[0][i] = mathExpression.solveGeneric().scalar;
+            args[0] = x;
+            results[0][i] = turboExpr.applyScalar(args);
             results[1][i] = x;
         }//end for
 
@@ -1302,6 +1323,11 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             copy.independentVariables = new ArrayList<>(independentVariables);
             copy.dependentVariable = new Variable(dependentVariable.getName(), dependentVariable.getValue());
             copy.mathExpression = mathExpression.clone();
+            try {
+                copy.turboExpr = copy.mathExpression.compileTurbo();//write clone for it
+            } catch (Throwable ex) {
+                Logger.getLogger(Function.class.getName()).log(Level.SEVERE, null, ex);
+            }
 
             copy.matrix = matrix == null ? null : new Matrix(matrix.getFlatArray(), matrix.getRows(), matrix.getCols());
             if (copy.matrix != null) {
@@ -1322,12 +1348,23 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
     public static void main(String args[]) {
 
+        Function f = new Function("y=@(x)sin(x)-cos(x)");
+        double s = System.nanoTime();
+        f.evalRange(0, 10000, 0.001, "x", 1);
+        double d = System.nanoTime() - s;
+        System.out.println("t1 = " + d + "ns");
+
+        s = System.nanoTime();
+        f.evalRange(0, 10000, 0.001, "x", 1, true);
+        d = System.nanoTime() - s;
+        System.out.println("t2 = " + d + "ns");
+
         System.out.println(Function.rewriteAsStandardFunction("f(x)=sin(x)-cos(x)"));
         System.out.println(Function.rewriteAsStandardFunction("f(x,y,z)=sin(x+y)-cos(z-2*x)"));
-        System.out.println(Function.rewriteAsStandardFunction("f=@+(x)sin(x)-cos(x)"));
-        System.out.println(Function.rewriteAsStandardFunction("f=@((x))sin(x)-cos(x)"));
+        System.out.println(Function.rewriteAsStandardFunction("f=@(x)sin(x)-cos(x)"));
+        System.out.println(Function.rewriteAsStandardFunction("f=@(x)sin(x)-cos(x)"));
 
-        FunctionManager.add("K=@(2,3)(2,3,4,9,8,1);");
+        FunctionManager.add("K=@(3,3)(2,3,4,9,8,1,9,8,1);");
 
         System.out.println("K=" + FunctionManager.lookUp("K").getMatrix());
         MathExpression addMat = new MathExpression("w=6*5;K=@(2,3)(2,3,4,9,8,1);M=@(3,3)(1,4,1,2,4,7,9,1,-2);N=@(3,3)(4,1,8,2,1,3,5,1,9);v=eigpoly(@(3,3)(2,1,5,6,9,2,4,3,8));c=v(30);3*M+N;");
@@ -1347,6 +1384,8 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         double start = System.nanoTime();
         for (int i = 1; i <= count; i++) {
             String val = func.evalArgs("p(" + i + ")");
+            System.out.println("val = "+val);
+            System.out.println(func.evalArgs(i)); 
         }
         double duration = System.nanoTime() - start;
         System.out.println("Eval took: " + (duration / (count * 1.0E6)) + "ms");

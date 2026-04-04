@@ -256,7 +256,7 @@ public class RootFinder {
             try {
                 args[1] = Double.parseDouble(new MathExpression(expression.substring(lastCommaIndex + 1).trim()).solve());
                 expression = expression.substring(0, lastCommaIndex).trim();
-            }//end try
+            }//end try//end try//end try//end try
             catch (NumberFormatException numErr) {
                 throw new InputMismatchException("SYNTAX ERROR!");
             }//end catch
@@ -265,7 +265,7 @@ public class RootFinder {
             try {
                 args[0] = Double.parseDouble(new MathExpression(expression.substring(lastCommaIndex + 1).trim()).solve());
                 expression = expression.substring(0, lastCommaIndex).trim();
-            }//end try
+            }//end try//end try//end try//end try
             catch (NumberFormatException numErr) {
                 throw new InputMismatchException("SYNTAX ERROR!");
             }//end catch
@@ -279,7 +279,7 @@ public class RootFinder {
                 args[0] = Double.parseDouble(new MathExpression(expression.substring(lastCommaIndex + 1).trim()).solve());
                 expression = expression.substring(0, lastCommaIndex).trim();
                 throw new InputMismatchException(" Max of 2 args allowed! ");
-            }//end try
+            }//end try//end try//end try//end try
             catch (NumberFormatException numErr) {
 
             }//end catch
@@ -435,7 +435,7 @@ public class RootFinder {
         double ans;
         try {
             ans = new Newtonian().findRoot();
-            double val = Double.parseDouble(function.evalArgs(function.getDependentVariable().getName() + "(" + ans + ")"));
+            double val = Number.fastParseDouble(function.evalArgs(ans));
             //System.err.println("Using Newton's Method: f(" + ans + ") = " + val);
 
             if (approxEqualsZero(val) || lenientApproxEqualsZero(val)) {

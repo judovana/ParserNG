@@ -37,17 +37,18 @@ import static com.github.gbenroscience.parser.TYPE.MATRIX;
 import static com.github.gbenroscience.parser.TYPE.VECTOR;
 import static com.github.gbenroscience.parser.Variable.isVariableString;
 import com.github.gbenroscience.parser.benchmarks.GG;
-import com.github.gbenroscience.parser.methods.Declarations; 
+import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.Help;
 import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.parser.turbo.tools.FastCompositeExpression;
 import com.github.gbenroscience.parser.turbo.tools.MatrixTurboEvaluator;
-import com.github.gbenroscience.parser.turbo.tools.ScalarTurboEvaluator; 
+import com.github.gbenroscience.parser.turbo.tools.ScalarTurboEvaluator;
 import com.github.gbenroscience.parser.turbo.tools.TurboExpressionEvaluator;
 import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.Serializer;
 import com.github.gbenroscience.util.VariableManager;
+import java.util.LinkedHashMap;
 
 /**
  *
@@ -156,6 +157,7 @@ public class MathExpression implements Savable, Solvable {
     private static final int PREC_UNARY = 100;  // Unary minus
     private Token[] cachedPostfix = null;  // Cache the compiled postfix
 
+    private int[] slots;
     private double[] executionFrame;
     VariableRegistry registry = new VariableRegistry();
 
@@ -251,8 +253,8 @@ public class MathExpression implements Savable, Solvable {
         public String[] getRawArgs() {
             return rawArgs;
         }
-        
-        public boolean isVariable(){
+
+        public boolean isVariable() {
             return this.name != null && !this.name.isEmpty() && this.v != null && this.frameIndex >= 0;
         }
 
@@ -386,6 +388,7 @@ public class MathExpression implements Savable, Solvable {
         else {
             setExpression("(0.0)");
         }
+        this.slots = registry.getSlots();
 
     }
 
@@ -479,7 +482,6 @@ public class MathExpression implements Savable, Solvable {
         scanner.replaceAll((String t) -> this.commaAlias.equals(t) ? "," : t);
     }
 
- 
     /**
      * Check if turbo mode is available.
      */
@@ -522,14 +524,15 @@ public class MathExpression implements Savable, Solvable {
 
             TurboExpressionEvaluator compiler;
             if (!hasMatrixOps) {
-              //  System.out.println("SELECTED ScalarTurboCompiler");
+                //  System.out.println("SELECTED ScalarTurboCompiler");
                 // Pure scalar expressions: use ultra-fast scalar compiler (~5ns)
                 compiler = new ScalarTurboEvaluator(this);
             } else {
-             //   System.out.println("SELECTED FlatMatrixTurboCompiler");
+                //   System.out.println("SELECTED FlatMatrixTurboCompiler");
                 // Any matrix operations: use flat-array optimized compiler (~50-1000ns)
                 compiler = new MatrixTurboEvaluator(this);
             }
+
             compiledTurbo = compiler.compile();
             turboCompiled = true;
             return compiledTurbo;
@@ -700,8 +703,6 @@ public class MathExpression implements Savable, Solvable {
         return treeStats;
     }
 
-  
-
     /**
      * Sometimes, after evaluation the evaluation list which is a local
      * variable, is reduced to a function name(or other object as time goes on)
@@ -745,7 +746,26 @@ public class MathExpression implements Savable, Solvable {
     }
 
     public int[] getSlots() {
-        return registry.getSlots();
+        return slots;
+    }
+
+    /**
+     *
+     * @return an array of {@link Slot} objects(name of variable and frame index
+     * of variables in the expression)
+     */
+    public Slot[] getSlotItems() {
+        ArrayList<Slot> slots = new ArrayList<>();
+        for (int i = 0; i < cachedPostfix.length; i++) {
+            Token t = cachedPostfix[i];
+            if (t.v != null) {
+                Slot s = new Slot(t.v.getName(), t.frameIndex);
+                if (!slots.contains(s)) {
+                    slots.add(s);
+                }
+            }//end if
+        }//end for loop
+        return slots.toArray(new Slot[0]);
     }
 
     public Pair<String[], Integer[]> getVariables() {
@@ -818,50 +838,6 @@ public class MathExpression implements Savable, Solvable {
 
     }
 
-    /**
-     *
-     * @return an array of {@link Slot} objects(name of variable and frame index
-     * of variables in the expression)
-     */
-    public Slot[] getSlotItems() {
-        ArrayList<Slot> slots = new ArrayList<>();
-        for (int i = 0; i < cachedPostfix.length; i++) {
-            Token t = cachedPostfix[i];
-            if (t.v != null) {
-                Slot s = new Slot(t.v.getName(), t.frameIndex);
-                if (!slots.contains(s)) {
-                    slots.add(s);
-                }
-            }//end if
-        }//end for loop
-        return slots.toArray(new Slot[0]);
-    }
-
-    /**
-     * test and see if it produces same output as {@link MathExpression#getSlots()
-     * }
-     *
-     * @return an array of ints which are the frame index of variables in the
-     * expression
-     */
-    public int[] getSlotsAlt() {
-        ArrayList<Integer> slots = new ArrayList<>();
-
-        for (int i = 0; i < cachedPostfix.length; i++) {
-            Token t = cachedPostfix[i];
-            if (t.v != null) {
-                if (!slots.contains(t.frameIndex)) {
-                    slots.add(t.frameIndex);
-                }
-            }//end if
-        }//end for loop
-        int[] array = new int[slots.size()];
-        for (int i = 0; i < array.length; i++) {
-            array[i] = slots.get(i);
-        }
-        return array;
-    }
-
     private void statsVerifier() {
         scanner.removeAll(whitespaceremover);
 
@@ -917,9 +893,7 @@ public class MathExpression implements Savable, Solvable {
                     //processLogger.writeLog("Verifier discovers invalid association between data set returning operators:");
                 }
             }//end if isHasListReturningOperator
-
         }
-
     }//end method statsVerifier
 
     public Token[] getCachedPostfix() {
@@ -1185,40 +1159,23 @@ public class MathExpression implements Savable, Solvable {
     }
 
     /**
-     * Updates the entire execution frame in one go. The order of values must
-     * match the order of the Registry indices.
+     * Updates specific slots with specific values. Usage: updateArgs(new
+     * int[]{0, 2}, new double[]{valX, valZ});
      *
      * @param values
      */
     public void updateArgs(double... values) {
-        /*int slots[] = getSlots();
-        updateArgs(slots, values);*/
-        // Check to prevent array out-of-bounds
-        int length = Math.min(values.length, executionFrame.length);
-
-        // System.arraycopy is a native call - it is incredibly fast
-        System.arraycopy(values, 0, executionFrame, 0, length);
-
-    }
-
-    /**
-     * Updates specific slots with specific values. Usage: updateArgs(new
-     * int[]{0, 2}, new double[]{valX, valZ});
-     *
-     * @param slots
-     * @param values
-     */
-    public void updateArgs(int[] slots, double... values) {
-        for (int i = 0; i < slots.length; i++) {
-            int slot = slots[i];
-            double value = values[i];
-            if (slot >= 0 && slot < this.executionFrame.length) {
-                this.executionFrame[slot] = value;
-            }
+        // 1. Guard check outside the loop to prevent bounds checks inside the loop
+        int limit = Math.min(slots.length, values.length);
+        // 2. Trust your compiler. If you mapped slots correctly at compile time,
+        // you don't need to check executionFrame.length on every iteration.
+        for (int i = 0; i < limit; i++) {
+            this.executionFrame[slots[i]] = values[i];
         }
     }
-
+    //  parserNG.updateSlot(slots[i], xValues[i]);
     // Or, for a single variable make (the most common benchmark case):
+
     public void updateSlot(int slot, double value) {
         if (slot >= 0 && slot < this.executionFrame.length) {
             this.executionFrame[slot] = value;
@@ -1533,7 +1490,6 @@ public class MathExpression implements Savable, Solvable {
         // Pre-allocate and reuse
         private final EvalResult[] stack;
         private final EvalResult[][] argCache;
-        
 
         public ExpressionSolver() {
             // Allocate stack ONCE, with sufficient capacity
@@ -1555,8 +1511,7 @@ public class MathExpression implements Savable, Solvable {
                 }
             }
         }
-        
-   
+
         public EvalResult evaluate() {
             // Just use the pre-allocated stack - no allocation per call
             int ptr = -1;
@@ -2202,7 +2157,6 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
             this.type = TYPE_SCALAR;
             return this;
         }
-        
 
         public EvalResult wrap(double[] v) {
             this.vector = v;
@@ -2268,7 +2222,6 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
         public String getErrorText() {
             return errorText;
         }
-        
 
 // In EvalResult class:
         public void reset() {
@@ -2411,8 +2364,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
      * per MathExpression compilation.
      */
     public static final class VariableRegistry {
-
-        private final Map<String, Integer> nameToSlot = new HashMap<>();
+        private final Map<String, Integer> nameToSlot = new LinkedHashMap<>();
         private int nextAvailableSlot = 0;
 
         /**
@@ -2452,6 +2404,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
             for (Map.Entry<String, Integer> entry : nameToSlot.entrySet()) {
                 slots[i++] = entry.getValue();
             }
+
             return slots;
         }
 
@@ -2477,9 +2430,6 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
     public MathExpression clone() throws CloneNotSupportedException {
         return (MathExpression) super.clone();
     }
-    
-    
-    
 
     public static void main1(String... args) {
         String in = Main.joinArgs(Arrays.asList(args), true);
@@ -2493,7 +2443,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
 
         public static void main(String... args) {
             String rpt = STRING.repeating("=", 80);
-            System.out.println( rpt );
+            System.out.println(rpt);
             System.out.println("SAFE CONSTANT FOLDING WITH STRENGTH REDUCTION");
             System.out.println(rpt);
 
@@ -2574,7 +2524,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
     static class Test {
 
         public static void main(String... args) {
-              String rpt = STRING.repeating("=", 80);
+            String rpt = STRING.repeating("=", 80);
             System.out.println(rpt);
             System.out.println("POSTFIX EVALUATION ACCURACY TESTS");
             System.out.println(rpt);
@@ -2633,7 +2583,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
             testExpression("1*1", 1.0, "One multiplication");
             testExpression("5-5", 0.0, "Subtraction to zero");
 
-            System.out.println("\n" + rpt); 
+            System.out.println("\n" + rpt);
             System.out.println("ACCURACY TEST SUMMARY");
             System.out.println(rpt);
         }
