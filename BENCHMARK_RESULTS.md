@@ -1,4 +1,4 @@
-# ParserNG 1.0.2 Official Benchmarks
+# ParserNG 1.0.0+ Official Benchmarks
 
 
 ### **ParserNG vs. The Giants: Master Performance Matrix**

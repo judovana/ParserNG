@@ -1,25 +1,30 @@
 # ParserNG
 
+
+### Parser 1.0.4 has been released on maven-central!
+This version features various optimizations and turbo capability for the Function
+class.
+
 Parser 1.0.3 has been released on maven-central!
 Maintaining the industry standard besting speeds of v1.0.x, it adds the functionality of rotational geometry.
 In v1.0.3, you can use the rotor function, `rot` to rotate raw points in 3D space and other functions such as curves, lines, surfaces(both plane and curved) and 3D equations of all sorts.
 
-ParserNG 1.0.2 has been released on maven-central!
+### ParserNG 1.0.2 has been released on maven-central!
 Version 1.0.2 retains the wild speeds of Version 1.0.1. Adds an extra widening technique of variable passing to the Turbo mode,
 In addition to the current method of array based passing. The widening technique can be sometimes faster than the array based methods,
 but their speed profiles and memory profiles are similar. Its weakness though is that it cannot use more than 63 variables per expression, whereas the array based approach allows in theory any number up to the max integer size.
 
 
-ParserNG 1.0.1 has been released on maven-central!
+### ParserNG 1.0.1 has been released on maven-central!
 This close update ensures that Turbo mode's  memory profile stays close to that of the normal mode, which is, nigh zero.
 
 
-ParserNG 1.0.0 has been released on maven-central!
+### ParserNG 1.0.0 has been released on maven-central!
 The library has finally come of age with the introduction of its Turbo mode, which offers a massive speed boost over its normal mode.
 The nomal mode already beats famous libraries like exp4J, and rivals Janino, the widely acclaimed Gold Standard of Java math parser speed measurements, very closely
 
  
-ParserNG 0.2.5 has been released on maven-central
+### ParserNG 0.2.5 has been released on maven-central
 
 1. Functions like `intg`, `root`, `t_root` and `quadratic` have been fixed and are working well. .
 
@@ -31,9 +36,9 @@ ParserNG 0.2.5 has been released on maven-central
 
 5. If you need a rich, fully featured parser that can do 3 million to 10 million evaluations per second, ParserNG v0.2.5 is the one for you.
 
-ParserNG 0.2.4 has been released on maven-central!
+### ParserNG 0.2.4 has been released on maven-central!
 
-ParserNG 0.2.4 drives the limits of expression interpretation velocity even further than all previous versions, beating many lighterweight and fast Java math parsers(interpreted) in many benchmarks.
+### ParserNG 0.2.4 drives the limits of expression interpretation velocity even further than all previous versions, beating many lighterweight and fast Java math parsers(interpreted) in many benchmarks.
 Check [ParserNG-Wars](https://github.com/gbenroscience/ParserNG) for some shootouts between ParserNG and other parsers, both handrafted benchmarks and JMH based ones
 
 ParserNG evaluates expressions at almost the speed at which the expressions would run if they were compiled statements in Java code. Typical values for moderate expression evaluation speeds are between `85ns`(algebraic expressions e.g.`((12+5)*3 - (45/9))^2` to `176ns`(methods with trig. functions, e.g. `(sin(3) + cos(4 - sin(2))) ^ (-2))`.
@@ -41,8 +46,8 @@ ParserNG evaluates expressions at almost the speed at which the expressions woul
 
 Applications that need 5 million to 10 million points generated per second would benefit from `ParserNG v0.2.4`
  
-0.2.3
-**ParserNG 0.2.3** has been released on maven central!<br>
+
+### **ParserNG 0.2.3** has been released on maven central!<br>
 comes with couple microsecond (on decent hardware and) expression solving ability while maintaining its full feature stack. Graphing feels butter-smooth and iterations shouldn't feel so iterative. 
 
 At 5 microsecond, moderately complex expressions such as
@@ -55,7 +60,7 @@ String s6 = "5*sin(3+2)/(4*3-2)";
 
  Also, we support eigenvalues and eigenvectors as inbuilt methods, so enjoy! 
 
-ParserNG 0.2.2 has been released on maven-central!**
+### ParserNG 0.2.2 has been released on maven-central!**
 
 
 ## What's new?
