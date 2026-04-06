@@ -139,6 +139,7 @@ public class Utils {
             Log.i("Kalculitzer", message);
         }
     }
+    
 
     public static boolean isPerfectSquare(int num) {
         if (num < 0) {

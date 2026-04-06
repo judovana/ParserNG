@@ -1383,7 +1383,17 @@ private static boolean isExactlyOne(String s) {
      * @param scanner The list of scanned tokens.
      *
      */
+    
+    
     public static void removeExcessBrackets(List<String> scanner) {
+         BracketCleaner.removeExcessBrackets(scanner);
+    }
+    /**
+     * Old version of {@linkplain MathScanner#removeExcessBrackets(java.util.List) }
+     * @deprecated 
+     * @param scanner 
+     */
+    public static void removeExcessBrackets1(List<String> scanner) {
 
         for (int i = 0; i < scanner.size(); i++) {
 
@@ -1434,7 +1444,6 @@ private static boolean isExactlyOne(String s) {
 
             }
         }
-
     }
 
     /**

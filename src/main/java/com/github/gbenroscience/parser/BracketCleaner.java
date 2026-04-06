@@ -20,6 +20,7 @@ import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.util.VariableManager;
 import static com.github.gbenroscience.parser.Operator.*;
 import static com.github.gbenroscience.parser.Variable.*;
+import com.github.gbenroscience.util.FunctionManager;
 import java.util.*;
 
 /**
@@ -42,22 +43,22 @@ import java.util.*;
  */
 public class BracketCleaner {
 
+
     // Fast lookup for known functions (covers Method.isMethodName)
     private static final List<String> FUNCTIONS = Arrays.asList(Method.getAllFunctions());
 
     /**
-     * Removes excess brackets **in-place** and returns the same list for convenience.
-     * The input list is modified directly.
+     * Removes excess brackets **in-place**. 
+     * The list you pass in is modified directly — exactly like your original method.
      */
-    public static List<String> removeExcessBrackets(List<String> scanner) {
+    public static void removeExcessBrackets(List<String> scanner) {
         if (scanner == null || scanner.isEmpty()) {
-            return scanner;
+            return;
         }
 
         boolean changed;
         do {
             changed = false;
-            // Build pairMap ONCE per full pass (efficient)
             int[] pairMap = buildPairMap(scanner);
 
             for (int i = 0; i < scanner.size(); i++) {
@@ -68,31 +69,27 @@ public class BracketCleaner {
                 int open = i;
                 int close = pairMap[i];
 
-                // 1. Redundant nested brackets: ((x)) → (x)  (safe even after @, sin, etc.)
+                // 1. Redundant nested brackets ((...)) → (...)   (always safe)
                 if (open + 1 < scanner.size() && pairMap[open + 1] == close - 1) {
-                    scanner.remove(close);   // outer )
-                    scanner.remove(open);    // outer (
+                    scanner.remove(close);
+                    scanner.remove(open);
                     changed = true;
-                    break;                   // restart with fresh pairMap
+                    break;
                 }
 
-                // 2. Single token inside: (x) → x
-                //    FULL original safety logic restored (this fixes @(x,y) and all your other cases)
+                // 2. Single-token brackets (x) → x   with ALL your original safety checks
                 if (close == open + 2) {
-                    boolean mustKeepBrackets = false;
-
+                    boolean mustKeep = false;
                     if (open > 0) {
                         String prev = scanner.get(open - 1);
                         if (isVariableString(prev) ||
-                            isAtOperator(prev) ||           // ← handles @ operator
-                            FUNCTIONS.contains(prev) ||     // covers Method.isMethodName
+                            isAtOperator(prev) ||
+                            FUNCTIONS.contains(prev) ||      // covers Method.isMethodName
                             isUnaryPreOperator(prev)) {
-                            mustKeepBrackets = true;
+                            mustKeep = true;
                         }
                     }
-                    // if open == 0 → safe to remove (original behaviour)
-
-                    if (!mustKeepBrackets) {
+                    if (!mustKeep) {
                         scanner.remove(close);
                         scanner.remove(open);
                         changed = true;
@@ -100,21 +97,19 @@ public class BracketCleaner {
                     }
                 }
 
-                // 3. Empty brackets: () → remove only if not a function / @ / etc.
+                // 3. Empty brackets () → remove only when safe
                 if (close == open + 1) {
-                    boolean mustKeepBrackets = false;
-
+                    boolean mustKeep = false;
                     if (open > 0) {
                         String prev = scanner.get(open - 1);
                         if (isVariableString(prev) ||
                             isAtOperator(prev) ||
                             FUNCTIONS.contains(prev) ||
                             isUnaryPreOperator(prev)) {
-                            mustKeepBrackets = true;
+                            mustKeep = true;
                         }
                     }
-
-                    if (!mustKeepBrackets) {
+                    if (!mustKeep) {
                         scanner.remove(close);
                         scanner.remove(open);
                         changed = true;
@@ -122,20 +117,14 @@ public class BracketCleaner {
                     }
                 }
             }
-        } while (changed);   // Repeat until no more changes (handles deep nesting)
-
-        return scanner;
+        } while (changed);   // handles deep nesting like (((x)))
     }
 
-    /**
-     * Builds a map of matching bracket indices.
-     */
     private static int[] buildPairMap(List<String> tokens) {
         int n = tokens.size();
         int[] pairMap = new int[n];
         Arrays.fill(pairMap, -1);
         Deque<Integer> stack = new ArrayDeque<>();
-
         for (int i = 0; i < n; i++) {
             String t = tokens.get(i);
             if ("(".equals(t)) {
@@ -148,17 +137,19 @@ public class BracketCleaner {
         }
         return pairMap;
     }
- 
-
-    /**
-     * Test method – run this to verify @(x,y) and all your cases.
-     */
+  
     public static void main(String[] args) {
+         
+        MathExpression mexie = new MathExpression("v=@(x,y)sin(3*log((((4*x-3*y),3)))-4);v(3,2)");
+    
         // Example with @ operator
-        List<String> scanner = new MathExpression("v=@(x,y)sin(3*log((((x-3*y),3)))-4)")
-                .getScanner();
+        List<String> scanner = mexie.getScanner();
 
+        System.out.println("FUNCTIONS:    " + FunctionManager.FUNCTIONS);
         System.out.println("Raw scanner:    " + scanner);
-        System.out.println("Cleaned scanner:" + removeExcessBrackets(scanner));
+        removeExcessBrackets(scanner);
+        System.out.println("Cleaned scanner:" + scanner );
+        System.out.println("Cleaned scanner:" + scanner );
+        System.out.println("eval:" + mexie.solve() );
     }
 }

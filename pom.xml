@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.github.gbenroscience</groupId>
     <artifactId>parser-ng</artifactId>
-    <version>1.0.4</version>
+    <version>1.0.5</version>
     <packaging>jar</packaging>
     <!-- 
       I started this project 2009 and have been upgrading it since then.
@@ -12,8 +12,10 @@
     -->
    
     <name>ParserNG</name>
-    <description>Rich and Performant, Cross Platform Java Library(100% Java)...Version 1.0.3 retains high frequency execution and multi-mode/multi-functional nature
-        And it adds a function, the rotor function, `rot` which allows users to rotates point, lines, planesand cuved surfaces, curves and functions in 3D space. Now you can know what a curve will look like when it is rotated about a certain point in a given direction.
+    <description>Rich and Performant, Cross Platform Java Library(100% Java).No native dependencies. 
+        ParserNG is the height of interpreted Math parsing in Java. It is the fastest of all interpreted Java math parsers.
+        Version 1.0.5 retains high frequency execution and multi-mode/multi-functional nature
+        Fixes bugs in the rot function and optimizes some inner loops during syntax and semantic analysis for speedier parsing
     </description>
     <url>https://github.com/gbenroscience/ParserNG</url>
     

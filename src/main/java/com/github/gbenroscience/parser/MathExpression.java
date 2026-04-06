@@ -1227,6 +1227,32 @@ public class MathExpression implements Savable, Solvable {
         return Arrays.asList(String.valueOf(GG.evaluate(list)));
     }
 
+    
+    // Automatically strips unbalanced grouping parentheses from captured arguments
+    private static String cleanArgument(String arg) {
+        if (arg == null) return "";
+        arg = arg.trim();
+        int open = 0, close = 0;
+        
+        for (int i = 0; i < arg.length(); i++) {
+            if (arg.charAt(i) == '(') open++;
+            else if (arg.charAt(i) == ')') close++;
+        }
+        
+        // Strip leading redundant '('
+        while (open > close && arg.startsWith("(")) {
+            arg = arg.substring(1).trim();
+            open--;
+        }
+        
+        // Strip trailing redundant ')'
+        while (close > open && arg.endsWith(")")) {
+            arg = arg.substring(0, arg.length() - 1).trim();
+            close--;
+        }
+        
+        return arg;
+    }
     private Token translate(String s, String next) {
         if (s == null || s.isEmpty()) {
             return null;
@@ -1338,7 +1364,7 @@ public class MathExpression implements Savable, Solvable {
                 continue;
             }
 
-            // ==========================================
+// ==========================================
             // PHASE A: PASSIVE STRING TRACKING
             // ==========================================
             boolean isFuncParen = false;
@@ -1356,20 +1382,23 @@ public class MathExpression implements Savable, Solvable {
             for (int i = 0; i < trackers.size(); i++) {
                 FuncArgTracker tracker = trackers.get(i);
 
-                // A comma or right paren ONLY belongs to this function if it's at the function's base depth
-                boolean isOwningComma = (t.kind == Token.COMMA && currentParenDepth == tracker.depthLevel);
+                // FIX: A comma belongs to this function if it is the innermost open function
+                // This allows the comma to penetrate redundant grouping parentheses!
+                boolean isOwningComma = (t.kind == Token.COMMA && i == trackers.size() - 1);
+                
+                // The function still closes exactly when its base parenthesis depth resolves
                 boolean isOwningRParen = (t.kind == Token.RPAREN && currentParenDepth == tracker.depthLevel);
 
                 // Prevent the function from capturing its own opening parenthesis
                 boolean isStartingParen = (t.kind == Token.LPAREN && isFuncParen && i == trackers.size() - 1);
 
                 if (isOwningComma) {
-                    // Lock in the finished argument and clear the builder for the next one
-                    tracker.args.add(tracker.currentArg.toString().trim());
+                    // Lock in the finished argument and auto-balance any stripped parens
+                    tracker.args.add(cleanArgument(tracker.currentArg.toString()));
                     tracker.currentArg.setLength(0);
                 } else if (isOwningRParen) {
                     // Function is closing. Lock in the final argument.
-                    String lastArg = tracker.currentArg.toString().trim();
+                    String lastArg = cleanArgument(tracker.currentArg.toString());
                     if (!lastArg.isEmpty() || !tracker.args.isEmpty()) {
                         if (!lastArg.isEmpty()) {
                             tracker.args.add(lastArg);
@@ -1378,7 +1407,7 @@ public class MathExpression implements Savable, Solvable {
 
                     // Wire up the perfectly parsed arguments directly to the Token
                     tracker.funcToken.rawArgs = tracker.args.toArray(new String[0]);
-                    tracker.funcToken.arity = tracker.args.size(); // Perfect arity counting (handles 0-arg funcs seamlessly)
+                    tracker.funcToken.arity = tracker.args.size(); // Perfect arity counting
 
                 } else if (!isStartingParen) {
                     // It's a regular token inside an argument, just append it!
