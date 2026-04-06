@@ -126,7 +126,7 @@ ParserNG Turbo dominates every single test. On complex expressions it is **9–1
 | **Without Constant Folding** | 754.6 | 180.8 | 477.2 | **125.4** |
 
 **Analysis of Table 2**  
-Enabling constant folding turns ParserNG Normal into a winner already (beats both competitors). Turbo takes it to another level — going from 125 ns → **10.3 ns** (12× speedup just from folding). This shows how powerful ParserNG’s optimiser has become in 1.0.1.
+Enabling constant folding turns ParserNG Normal into a winner already (beats both competitors). Turbo takes it to another level — going from 125 ns → **10.3 ns** (12× speedup just from folding). This shows how powerful ParserNG’s optimiser has become in 1.0.0+.
 
 ---
 
@@ -157,7 +157,7 @@ This is ParserNG’s **silent superpower**. While competitors generate hundreds 
 
 **Overall Verdict**
 
-> **ParserNG 1.0.1 Turbo is the clear winner** — fastest on every expression, dramatically lower memory pressure, and packed with features the others don’t even have (symbolic diff, resilient integration, matrix algebra, Tartaglia solver, etc.).  
-> Whether you use normal mode or Turbo, ParserNG 1.0.1 is now the best pure-Java choice for high-performance math expressions.
+> **ParserNG 1.0.0+ Turbo is the clear winner** — fastest on every expression, dramatically lower memory pressure, and packed with features the others don’t even have (symbolic diff, resilient integration, matrix algebra, Tartaglia solver, etc.).  
+> Whether you use normal mode or Turbo, ParserNG 1.0.0+ is now the best pure-Java choice for high-performance math expressions.
 
  
