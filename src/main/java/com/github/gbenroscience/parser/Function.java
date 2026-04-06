@@ -583,6 +583,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         MathExpression oldMe = this.mathExpression;
         try {
             this.mathExpression = mathExpression;
+            System.out.println("expr="+mathExpression.getExpression());
             this.turboExpr = TurboEvaluatorFactory.getCompiler(mathExpression, false).compile();
             this.type = TYPE.ALGEBRAIC_EXPRESSION;
         } catch (Throwable ex) {

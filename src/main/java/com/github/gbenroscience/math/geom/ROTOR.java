@@ -4,22 +4,26 @@
  */
 package com.github.gbenroscience.math.geom;
 
+import com.github.gbenroscience.parser.Function;
+import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.Scanner;
 import com.github.gbenroscience.parser.methods.Method;
+import com.github.gbenroscience.util.FunctionManager;
 import java.awt.Polygon;
 import java.awt.Rectangle;
 import static java.lang.Math.*;
+import java.util.Arrays;
 import java.util.List;
 
 /**
- * Create a variable or use a constant for the angle
- * Create matrix vectors for O and D
- * Where O is the origin or point about which rotation will occur, and D are the direction coordinates(a,b,c) of the rotation
+ * Create a variable or use a constant for the angle Create matrix vectors for O
+ * and D Where O is the origin or point about which rotation will occur, and D
+ * are the direction coordinates(a,b,c) of the rotation
  * rot(F,angle,origin,direction)
- * 
- * So:
+ *
+ * So: rot(@(x,y,z)sin(x-y-3*z),PI,@(2,1)(2,2),@(3,1)(1,-2,3))
  * rot(@(x,y,z)sin(x-y-3*z),PI,@(2,1)(2,2),@(3,1)(1,-2,3))
- * rot(@(x,y,z)sin(x-y-3*z),PI,@(2,1)(2,2),@(3,1)(1,-2,3))
+ *
  * @author GBEMIRO
  */
 public class ROTOR {
@@ -32,8 +36,6 @@ public class ROTOR {
      * The point about which this rotation occurs.
      */
     private Point rotorCenter;
-
-   
 
     /**
      * The direction indices of rotation.
@@ -339,7 +341,12 @@ public class ROTOR {
         // Handle leading plus signs
         String sign = (coeff > 0 && !isFirst) ? "+" : "";
 
-        return sign + sCoeff + var;
+        Function f = FunctionManager.lookUp(var);
+        if (f != null) {
+            String expr = f.getMathExpression().getExpression();
+            return sign + sCoeff + "*" + ((expr.startsWith("(") && expr.endsWith(")")) ? expr : "(" + expr + ")");
+        }
+        return sign + sCoeff + "*" + var;
     }
 
     private String rotX() {
@@ -452,7 +459,7 @@ public class ROTOR {
         double Y = p.x * sin + p.y * cos + cen.y * (1 - cos) - cen.x * sin;
         return new Point(X, Y, p.z);
     }//end method
- 
+
     /**
      *
      * @param p The Point object to be rotated.
@@ -569,9 +576,9 @@ public class ROTOR {
         String rotYExpr = rotY();
         String rotZExpr = rotZ();
 
-        Scanner sc = new Scanner(function, true, Method.getAllFunctions(), parameters);
+        Scanner sc = new Scanner(function, true, Method.getAllFunctions(), parameters, "(", ")");
         List<String> list = sc.scan();
-
+       
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < list.size(); i++) {
             String tk = list.get(i);
@@ -584,19 +591,25 @@ public class ROTOR {
             } else if (tk.equals(parameters[2])) {
                 replacement = rotZExpr;
             }
-
             if (replacement != null) {
                 // Wrapping in parentheses preserves the Order of Operations
-                sb.append("(").append(replacement).append(")");
+                if (replacement.charAt(0) == '(' && replacement.charAt(replacement.length() - 1) == ')') { 
+                    sb.append(replacement);
+                } else { 
+                    sb.append("(").append(replacement).append(")");
+                }
             } else {
                 sb.append(tk);
             }
         }
-
-        return sb.toString();
+        String str = sb.toString();
+        if (str.charAt(0) == '(' && str.charAt(str.length() - 1) == ')') {
+            str = str.substring(1, str.length()-1);
+        } 
+        return str;
     }
-
     
+
     /**
      * Converts a point in the mathematical xy plane to one in the Java screen
      * coordinates xy plane by rotating the point through PI radians in the
@@ -703,7 +716,20 @@ public class ROTOR {
         return new Polygon(xRotated, yRotated, n);
     }
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
+        MathExpression me = new MathExpression("rot(@(x)sin(x),pi/2,@(1,3)(0,0,0),@(1,3)(1,1,0))");
+        Function f = FunctionManager.lookUp("anon1");
+        System.out.println("scanner: " + me.getScanner());
+        System.out.println("f = " + f.toString());
+        System.out.println("ans:\n" + me.solve());
+
+        me.setExpression("rot(@(1,3)(4,2,0),pi/2,@(1,3)(0,0,0),@(1,3)(1,1,0))");
+        // Function f = FunctionManager.lookUp("anon1");
+        // System.out.println("f = "+f.toString());
+        System.out.println("ans:\n" + me.solve());
+    }
+
+    public static void main1(String args[]) {
         ROTOR rotor = new ROTOR(Math.PI, new Point(2, 3, 0), new Direction(1, 1, 1));
         // System.out.println( ROTOR.planarXYRotate( new Point(3,2,0),new Point(-5,1,0),PI/6   ) );
         //System.out.println( rotor.rotate( new Point(3,2,0)   ) );

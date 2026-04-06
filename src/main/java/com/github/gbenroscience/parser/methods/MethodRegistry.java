@@ -31,6 +31,7 @@ import com.github.gbenroscience.math.tartaglia.Tartaglia_Equation;
 import com.github.gbenroscience.parser.Bracket;
 import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
+import com.github.gbenroscience.parser.Scanner;
 import com.github.gbenroscience.parser.TYPE;
 import com.github.gbenroscience.parser.Variable;
 import com.github.gbenroscience.util.FunctionManager;
@@ -444,6 +445,7 @@ public class MethodRegistry {
                 }
                 if (f.getType() == TYPE.ALGEBRAIC_EXPRESSION) {
                     String expr = f.getMathExpression().getExpression();
+                  
                     ROTOR r = new ROTOR(angle, origin, dir);
                     if (siz == 2) {
                         r.setZAxisName(f.getDependentVariable().getName());
@@ -453,8 +455,8 @@ public class MethodRegistry {
                     if (siz == 1) {
                         r.setYAxisName(f.getDependentVariable().getName());
                         r.setXAxisName(vars.get(0).getName());
-                    }
-                    String res = r.rotate(expr);
+                    } 
+                    String res = r.rotate(expr); 
                     return ctx.wrap(res);
                 }
                 if (f.getType() == TYPE.MATRIX) {

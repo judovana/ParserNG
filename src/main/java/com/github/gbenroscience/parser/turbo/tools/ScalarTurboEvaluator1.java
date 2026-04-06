@@ -584,6 +584,8 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                         MethodHandle constant = MethodHandles.constant(MathExpression.EvalResult.class, solution);
                         stack.push(MethodHandles.dropArguments(constant, 0, MathExpression.EvalResult.class));
                         break;
+                    }else if(name.equals("log")){
+                        System.out.println("log!!! found!!!! arity="+t.arity+", args="+t.getRawArgs().length+",\n args="+Arrays.toString(t.getRawArgs()));
                     }
 
                     // --- Standard Intrinsic / Slow-Path for other Functions/Methods ---
@@ -1654,17 +1656,23 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
             case "coth-¹":
                 mh = LOOKUP.findStatic(Maths.class, "acoth", MT_DOUBLE_D);
                 break;
-
 // --- ADDITIONAL LOG / EXP ---
-            case "log":
-            case "alg": // Anti-log base 10
-                mh = LOOKUP.findStatic(ScalarTurboEvaluator1.class, "alg", MT_DOUBLE_D);
+           
+            case "lg":
+                mh = LOOKUP.findStatic(Math.class, "log10", MT_DOUBLE_D);
                 break;
+            case "ln":     
+            case "log":
+                   mh = LOOKUP.findStatic(Math.class, "log", MT_DOUBLE_D);
+                break;
+            case "alg": // Anti-log base 10
+            case "lg-¹":
+                mh = LOOKUP.findStatic(Maths.class, "antiLog10", MT_DOUBLE_D);
+                break;
+            case "exp":
+            case "aln":
             case "ln-¹":
                 mh = LOOKUP.findStatic(Math.class, "exp", MT_DOUBLE_D); // ln-¹ is just e^x
-                break;
-            case "lg-¹":
-                mh = LOOKUP.findStatic(ScalarTurboEvaluator1.class, "alg", MT_DOUBLE_D);
                 break;
 
 // --- ROUNDING / MISC ---
@@ -1680,17 +1688,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                 break;
             case "cbrt":
                 mh = LOOKUP.findStatic(Math.class, "cbrt", MT_DOUBLE_D);
-                break;
-            case "exp":
-                mh = LOOKUP.findStatic(Math.class, "exp", MT_DOUBLE_D);
-                break;
-            case "ln":
-            case "aln":
-                mh = LOOKUP.findStatic(Math.class, "log", MT_DOUBLE_D);
-                break;
-            case "lg":
-                mh = LOOKUP.findStatic(Math.class, "log10", MT_DOUBLE_D);
-                break;
+                break; 
             case "abs":
                 mh = LOOKUP.findStatic(Math.class, "abs", MT_DOUBLE_D);
                 break;
@@ -1797,7 +1795,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                 // Fix: Binary log is usually log(x) / log(base)
                 // If your Maths library has a log(a, b) method, point to it here.
                 // Otherwise, remove this case to let it go through the legacy bridge.
-                return LOOKUP.findStatic(Maths.class, "log", MT_DOUBLE_DD);
+                return LOOKUP.findStatic(Maths.class, "logToAnyBase", MT_DOUBLE_DD);
             case "comb":
             case "perm":
                 return LOOKUP.findStatic(Maths.class,
