@@ -1,6 +1,13 @@
 # ParserNG
 
 
+### Parser 1.0.6 has been released on maven-central!
+Bug fixes and Android compatibility issues resolved.
+
+
+### Parser 1.0.5 has been released on maven-central!
+Features bug fixes and optimizations in the scanning/semantic analysis stages.
+
 ### Parser 1.0.4 has been released on maven-central!
 This version features various optimizations and turbo capability for the Function
 class.

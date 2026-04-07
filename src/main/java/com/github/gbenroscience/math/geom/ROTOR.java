@@ -595,7 +595,7 @@ public class ROTOR {
                 // Wrapping in parentheses preserves the Order of Operations
                 if (replacement.charAt(0) == '(' && replacement.charAt(replacement.length() - 1) == ')') { 
                     sb.append(replacement);
-                } else { 
+                } else {
                     sb.append("(").append(replacement).append(")");
                 }
             } else {

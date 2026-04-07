@@ -248,7 +248,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
 
         ScalarTurboEvaluator1 sc = this;
         return new FastCompositeExpression() {
- 
+
             private void loadVars(double[] variables) {
                 for (int i = 0; i < turboArgs.length; i++) {
                     turboArgs[slots[i]] = variables[i];
@@ -333,12 +333,15 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
             switch (t.kind) {
                 case MathExpression.Token.NUMBER:
                     if (t.name != null && !t.name.isEmpty()) {
-                        // VARIABLE: (double[]) -> double
-                        MethodHandle arrayGetter = MethodHandles.arrayElementGetter(double[].class);
+                        // Signature: (double[]) -> double
+                        MethodHandle arrayGetter = AndroidFriendlyMethodHandles.getDoubleArrayGetter();
                         stack.push(MethodHandles.insertArguments(arrayGetter, 1, t.frameIndex));
                     } else {
-                        // CONSTANT: () -> double (No dropArguments yet!)
-                        stack.push(MethodHandles.constant(double.class, t.value));
+                        // Start with: () -> double
+                        MethodHandle constant = MethodHandles.constant(double.class, t.value);
+                        // Transform to: (double[]) -> double
+                        // This "drops" the double[] argument at index 0, simply returning the constant.
+                        stack.push(MethodHandles.dropArguments(constant, 0, double[].class));
                     }
                     break;
                 case MathExpression.Token.OPERATOR:
@@ -584,8 +587,8 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                         MethodHandle constant = MethodHandles.constant(MathExpression.EvalResult.class, solution);
                         stack.push(MethodHandles.dropArguments(constant, 0, MathExpression.EvalResult.class));
                         break;
-                    }else if(name.equals("log")){
-                        System.out.println("log!!! found!!!! arity="+t.arity+", args="+t.getRawArgs().length+",\n args="+Arrays.toString(t.getRawArgs()));
+                    } else if (name.equals("log")) {
+                        System.out.println("log!!! found!!!! arity=" + t.arity + ", args=" + t.getRawArgs().length + ",\n args=" + Arrays.toString(t.getRawArgs()));
                     }
 
                     // --- Standard Intrinsic / Slow-Path for other Functions/Methods ---
@@ -1657,13 +1660,13 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                 mh = LOOKUP.findStatic(Maths.class, "acoth", MT_DOUBLE_D);
                 break;
 // --- ADDITIONAL LOG / EXP ---
-           
+
             case "lg":
                 mh = LOOKUP.findStatic(Math.class, "log10", MT_DOUBLE_D);
                 break;
-            case "ln":     
+            case "ln":
             case "log":
-                   mh = LOOKUP.findStatic(Math.class, "log", MT_DOUBLE_D);
+                mh = LOOKUP.findStatic(Math.class, "log", MT_DOUBLE_D);
                 break;
             case "alg": // Anti-log base 10
             case "lg-¹":
@@ -1688,7 +1691,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                 break;
             case "cbrt":
                 mh = LOOKUP.findStatic(Math.class, "cbrt", MT_DOUBLE_D);
-                break; 
+                break;
             case "abs":
                 mh = LOOKUP.findStatic(Math.class, "abs", MT_DOUBLE_D);
                 break;
@@ -1738,6 +1741,10 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
 
     public static double acot(double x) {
         return Math.atan(1.0 / x);
+    }
+
+    public static double getDoubleFromArray(double[] array, int index) {
+        return array[index];
     }
 
     /**
@@ -1873,4 +1880,48 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
         double x2 = x * x;
         return x2 * x2;
     }
+
+    public static final class AndroidFriendlyMethodHandles {
+
+        private static final MethodHandle DOUBLE_ARRAY_GETTER;
+
+        static {
+            MethodHandle getter = null;
+            try {
+                // 1. Try the standard JVM way (Fastest on Desktop/Server)
+                getter = MethodHandles.arrayElementGetter(double[].class);
+            } catch (Exception | AssertionError e) {
+                // 2. Fallback for Android/Limited Environments
+                try {
+                    getter = MethodHandles.lookup().findStatic(
+                            AndroidFriendlyMethodHandles.class,
+                            "fallbackGetDouble",
+                            MethodType.methodType(double.class, double[].class, int.class)
+                    );
+                } catch (NoSuchMethodException | IllegalAccessException fatal) {
+                    throw new RuntimeException("Could not initialize MethodHandles for Turbo engine", fatal);
+                }
+            }
+            DOUBLE_ARRAY_GETTER = getter;
+        }
+
+        /**
+         * Static helper used as a MethodHandle target on Android.
+         *
+         * @param array
+         * @param index
+         * @return
+         */
+        public static double fallbackGetDouble(double[] array, int index) {
+            return array[index];
+        }
+
+        /**
+         * Returns the most efficient getter available for the current platform.
+         */
+        public static MethodHandle getDoubleArrayGetter() {
+            return DOUBLE_ARRAY_GETTER;
+        }
+    }
+
 }

@@ -16,6 +16,7 @@
 package com.github.gbenroscience.parser.turbo.tools;
 
 import com.github.gbenroscience.parser.MathExpression;
+import com.github.gbenroscience.util.Utils;
 
 /**
  *
@@ -33,7 +34,6 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
     public static final int MIN_VAR_COUNT_FOR_ARRAY_BASED_EVALUATOR = 15;
 
     public static final int MAX_ALLOWED_METHOD_ARGS_BY_JVM = 63;
-    
 
     public ScalarTurboEvaluator(MathExpression me) {
         this(me, useWidening(me.getCachedPostfix()));
@@ -49,14 +49,16 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
      */
     public ScalarTurboEvaluator(MathExpression me, boolean useWideningVars) {
         if (useWideningVars) {
+            if (Utils.isAndroid()) {//force array passing only on Android
+                this.delegate = new ScalarTurboEvaluator1(me);
+                System.out.println("Only array based passing is supported on Android!");
+                return;
+            }
             this.delegate = new ScalarTurboEvaluator2(me);
         } else {
             this.delegate = new ScalarTurboEvaluator1(me);
         }
-      }
-
-    
-    
+    }
 
     @Override
     public FastCompositeExpression compile() throws Throwable {
@@ -82,6 +84,9 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
     }
 
     private static boolean useWidening(MathExpression.Token[] postfix) {
+        if (Utils.isAndroid()) {
+            return false;
+        }
         int varCount = countVariables(postfix);
         if (varCount > MAX_ALLOWED_METHOD_ARGS_BY_JVM) {//use array based if more than 63 unique variables are in expression
             return false;

@@ -33,6 +33,7 @@ import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.util.FunctionManager;
+import com.github.gbenroscience.util.Utils;
 import com.github.gbenroscience.util.VariableManager;
 
 import java.lang.invoke.*;
@@ -232,6 +233,9 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
     private MathExpression.Token[] postfix;
 
     public ScalarTurboEvaluator2(MathExpression me) {
+        if(Utils.isAndroid()){
+            throw new RuntimeException("Platform not supported. Use ScalarTurboEvaluator, MatrixTurboEvaluator or MathExpression(standard)");
+        }
         this.postfix = me.getCachedPostfix();
         this.willFoldConstants = me.isWillFoldConstants();
  

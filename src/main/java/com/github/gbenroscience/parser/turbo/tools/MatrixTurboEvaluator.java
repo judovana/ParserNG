@@ -1,28 +1,43 @@
+/*
+ * Copyright 2026 GBEMIRO.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.github.gbenroscience.parser.turbo.tools;
 
+/**
+ *
+ * @author GBEMIRO
+ */ 
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.MathExpression.EvalResult;
 import com.github.gbenroscience.parser.ParserResult;
-import com.github.gbenroscience.parser.TYPE;
 import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.util.FunctionManager;
 import java.lang.invoke.*;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.ThreadLocalRandom; 
 
 /**
- * Turbo compiler optimized for ParserNG's flat-array Matrix implementation.
- *
- * * @author GBEMIRO
- */
-/**
  * Allocation-free Turbo compiler optimized for ParserNG's flat-array Matrix
- * implementation. Uses compile-time bound ResultCaches to eliminate object and
- * array allocations during execution.
+ * implementation. Uses compile-time bound ResultCaches and Zero-Argument MethodHandle
+ * trees to maximize JIT inlining and execution speed.
+ *
+ * @author GBEMIRO
  */
 public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
@@ -30,7 +45,7 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
     private boolean willFoldConstants;
 
     protected final double[] turboArgs;
-    protected final int[] slots; 
+    protected final int[] slots;
 
     private MathExpression.Token[] postfix;
 
@@ -45,13 +60,13 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
     // 1. ThreadLocal holding a reusable array of EvalResults to avoid GC pressure
     private static final ThreadLocal<MathExpression.EvalResult[]> WRAPPER_CACHE
             = ThreadLocal.withInitial(() -> {
-                MathExpression.EvalResult[] arr = new MathExpression.EvalResult[12];
-                for (int i = 0; i < 12; i++) {
-                    arr[i] = new MathExpression.EvalResult();
-                }
-                return arr;
-            });
- 
+        MathExpression.EvalResult[] arr = new MathExpression.EvalResult[12];
+        for (int i = 0; i < 12; i++) {
+            arr[i] = new MathExpression.EvalResult();
+        }
+        return arr;
+    });
+
 
     // ========== THE RESULT CACHE ==========
     /**
@@ -84,14 +99,6 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
             return matrix;
         }
 
-        /**
-         * Provides a secondary buffer to avoid overwriting primary data during
-         * complex loops like power functions.
-         *
-         * @param rows
-         * @param cols
-         * @return
-         */
         public Matrix getSecondaryBuffer(int rows, int cols) {
             int size = rows * cols;
             if (matrixData2 == null || matrixData2.length != size) {
@@ -121,7 +128,7 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
             return eigenValueBuffer;
         }
     }
- 
+
     public void setWillFoldConstants(boolean willFoldConstants) {
         this.willFoldConstants = willFoldConstants;
     }
@@ -134,20 +141,10 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
         return turboArgs;
     }
 
-    /**
-     * Hardened production bridge.
-     *
-     * @param methodId
-     * @param argsValues
-     * @return
-     */
     public static MathExpression.EvalResult invokeRegistryMethod(int methodId, EvalResult[] argsValues) {
         int arity = argsValues.length;
         MathExpression.EvalResult resultContainer = new MathExpression.EvalResult();
-        // Execute the registry action
         MethodRegistry.getAction(methodId).calc(resultContainer, arity, argsValues);
-        // BULLETPROOF: Return the whole object. 
-        // If it's a number, the caller can cast it; if it's an array, it's preserved.
         return resultContainer;
     }
 
@@ -162,38 +159,29 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
                 case MathExpression.Token.NUMBER:
                     MethodHandle leaf;
                     if (t.name != null && !t.name.isEmpty()) {
-                        // --- Named Reference Path (Matrix or Variable) ---
                         if (t.v != null) {
-                            // It's a scalar variable (uses frameIndex)
+                            // OPTIMIZED: Bound Variable Lookup (Zero arguments)
                             leaf = compileVariableLookupByIndex(t.frameIndex);
                         } else {
-                            // It's a Matrix in the FunctionManager
                             Function f = FunctionManager.lookUp(t.name);
                             if (f != null && f.getMatrix() != null) {
                                 MathExpression.EvalResult res = new MathExpression.EvalResult();
                                 res.wrap(f.getMatrix());
-                                // Create constant ()MathExpression.EvalResult and transform to (double[])MathExpression.EvalResult
                                 leaf = MethodHandles.constant(MathExpression.EvalResult.class, res);
-                                leaf = MethodHandles.dropArguments(leaf, 0, double[].class);
                             } else {
-                                // It's a function reference string (e.g., for diff)
                                 MathExpression.EvalResult res = new MathExpression.EvalResult();
                                 res.wrap(t.name);
                                 leaf = MethodHandles.constant(MathExpression.EvalResult.class, res);
-                                leaf = MethodHandles.dropArguments(leaf, 0, double[].class);
                             }
                         }
                     } else {
-                        // --- Direct Numeric Literal Path ---
                         MathExpression.EvalResult res = new MathExpression.EvalResult();
                         res.wrap(t.value);
                         leaf = MethodHandles.constant(MathExpression.EvalResult.class, res);
-                        leaf = MethodHandles.dropArguments(leaf, 0, double[].class);
                     }
-
-                    // CRITICAL: Push to stack so the subsequent OPERATOR/FUNCTION can pop it
                     stack.push(leaf);
                     break;
+
                 case MathExpression.Token.OPERATOR:
                     if (t.isPostfix) {
                         MethodHandle operand = stack.pop();
@@ -204,68 +192,48 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
                         stack.push(compileBinaryOpOnEvalResult(t.opChar, left, right));
                     }
                     break;
+
                 case MathExpression.Token.FUNCTION:
                 case MathExpression.Token.METHOD:
                     String name = t.name.toLowerCase();
 
-                    // --- OPTIMIZATION: Constant Folding for Pure Stats Methods ---
                     if (Method.isPureStatsMethod(name)) {
-                        // 1. Pop the handles off the stack (we don't need them because we use rawArgs)
                         for (int i = 0; i < t.arity; i++) {
                             stack.pop();
                         }
-
-                        // 2. Parse the raw arguments into a data array
                         String[] rawArgs = t.getRawArgs();
                         double[] data = new double[t.arity];
                         for (int i = 0; i < t.arity; i++) {
                             data[i] = Double.parseDouble(rawArgs[i]);
                         }
 
-                        // 3. PRE-CALCULATE the result immediately (at compile time)
                         EvalResult precalculated;
                         if (name.equals(Declarations.SORT) || name.equals(Declarations.MODE)) {
-                            // Returns a Vector (double[])
                             double[] vecResult = executeVectorStatAtCompileTime(name, data);
                             precalculated = new EvalResult();
                             precalculated.wrap(vecResult);
                         } else {
-                            // Returns a Scalar (double)
                             double scalarResult = executeScalarStatAtCompileTime(name, data);
                             precalculated = new EvalResult();
                             precalculated.wrap(scalarResult);
                         }
-
-                        // 4. Push a Constant Handle. Execution time = 0ns.
-                        MethodHandle constantHandle = MethodHandles.constant(EvalResult.class, precalculated);
-                        stack.push(MethodHandles.dropArguments(constantHandle, 0, double[].class));
+                        stack.push(MethodHandles.constant(EvalResult.class, precalculated));
                         break;
                     } else if (t.name.equalsIgnoreCase("print")) {
-                        // 1. Pop the evaluated handles off the stack (we don't need them for printing raw names)
                         for (int i = 0; i < t.arity; i++) {
                             stack.pop();
                         }
-
-                        // 2. Resolve the bridge to executeMatrixPrint
                         MethodHandle bridge = LOOKUP.findStatic(MatrixTurboEvaluator.class, "executeMatrixPrint",
                                 MethodType.methodType(EvalResult.class, String[].class));
-
-                        // 3. Bind the raw string arguments into the handle
                         String[] rawArgs = t.getRawArgs();
-                        MethodHandle finalPrintHandle = MethodHandles.insertArguments(bridge, 0, (Object) rawArgs);
-
-                        // 4. Adapt to the required signature: EvalResult(double[])
-                        // This makes it compatible with your matrix stack
-                        stack.push(MethodHandles.dropArguments(finalPrintHandle, 0, double[].class));
+                        stack.push(MethodHandles.insertArguments(bridge, 0, (Object) rawArgs));
                     } else if (Method.isMatrixMethod(t.name)) {
-                        // Standard matrix function logic
                         MethodHandle[] args = new MethodHandle[t.arity];
                         for (int i = t.arity - 1; i >= 0; i--) {
                             args[i] = stack.pop();
                         }
                         stack.push(compileMatrixFunction(t, args));
                     } else {
-                        // Standard matrix function logic
                         MethodHandle[] args = new MethodHandle[t.arity];
                         for (int i = t.arity - 1; i >= 0; i--) {
                             args[i] = stack.pop();
@@ -283,23 +251,22 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
             throw new IllegalArgumentException("Invalid postfix stack state.");
         }
 
-        MethodHandle resultHandle = stack.pop();
-        final MethodHandle finalHandle = resultHandle.asType(
-                MethodType.methodType(EvalResult.class, double[].class));
+        // OPTIMIZED: The final handle now takes zero arguments () -> EvalResult
+        final MethodHandle finalHandle = stack.pop().asType(MethodType.methodType(EvalResult.class));
 
- 
         return new FastCompositeExpression() {
             private void loadVars(double[] variables) {
                 for (int i = 0; i < turboArgs.length; i++) {
                     turboArgs[slots[i]] = variables[i];
                 }
             }
- 
+
             @Override
             public EvalResult apply(double[] variables) {
                 try {
                     loadVars(variables);
-                    return (EvalResult) finalHandle.invokeExact(turboArgs);
+                    // OPTIMIZED: Invoke without arguments. turboArgs is already bound inside.
+                    return (EvalResult) finalHandle.invokeExact();
                 } catch (Throwable e) {
                     throw new RuntimeException("Turbo matrix execution failed", e);
                 }
@@ -313,163 +280,50 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
     }
 
     private MethodHandle compileVariableLookupByIndex(int frameIndex) throws NoSuchMethodException, IllegalAccessException {
-        MethodHandle getter = MethodHandles.lookup().findStatic(
-                this.getClass(),
+        MethodHandle getter = LOOKUP.findStatic(MatrixTurboEvaluator.class,
                 "getVariableFromFrame",
                 MethodType.methodType(EvalResult.class, double[].class, int.class)
         );
 
-        // Bind the frameIndex so the handle only takes double[] variables at runtime
-        return MethodHandles.insertArguments(getter, 1, frameIndex);
+        // OPTIMIZED: Bind the array AND the index. The resulting handle is () -> EvalResult
+        return MethodHandles.insertArguments(getter, 0, turboArgs, frameIndex);
     }
 
-    /**
-     * Runtime helper: pulls a value from the frame and wraps it in an
-     * EvalResult. This is called by the MethodHandle tree during apply().
-     */
     private static EvalResult getVariableFromFrame(double[] variables, int index) {
         MathExpression.EvalResult res = new MathExpression.EvalResult();
-        // Safety check for array bounds
         double val = (index < variables.length) ? variables[index] : 0.0;
         res.wrap(val);
         return res;
     }
 
-    /**
-     * Compiles a scalar variable lookup into a MethodHandle that pulls from the
-     * double[] variables frame at runtime.
-     */
-    private MethodHandle compileVariableLookup(String name, MathExpression.VariableRegistry registry) throws NoSuchMethodException, IllegalAccessException {
-        // 1. Get the index of the variable in the execution frame
-        int index = (registry != null) ? registry.getSlot(name) : -1;
-
-        if (index >= 0) {
-            // Create a handle that performs: return new EvalResult(variables[index])
-            // We use a helper method to handle the wrapping logic cleanly
-            MethodHandle getter = MethodHandles.lookup().findStatic(
-                    this.getClass(),
-                    "getVariableFromFrame",
-                    MethodType.methodType(EvalResult.class, double[].class, int.class)
-            );
-
-            // Bind the specific index so the handle only needs the double[] at runtime
-            return MethodHandles.insertArguments(getter, 1, index);
-        } else {
-            // Handle undefined variables (perhaps return 0.0 or throw error)
-            throw new IllegalArgumentException("Variable '" + name + "' not found in registry.");
-        }
-    }
-
-    // ========== COMPILATION PRIMITIVES ==========
-    private MethodHandle compileTokenAsEvalResult(MathExpression.Token t) throws Throwable {
-
-        // Check if it's a named entity (Variable, Constant, or Function Pointer)
-        if (t.name != null && !t.name.isEmpty()) {
-
-            // PATH 1: Standard Variable (From translate -> Fallback: Treat as Variable/Constant)
-            // It has a slot in the execution frame.
-            if (t.frameIndex >= 0) {
-                MethodHandle loadScalar = MethodHandles.arrayElementGetter(double[].class);
-                loadScalar = MethodHandles.insertArguments(loadScalar, 1, t.frameIndex);
-
-                // Zero-allocation wrap
-                ResultCache cache = new ResultCache();
-                MethodHandle wrap = LOOKUP.findVirtual(EvalResult.class, "wrap",
-                        MethodType.methodType(EvalResult.class, double.class));
-                MethodHandle boundWrap = wrap.bindTo(cache.result);
-
-                return MethodHandles.collectArguments(boundWrap, 0, loadScalar);
-            }
-
-            // PATH 2: Function Reference / Matrix Literal / Global Constant
-            // (From translate -> Identify Functions/Anonymous Functions NOT followed by '(')
-            EvalResult constant = new EvalResult();
-            Function func = FunctionManager.lookUp(t.name);
-
-            if (func != null) {
-                if (func.getType() == TYPE.MATRIX) {
-                    constant.wrap(func.getMatrix());
-                } else if (func.getType() == TYPE.ALGEBRAIC_EXPRESSION) {
-                    // If it's a pointer to an equation, wrap the string/AST reference
-                    constant.wrap(func.getMathExpression().getExpression());
-                } else {
-                    // Evaluates to a scalar
-                    constant.wrap(func.calc());
-                }
-            } else {
-                constant.wrap(t.value);
-                // It might be a matrix literal directly assigned (t.matrixValue)
-                /* if (t.matrixValue != null) {
-                    constant.wrap(t.matrixValue);
-                } else {
-                    constant.wrap(t.value);
-                }*/
-            }
-
-            // Bake the resolved entity into the MethodHandle as a constant
-            return MethodHandles.dropArguments(
-                    MethodHandles.constant(EvalResult.class, constant), 0, double[].class);
-        }
-
-        // PATH 3: Pure Number Literal (From translate -> Identify Numbers)
-        // t.name is null, it's just raw math like "5.0"
-        EvalResult constant = new EvalResult().wrap(t.value);
-        return MethodHandles.dropArguments(
-                MethodHandles.constant(EvalResult.class, constant), 0, double[].class);
-    }
-
     private MethodHandle compileBinaryOpOnEvalResult(char op, MethodHandle left, MethodHandle right) throws Throwable {
-        // 1. Match the exact signature: (char, EvalResult, EvalResult, ResultCache)
         MethodHandle dispatcher = LOOKUP.findStatic(MatrixTurboEvaluator.class, "dispatchBinaryOp",
                 MethodType.methodType(EvalResult.class, char.class, EvalResult.class, EvalResult.class, ResultCache.class));
 
-        // 2. Create the unique cache for this node
         ResultCache nodeCache = new ResultCache();
+        dispatcher = MethodHandles.insertArguments(dispatcher, 3, nodeCache);
+        dispatcher = MethodHandles.insertArguments(dispatcher, 0, op);
 
-        // 3. Bind 'op' to index 0 and 'nodeCache' to index 3
-        // After these insertions, the MethodHandle expects only (EvalResult left, EvalResult right)
-        dispatcher = MethodHandles.insertArguments(dispatcher, 3, nodeCache); // Bind tail first to avoid index shifting
-        dispatcher = MethodHandles.insertArguments(dispatcher, 0, op);        // Bind head
+        // OPTIMIZED: Use collectArguments to chain the zero-argument operands
+        dispatcher = MethodHandles.collectArguments(dispatcher, 0, left);
+        dispatcher = MethodHandles.collectArguments(dispatcher, 0, right);
 
-        // 4. Combine with the recursive handles for left and right operands
-        // This feeds the output of 'left' into the first EvalResult slot and 'right' into the second
-        //  dispatcher = MethodHandles.collectArguments(dispatcher, 0, left);
-        //  dispatcher = MethodHandles.collectArguments(dispatcher, 1, right);
-        dispatcher = MethodHandles.filterArguments(dispatcher, 0, left, right);
-
-        // 5. Final type alignment to accept the double[] variables array
-        return MethodHandles.permuteArguments(dispatcher,
-                MethodType.methodType(EvalResult.class, double[].class), 0, 0);
+        return dispatcher;
     }
 
     private MethodHandle compileUnaryOpOnEvalResult(char op, MethodHandle operand) throws Throwable {
-        // 1. Signature: (char, EvalResult, ResultCache) -> EvalResult
         MethodHandle dispatcher = LOOKUP.findStatic(MatrixTurboEvaluator.class, "dispatchUnaryOp",
                 MethodType.methodType(EvalResult.class, char.class, EvalResult.class, ResultCache.class));
 
-        // 2. Node-specific cache
         ResultCache nodeCache = new ResultCache();
-
-        // 3. Bind 'op' (index 0) and 'nodeCache' (index 2)
-        // Resulting signature: (EvalResult) -> EvalResult
         dispatcher = MethodHandles.insertArguments(dispatcher, 2, nodeCache);
         dispatcher = MethodHandles.insertArguments(dispatcher, 0, op);
 
-        // 4. Combine: dispatcher(operand(double[]))
-        // This pipes the output of the operand handle into the dispatcher.
-        // Resulting signature: (double[]) -> EvalResult
         return MethodHandles.collectArguments(dispatcher, 0, operand);
     }
 
-    /**
-     * Bridge for the matrix compiler to call the scalar print logic.
-     *
-     * @param args
-     */
     public static EvalResult executeMatrixPrint(String[] args) throws Throwable {
-        // Call your existing logic
-        double result = ScalarTurboEvaluator2.executePrint(args);
-        // Wrap the -1.0 (or whatever double) into a scalar result
+        double result = ScalarTurboEvaluator1.executePrint(args);
         return new EvalResult().wrap(result);
     }
 
@@ -484,18 +338,18 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
         MethodHandle collector = LOOKUP.findStatic(MatrixTurboEvaluator.class, "collectArgsArray",
                 MethodType.methodType(EvalResult[].class, EvalResult[].class)).asVarargsCollector(EvalResult[].class);
+        
         collector = collector.asType(MethodType.methodType(EvalResult[].class,
                 Collections.nCopies(t.arity, EvalResult.class).toArray(new Class[0])));
 
         MethodHandle finalFunc = MethodHandles.collectArguments(dispatcher, 0, collector);
 
+        // Chain the zero-argument operands into the collector
         for (int i = 0; i < args.length; i++) {
-            finalFunc = MethodHandles.collectArguments(finalFunc, i, args[i]);
+            finalFunc = MethodHandles.collectArguments(finalFunc, 0, args[i]);
         }
 
-        int[] reorder = new int[args.length];
-        return MethodHandles.permuteArguments(finalFunc,
-                MethodType.methodType(EvalResult.class, double[].class), reorder);
+        return finalFunc;
     }
 
     public static EvalResult[] collectArgsArray(EvalResult... args) {
@@ -503,24 +357,16 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
     }
 
     private static MethodHandle compileFunction(MathExpression.Token t, MethodHandle[] args) throws Throwable {
-        // 1. Get the unique ID from MethodRegistry
         int methodId = MethodRegistry.getMethodID(t.name);
 
-        // 2. Setup the bridge handle: (int methodId, EvalResult[] args) -> EvalResult
         MethodHandle bridge = LOOKUP.findStatic(MatrixTurboEvaluator.class, "invokeRegistryMethod",
                 MethodType.methodType(MathExpression.EvalResult.class, int.class, EvalResult[].class));
 
-        // 3. Bind the methodId so the resulting handle only needs the double[]
         MethodHandle boundBridge = MethodHandles.insertArguments(bridge, 0, methodId);
-
-        // 4. Transform the handle to accept N individual double arguments instead of one double[]
-        // Signature changes from (EvalResult[]) -> EvalResult   TO   (EvalResult, EvalResult, ...) -> EvalResult
         MethodHandle collector = boundBridge.asCollector(EvalResult[].class, args.length);
 
-        // 5. Pipe the results of the sub-expression handles into the collector's arguments
-        // We use collectArguments to "pre-fill" the collector with the outputs of our argument tree
         for (int i = 0; i < args.length; i++) {
-            collector = MethodHandles.collectArguments(collector, i, args[i]);
+            collector = MethodHandles.collectArguments(collector, 0, args[i]);
         }
 
         return collector;
@@ -556,7 +402,6 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
                 } else if (leftType == EvalResult.TYPE_MATRIX && rightType == EvalResult.TYPE_SCALAR) {
                     cache.result.wrap(flatMatrixScalarMultiply(right.scalar, left.matrix, cache));
                 } else if (leftType == EvalResult.TYPE_MATRIX && rightType == EvalResult.TYPE_MATRIX) {
-                    // Buffer management for matrix multiplication
                     Matrix out = cache.getMatrixBuffer(left.matrix.getRows(), right.matrix.getCols());
                     cache.result.wrap(flatMatrixMultiply(left.matrix, right.matrix, out));
                 }
@@ -564,34 +409,21 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
             case '/':
                 if (leftType == EvalResult.TYPE_SCALAR && rightType == EvalResult.TYPE_SCALAR) {
-                    // Scalar / Scalar
                     cache.result.wrap(left.scalar / right.scalar);
                 } else if (leftType == EvalResult.TYPE_MATRIX && rightType == EvalResult.TYPE_MATRIX) {
-                    // Matrix / Matrix (A * B^-1)
                     double det = right.matrix.determinant();
-                    if (Math.abs(det) < 1e-15) {
-                        throw new ArithmeticException("Matrix B is singular");
-                    }
-
+                    if (Math.abs(det) < 1e-15) throw new ArithmeticException("Matrix B is singular");
                     Matrix adjB = right.matrix.adjoint();
                     Matrix invB = flatMatrixScalarMultiply(1.0 / det, adjB, cache);
                     Matrix out = cache.getMatrixBuffer(left.matrix.getRows(), invB.getCols());
                     cache.result.wrap(flatMatrixMultiply(left.matrix, invB, out));
                 } else if (leftType == EvalResult.TYPE_MATRIX && rightType == EvalResult.TYPE_SCALAR) {
-                    // Matrix / Scalar (A * (1/s))
-                    if (Math.abs(right.scalar) < 1e-15) {
-                        throw new ArithmeticException("Division by zero scalar");
-                    }
+                    if (Math.abs(right.scalar) < 1e-15) throw new ArithmeticException("Division by zero scalar");
                     cache.result.wrap(flatMatrixScalarMultiply(1.0 / right.scalar, left.matrix, cache));
                 } else if (leftType == EvalResult.TYPE_SCALAR && rightType == EvalResult.TYPE_MATRIX) {
-                    // Scalar / Matrix (s * B^-1)
                     double det = right.matrix.determinant();
-                    if (Math.abs(det) < 1e-15) {
-                        throw new ArithmeticException("Matrix is singular");
-                    }
-
+                    if (Math.abs(det) < 1e-15) throw new ArithmeticException("Matrix is singular");
                     Matrix adjB = right.matrix.adjoint();
-                    // Multiply s * (1/det) then apply to the adjoint matrix
                     cache.result.wrap(flatMatrixScalarMultiply(left.scalar / det, adjB, cache));
                 }
                 break;
@@ -609,7 +441,6 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
         }
         return cache.result;
     }
-// Add this helper if you don't have it yet for Scalar * Matrix
 
     private static Matrix flatMatrixScalarMultiply(double scalar, Matrix m, ResultCache cache) {
         double[] mF = m.getFlatArray();
@@ -621,78 +452,25 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
         return out;
     }
 
-    /**
-     * Efficiently fills a flat-array modal matrix with eigenvectors. Maps each
-     * eigenvector v to a column in the modal matrix: modalMatrix[row, col] =
-     * v[row]
-     */
-    private static void fillEigenVectorMatrix(Matrix source, Matrix modalMatrix) {
-        double[] eigenValues = source.computeEigenValues();
-        int n = eigenValues.length;
-        double[] modalF = modalMatrix.getFlatArray();
-
-        for (int col = 0; col < n; col++) {
-            double lambda = eigenValues[col];
-            // v is a normalized eigenvector for the current eigenvalue
-            double[] v = source.computeEigenVector(lambda);
-
-            // Map the vector v as a COLUMN in our flat modalMatrix
-            for (int row = 0; row < n; row++) {
-                // Index in flat array: row * totalCols + currentCol
-                modalF[row * n + col] = v[row];
-            }
-        }
-    }
-
-    private static void fillMinor(double[] src, double[] dst, int rowExc, int colExc, int n) {
-        int d = 0;
-        for (int i = 0; i < n; i++) {
-            if (i == rowExc) {
-                continue;
-            }
-            int rowOff = i * n;
-            for (int j = 0; j < n; j++) {
-                if (j == colExc) {
-                    continue;
-                }
-                dst[d++] = src[rowOff + j];
-            }
-        }
-    }
-
     private static double computeDeterminantTurbo(Matrix minor, ResultCache cache) {
         int n = minor.getRows();
-        if (n == 1) {
-            return minor.getFlatArray()[0];
-        }
-
-        // Get a scratchpad so we don't ruin the minor buffer
+        if (n == 1) return minor.getFlatArray()[0];
         Matrix work = cache.getTertiaryBuffer(n, n);
         System.arraycopy(minor.getFlatArray(), 0, work.getFlatArray(), 0, n * n);
-
         double det = 1.0;
         double[] data = work.getFlatArray();
-
         for (int i = 0; i < n; i++) {
             int pivot = i;
-            // Partial Pivoting for stability
             for (int j = i + 1; j < n; j++) {
-                if (Math.abs(data[j * n + i]) > Math.abs(data[pivot * n + i])) {
-                    pivot = j;
-                }
+                if (Math.abs(data[j * n + i]) > Math.abs(data[pivot * n + i])) pivot = j;
             }
-
             if (pivot != i) {
                 work.swapRow(i, pivot);
                 det *= -1;
             }
-
             double v = data[i * n + i];
-            if (Math.abs(v) < 1e-18) {
-                return 0; // Singular
-            }
+            if (Math.abs(v) < 1e-18) return 0;
             det *= v;
-
             for (int row = i + 1; row < n; row++) {
                 double factor = data[row * n + i] / v;
                 for (int col = i + 1; col < n; col++) {
@@ -706,28 +484,31 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
     private static void solveEquationInto(Matrix input, Matrix solnMatrix, ResultCache cache) {
         int rows = input.getRows();
         int cols = input.getCols();
-
-        // 1. Get a scratchpad for the triangular reduction so we don't mutate input
         Matrix matrixLoader = cache.getSecondaryBuffer(rows, cols);
         System.arraycopy(input.getFlatArray(), 0, matrixLoader.getFlatArray(), 0, rows * cols);
-
-        // 2. Perform In-Place Triangular Reduction
         matrixLoader.reduceToTriangularMatrixInPlace();
-
         double[] mArr = matrixLoader.getFlatArray();
         double[] sArr = solnMatrix.getFlatArray();
-
-        // 3. Back-Substitution (Optimized for Flat Arrays)
         for (int row = rows - 1; row >= 0; row--) {
             double sum = 0;
-            // Sum products of known values
             for (int col = row + 1; col < cols - 1; col++) {
                 sum += mArr[row * cols + col] * sArr[col];
             }
-            // solve: x = (B - sum) / coefficient
             double b = mArr[row * cols + (cols - 1)];
             double coefficient = mArr[row * cols + row];
             sArr[row] = (b - sum) / coefficient;
+        }
+    }
+
+    private static void fillMinor(double[] src, double[] dst, int rowExc, int colExc, int n) {
+        int d = 0;
+        for (int i = 0; i < n; i++) {
+            if (i == rowExc) continue;
+            int rowOff = i * n;
+            for (int j = 0; j < n; j++) {
+                if (j == colExc) continue;
+                dst[d++] = src[rowOff + j];
+            }
         }
     }
 
@@ -751,174 +532,80 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
                 args[0].matrix.reduceToTriangularMatrixInPlace();
                 return cache.result.wrap(args[0].matrix);
             case Declarations.MATRIX_EIGENVALUES:
-                // 1. Get raw data and dimensions
-                double[] inputData = args[0].matrix.getFlatArray();
-                int rows = args[0].matrix.getRows();
-
-                // 2. Compute using the static provider (ThreadLocal internally)
-                // This returns a raw flat array: [Re, Im, Re, Im...]
-                Matrix evals = EigenProvider.getEigenvalues(rows, inputData);
-                return cache.result.wrap(evals);
-
+                return cache.result.wrap(EigenProvider.getEigenvalues(args[0].matrix.getRows(), args[0].matrix.getFlatArray()));
             case Declarations.MATRIX_EIGENVEC:
-                // 1. Get raw data and dimensions
-                double[] inputDataVec = args[0].matrix.getFlatArray();
-                int n = args[0].matrix.getRows();
-
-                // 2. Compute the Modal Matrix (N x N)
-                // EigenEngineTurbo handles the Householder/QR/Back-substitution
-                Matrix modalMatrix = EigenProvider.getEigenvectors(n, inputDataVec);
-                return cache.result.wrap(modalMatrix);
+                return cache.result.wrap(EigenProvider.getEigenvectors(args[0].matrix.getRows(), args[0].matrix.getFlatArray()));
             case Declarations.LINEAR_SYSTEM:
                 Matrix input;
                 if (args.length == 1) {
-                    // High-frequency path: Matrix variable provided
-                    if (args[0] == null || args[0].matrix == null) {
-                        return cache.result.wrap(ParserResult.UNDEFINED_ARG);
-                    }
+                    if (args[0] == null || args[0].matrix == null) return cache.result.wrap(ParserResult.UNDEFINED_ARG);
                     input = args[0].matrix;
                 } else {
-                    // Inline mode: coefficients passed as individual arguments
-                    n = (int) ((-1 + Math.sqrt(1 + 4 * args.length)) / 2.0);
+                    int n = (int) ((-1 + Math.sqrt(1 + 4 * args.length)) / 2.0);
                     input = cache.getMatrixBuffer(n, n + 1);
                     double[] flat = input.getFlatArray();
-                    for (int i = 0; i < args.length; i++) {
-                        flat[i] = args[i].scalar;
-                    }
+                    for (int i = 0; i < args.length; i++) flat[i] = args[i].scalar;
                 }
-
-                int nRows = input.getRows();
-                Matrix result = cache.getMatrixBuffer(nRows, 1);
-
-                // Core numerical execution
+                Matrix result = cache.getMatrixBuffer(input.getRows(), 1);
                 solveEquationInto(input, result, cache);
-
                 return cache.result.wrap(result);
             case Declarations.MATRIX_COFACTORS:
                 input = args[0].matrix;
-                if (!input.isSquareMatrix()) {
-                    throw new ArithmeticException("Cofactor matrix requires a square matrix.");
-                }
-
-                n = input.getRows();
+                int n = input.getRows();
                 result = cache.getMatrixBuffer(n, n);
-                double[] inData = input.getFlatArray();
-                double[] outData = result.getFlatArray();
-
-                // Minor scratchpad: (n-1) * (n-1)
                 Matrix minorBuf = cache.getSecondaryBuffer(n - 1, n - 1);
-
                 for (int i = 0; i < n; i++) {
                     for (int j = 0; j < n; j++) {
-                        // Fill minorBuf with the submatrix (omitting row i, col j)
-                        fillMinor(inData, minorBuf.getFlatArray(), i, j, n);
-
-                        // Calculate determinant of the minor using our scratchpad-safe method
+                        fillMinor(input.getFlatArray(), minorBuf.getFlatArray(), i, j, n);
                         double minorDet = computeDeterminantTurbo(minorBuf, cache);
-
-                        // Checkerboard sign: + if (i+j) is even, - if odd
-                        double sign = ((i + j) % 2 == 0) ? 1.0 : -1.0;
-                        outData[i * n + j] = sign * minorDet;
+                        result.getFlatArray()[i * n + j] = (((i + j) % 2 == 0) ? 1.0 : -1.0) * minorDet;
                     }
                 }
                 return cache.result.wrap(result);
             case Declarations.MATRIX_ADJOINT:
-                input = args[0].matrix; // This comes from the previous MethodHandle in the tree
+                input = args[0].matrix;
                 n = input.getRows();
-
-                // Primary buffer for the final Adjoint result
                 Matrix adjoint = cache.getMatrixBuffer(n, n);
-                inData = input.getFlatArray();
-                double[] adjData = adjoint.getFlatArray();
-
-                // Use Secondary/Tertiary for the cofactor math
                 minorBuf = cache.getSecondaryBuffer(n - 1, n - 1);
-
                 for (int i = 0; i < n; i++) {
                     for (int j = 0; j < n; j++) {
-                        // 1. Get the minor
-                        fillMinor(inData, minorBuf.getFlatArray(), i, j, n);
-
-                        // 2. Determinant of the minor
+                        fillMinor(input.getFlatArray(), minorBuf.getFlatArray(), i, j, n);
                         double minorDet = computeDeterminantTurbo(minorBuf, cache);
-
-                        // 3. Checkerboard sign
-                        double sign = ((i + j) % 2 == 0) ? 1.0 : -1.0;
-
-                        /* * THE ADJOINT SECRET: 
-             * Instead of placing at [i * n + j], we place at [j * n + i].
-             * This transposes the cofactor matrix while we build it.
-                         */
-                        adjData[j * n + i] = sign * minorDet;
+                        adjoint.getFlatArray()[j * n + i] = (((i + j) % 2 == 0) ? 1.0 : -1.0) * minorDet;
                     }
                 }
                 return cache.result.wrap(adjoint);
             case Declarations.MATRIX_DIVIDE:
-                Matrix A = args[0].matrix;
-                Matrix B = args[1].matrix;
-                n = B.getRows(); // B must be square
-                int m = A.getCols();
-
-                // 1. Create an Augmented Matrix [B | A]
-                // Size: n rows, (n + m) columns
+                Matrix A = args[0].matrix, B = args[1].matrix;
+                n = B.getRows(); int m = A.getCols();
                 Matrix augmented = cache.getSecondaryBuffer(n, n + m);
                 double[] augF = augmented.getFlatArray();
-                double[] bF = B.getFlatArray();
-                double[] aF = A.getFlatArray();
-
-                // Fill [B] into the left side
                 for (int i = 0; i < n; i++) {
-                    System.arraycopy(bF, i * n, augF, i * (n + m), n);
+                    System.arraycopy(B.getFlatArray(), i * n, augF, i * (n + m), n);
+                    System.arraycopy(A.getFlatArray(), i * m, augF, i * (n + m) + n, m);
                 }
-                // Fill [A] into the right side
-                for (int i = 0; i < n; i++) {
-                    System.arraycopy(aF, i * m, augF, i * (n + m) + n, m);
-                }
-
-                // 2. Reduce [B | A] to [UpperTriangular | A']
-                // We use the same partial pivoting logic
                 augmented.reduceToTriangularMatrixInPlace();
-
-                // 3. Back-Substitution for all columns of A' simultaneously
                 result = cache.getMatrixBuffer(n, m);
-                double[] resF = result.getFlatArray();
-
-                for (int k = 0; k < m; k++) { // For each column in A
+                for (int k = 0; k < m; k++) {
                     for (int i = n - 1; i >= 0; i--) {
                         double sum = 0;
-                        for (int j = i + 1; j < n; j++) {
-                            sum += augF[i * (n + m) + j] * resF[j * m + k];
-                        }
-                        double b_val = augF[i * (n + m) + n + k];
-                        double pivot = augF[i * (n + m) + i];
-                        resF[i * m + k] = (b_val - sum) / pivot;
+                        for (int j = i + 1; j < n; j++) sum += augF[i * (n + m) + j] * result.getFlatArray()[j * m + k];
+                        result.getFlatArray()[i * m + k] = (augF[i * (n + m) + n + k] - sum) / augF[i * (n + m) + i];
                     }
                 }
-
                 return cache.result.wrap(result);
             case Declarations.MATRIX_EDIT:
                 Matrix target = args[0].matrix;
-                int row = (int) args[1].scalar;
-                int col = (int) args[2].scalar;
-                double newVal = args[3].scalar;
-
-                rows = target.getRows();
-                int cols = target.getCols();
-
-                // Copy target to our result buffer
-                Matrix edited = cache.getMatrixBuffer(rows, cols);
-                System.arraycopy(target.getFlatArray(), 0, edited.getFlatArray(), 0, rows * cols);
-
-                // Apply the edit
-                edited.getFlatArray()[row * cols + col] = newVal;
-
-                return cache.result.wrap(edited);
-
+                int row = (int) args[1].scalar, col = (int) args[2].scalar;
+                result = cache.getMatrixBuffer(target.getRows(), target.getCols());
+                System.arraycopy(target.getFlatArray(), 0, result.getFlatArray(), 0, target.getFlatArray().length);
+                result.getFlatArray()[row * target.getCols() + col] = args[3].scalar;
+                return cache.result.wrap(result);
             default:
                 throw new UnsupportedOperationException("Function: " + funcName);
         }
     }
-
+ 
     private static double executeScalarStatAtCompileTime(String method, double[] args) {
         int n = args.length;
         if (n == 0 && !method.equals(Declarations.RANDOM)) {
@@ -1093,231 +780,91 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
         }
     }
 
+
     private static double[] executeVectorStatAtCompileTime(String method, double[] args) {
-        int n = args.length;
-
-        switch (method) {
-            case Declarations.MODE: {
-                Arrays.sort(args); // Sort first to group identical values
-
-                // First pass: Find the maximum frequency
-                int maxCount = 0;
-                int currentCount = 1;
-                for (int i = 1; i < n; i++) {
-                    if (args[i] == args[i - 1]) {
-                        currentCount++;
-                    } else {
-                        if (currentCount > maxCount) {
-                            maxCount = currentCount;
-                        }
-                        currentCount = 1;
-                    }
-                }
-                if (currentCount > maxCount) {
-                    maxCount = currentCount;
-                }
-
-                // Second pass: Collect all values that match maxCount
-                // We use a temporary list or a precisely sized array
-                double[] tempModes = new double[n];
-                int modeIdx = 0;
-                currentCount = 1;
-
-                // Handle single element case
-                if (n == 1) {
-                    return new double[]{args[0]};
-                }
-
-                for (int i = 1; i < n; i++) {
-                    if (args[i] == args[i - 1]) {
-                        currentCount++;
-                    } else {
-                        if (currentCount == maxCount) {
-                            tempModes[modeIdx++] = args[i - 1];
-                        }
-                        currentCount = 1;
-                    }
-                }
-                if (currentCount == maxCount) {
-                    tempModes[modeIdx++] = args[n - 1];
-                }
-
-                // Return a trimmed array containing only the modes
-                return Arrays.copyOf(tempModes, modeIdx);
+        if (method.equals(Declarations.SORT)) { Arrays.sort(args); return args; }
+        if (method.equals(Declarations.MODE)) {
+            Arrays.sort(args); int maxC = 0, currC = 1;
+            for (int i=1; i<args.length; i++) {
+                if (args[i] == args[i-1]) currC++; else { maxC = Math.max(maxC, currC); currC = 1; }
             }
-            case Declarations.SORT: {
-                // Arrays.sort mutates the array in-place extremely fast.
-                Arrays.sort(args);
-                // Since this method strictly returns a double, returning the array itself isn't possible here.
-                // Returning args[0] gives the caller the first element, while the array remains sorted in memory.
-                return args;
+            maxC = Math.max(maxC, currC);
+            double[] tmp = new double[args.length]; int idx = 0; currC = 1;
+            for (int i=1; i<args.length; i++) {
+                if (args[i] == args[i-1]) currC++; else { if (currC == maxC) tmp[idx++] = args[i-1]; currC = 1; }
             }
-
-            default:
-                return null;
+            if (currC == maxC) tmp[idx++] = args[args.length-1];
+            return Arrays.copyOf(tmp, idx);
         }
+        return null;
     }
 
     public static EvalResult dispatchUnaryOp(EvalResult operand, char op, ResultCache cache) {
         if (op == '²') {
-            if (operand.type == EvalResult.TYPE_SCALAR) {
-                return cache.result.wrap(operand.scalar * operand.scalar);
-            } else {
-                // FIX: Use cache to get the output buffer
-                Matrix out = cache.getMatrixBuffer(operand.matrix.getRows(), operand.matrix.getCols());
-                return cache.result.wrap(flatMatrixMultiply(operand.matrix, operand.matrix, out));
-            }
+            if (operand.type == EvalResult.TYPE_SCALAR) return cache.result.wrap(operand.scalar * operand.scalar);
+            Matrix out = cache.getMatrixBuffer(operand.matrix.getRows(), operand.matrix.getCols());
+            return cache.result.wrap(flatMatrixMultiply(operand.matrix, operand.matrix, out));
         }
         throw new UnsupportedOperationException("Unary op: " + op);
     }
 
-    // ========== MATH KERNELS (ZERO ALLOCATION) ==========
     private static Matrix flatMatrixAdd(Matrix a, Matrix b, ResultCache cache) {
         double[] aF = a.getFlatArray(), bF = b.getFlatArray();
         Matrix out = cache.getMatrixBuffer(a.getRows(), a.getCols());
-        double[] resF = out.getFlatArray();
-        for (int i = 0; i < aF.length; i++) {
-            resF[i] = aF[i] + bF[i];
-        }
+        for (int i = 0; i < aF.length; i++) out.getFlatArray()[i] = aF[i] + bF[i];
         return out;
     }
 
     private static Matrix flatMatrixSubtract(Matrix a, Matrix b, ResultCache cache) {
         double[] aF = a.getFlatArray(), bF = b.getFlatArray();
         Matrix out = cache.getMatrixBuffer(a.getRows(), a.getCols());
-        double[] resF = out.getFlatArray();
-        for (int i = 0; i < aF.length; i++) {
-            resF[i] = aF[i] - bF[i];
+        for (int i = 0; i < aF.length; i++) out.getFlatArray()[i] = aF[i] - bF[i];
+        return out;
+    }
+
+    private static Matrix flatMatrixMultiply(Matrix a, Matrix b, Matrix out) {
+        int aR = a.getRows(), aC = a.getCols(), bC = b.getCols();
+        double[] aF = a.getFlatArray(), bF = b.getFlatArray(), resF = out.getFlatArray();
+        for (int i = 0; i < aR; i++) {
+            int iRow = i * aC, outRow = i * bC;
+            for (int j = 0; j < bC; j++) {
+                double s = 0;
+                for (int k = 0; k < aC; k++) s += aF[iRow + k] * bF[k * bC + j];
+                resF[outRow + j] = s;
+            }
         }
         return out;
     }
 
-    private static Matrix flatMatrixMultiply(Matrix a, Matrix b, Matrix outBuffer) {
-        int aR = a.getRows(), aC = a.getCols(), bC = b.getCols();
-        double[] aF = a.getFlatArray(), bF = b.getFlatArray(), resF = outBuffer.getFlatArray();
-
-        for (int i = 0; i < aR; i++) {
-            int iRow = i * aC;
-            int outRow = i * bC;
-            for (int j = 0; j < bC; j++) {
-                double s = 0;
-                for (int k = 0; k < aC; k++) {
-                    s += aF[iRow + k] * bF[k * bC + j];
-                }
-                resF[outRow + j] = s;
-            }
-        }
-        return outBuffer;
-    }
-
     private static Matrix flatMatrixPower(Matrix m, double exponent, ResultCache cache) {
         int p = (int) exponent;
-        int rows = m.getRows();
-        int cols = m.getCols();
-
-        // 1. Handle base cases
-        if (p < 0) {
-            throw new UnsupportedOperationException("Negative matrix power not supported.");
-        }
-        if (p == 0) {
-            return identity(rows, cache);
-        }
-        if (p == 1) {
-            return copyToCache(m, cache);
-        }
-
-        // 2. Initialize 'res' as Identity Matrix
-        // We start 'res' as identity so we can multiply the base into it
-        Matrix res = identity(rows, new ResultCache());
-
-        // 3. 'base' starts as a copy of the input so we don't mutate the original
-        Matrix base = new Matrix(m.getFlatArray().clone(), rows, cols);
-
+        if (p < 0) throw new UnsupportedOperationException("Negative power not supported.");
+        if (p == 0) return identity(m.getRows(), cache);
+        Matrix res = identity(m.getRows(), new ResultCache()), base = new Matrix(m.getFlatArray().clone(), m.getRows(), m.getCols());
         while (p > 0) {
-            if ((p & 1) == 1) {
-                // result = result * base
-                // We create a new Matrix for the result to avoid I/O collision
-                res = flatMatrixMultiply(res, base, new Matrix(new double[rows * cols], rows, cols));
-            }
-
+            if ((p & 1) == 1) res = flatMatrixMultiply(res, base, new Matrix(new double[m.getRows()*m.getCols()], m.getRows(), m.getCols()));
             p >>= 1;
-
-            if (p > 0) {
-                // base = base * base (Squaring step)
-                // CRITICAL: We MUST use a fresh array here so the multiplication 
-                // doesn't read and write from the same flat array.
-                base = flatMatrixMultiply(base, base, new Matrix(new double[rows * cols], rows, cols));
-            }
+            if (p > 0) base = flatMatrixMultiply(base, base, new Matrix(new double[m.getRows()*m.getCols()], m.getRows(), m.getCols()));
         }
-
-        // 4. Move the final result into the provided cache for the engine to return
-        Matrix finalBuffer = cache.getMatrixBuffer(rows, cols);
-        System.arraycopy(res.getFlatArray(), 0, finalBuffer.getFlatArray(), 0, rows * cols);
-
-        return finalBuffer;
-    }
-
-    private static Matrix copyToCache(Matrix source, ResultCache cache) {
-        Matrix target = cache.getSecondaryBuffer(source.getRows(), source.getCols());
-        System.arraycopy(source.getFlatArray(), 0, target.getFlatArray(), 0, source.getFlatArray().length);
-        return target;
+        System.arraycopy(res.getFlatArray(), 0, cache.getMatrixBuffer(m.getRows(), m.getCols()).getFlatArray(), 0, m.getRows()*m.getCols());
+        return cache.matrix;
     }
 
     private static Matrix identity(int dim, ResultCache cache) {
         Matrix id = cache.getMatrixBuffer(dim, dim);
-        double[] data = id.getFlatArray();
-        java.util.Arrays.fill(data, 0.0);
-        for (int i = 0; i < dim; i++) {
-            data[i * dim + i] = 1.0;
-        }
+        Arrays.fill(id.getFlatArray(), 0.0);
+        for (int i = 0; i < dim; i++) id.getFlatArray()[i * dim + i] = 1.0;
         return id;
     }
 
     public static final class EigenProvider {
-
-        /**
-         * An internal engine instance that handles the high-performance
-         * numerical algorithms.
-         */
         private static final EigenEngineTurbo ENGINE = new EigenEngineTurbo();
-
-        /**
-         * Returns the eigenvalues of a matrix. * Since eigenvalues can be
-         * complex, this returns an n x 2 Matrix where Column 0 is the Real part
-         * and Column 1 is the Imaginary part.
-         *
-         * @param n The dimension of the square matrix (n x n).
-         * @param matrixData The flat 1D array of the matrix data.
-         * @return A Matrix object of size n x 2.
-         */
-        public static Matrix getEigenvalues(int n, double[] matrixData) {
-            // ENGINE returns [r1, i1, r2, i2, ... rN, iN] (length 2n)
-            double[] evals = ENGINE.getEigenvalues(n, matrixData);
-
-            // Wrap the 2n array into an n-row, 2-column Matrix
-            return new Matrix(evals, n, 2);
+        public static Matrix getEigenvalues(int n, double[] data) {
+            return new Matrix(ENGINE.getEigenvalues(n, data), n, 2);
         }
-
-        /**
-         * Returns the eigenvectors of a matrix as a square Matrix. * This
-         * method is "Turbo" optimized because it computes eigenvalues once and
-         * passes them directly to the vector solver, avoiding the expensive QR
-         * algorithm repetition.
-         *
-         * * @param n The dimension of the square matrix (n x n).
-         * @param matrixData The flat 1D array of the matrix data.
-         * @return A Matrix object of size n x n where columns are eigenvectors.
-         */
-        public static Matrix getEigenvectors(int n, double[] matrixData) {
-            // Instantiate a temporary Matrix object to access the optimized 
-            // compute/get methods logic.
-            Matrix m = new Matrix(matrixData, n, n);
-
-            // 1. Calculate eigenvalues required for the vector shift
-            double[] evals = m.computeEigenValues();
-
-            // 2. Generate the n x n eigenvector matrix using the values above
-            return m.getEigenVectorMatrix(evals);
+        public static Matrix getEigenvectors(int n, double[] data) {
+            Matrix m = new Matrix(data, n, n);
+            return m.getEigenVectorMatrix(m.computeEigenValues());
         }
     }
 }

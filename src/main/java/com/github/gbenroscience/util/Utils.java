@@ -139,7 +139,13 @@ public class Utils {
             Log.i("Kalculitzer", message);
         }
     }
-    
+
+    public static boolean isAndroid() {
+        String vendor = System.getProperty("java.vendor", "");
+        String runtime = System.getProperty("java.runtime.name", "");
+        return vendor.toLowerCase().contains("android")
+                || runtime.toLowerCase().contains("android");
+    }
 
     public static boolean isPerfectSquare(int num) {
         if (num < 0) {
@@ -147,5 +153,9 @@ public class Utils {
         }
         int sqrt = (int) Math.sqrt(num);
         return sqrt * sqrt == num;
+    }
+    
+    public static void main(String[] args) {
+        System.out.println( "isAndroid: "+isAndroid());
     }
 }

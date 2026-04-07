@@ -17,6 +17,7 @@ import com.github.gbenroscience.parser.turbo.tools.*;
 import com.github.gbenroscience.util.FunctionManager;
 import static com.github.gbenroscience.util.FunctionManager.*;
 import com.github.gbenroscience.util.Serializer;
+import com.github.gbenroscience.util.Utils;
 import com.github.gbenroscience.util.VariableManager;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -309,8 +310,8 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                     } else {
                         anonFunc.dependentVariable = new Variable(newFuncName);
                     }
-                    
-                        FunctionManager.update(anonFunc);
+
+                    FunctionManager.update(anonFunc);
                     return true;
                 } else {
                     expr = new MathExpression(rhs);
@@ -487,9 +488,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             //input = dependentVar + "="+input;
             anonFn.setDependentVariable(new Variable(dependentVar));
             anonFn.setIndependentVariables(indVars);
-            anonFn.type = TYPE.ALGEBRAIC_EXPRESSION; 
+            anonFn.type = TYPE.ALGEBRAIC_EXPRESSION;
             MathExpression me = new MathExpression(expr);
-            
+
             anonFn.setMathExpression(me);
             //FunctionManager.update(anonFn);
         } else if (isMatrix) {
@@ -580,20 +581,20 @@ public class Function implements Savable, MethodRegistry.MethodAction {
     }
 
     public void setMathExpression(MathExpression mathExpression) {
-        MathExpression oldMe = this.mathExpression;
         try {
             this.mathExpression = mathExpression;
-            this.turboExpr = TurboEvaluatorFactory.getCompiler(mathExpression, false).compile();
             this.type = TYPE.ALGEBRAIC_EXPRESSION;
+            this.turboExpr = TurboEvaluatorFactory.getCompiler(mathExpression, false).compile();
         } catch (Throwable ex) {
-            //revert
-            this.mathExpression = oldMe;
             this.turboExpr = null;
             Logger.getLogger(Function.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
     public FastCompositeExpression getWideningArgsExpression() {
+        if (Utils.isAndroid()) {
+            throw new RuntimeException("Not allowed on Android! Use Function#getArrayArgsExpression()");
+        }
         try {
             this.turboExpr = TurboEvaluatorFactory.getCompiler(mathExpression, true).compile();
         } catch (Throwable ex) {
@@ -1404,22 +1405,35 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         func.updateArgs(4);
         System.out.println(func.calc());
 
-        int count = 10000;
+        int count = 100000;
 
         double start = System.nanoTime();
+        String val = null;
         for (int i = 1; i <= count; i++) {
-            String val = func.evalArgs("p(" + i + ")");
-            System.out.println("val = " + val);
-            System.out.println(func.evalArgs(i));
+            val = func.evalArgs(i);
         }
         double duration = System.nanoTime() - start;
-        System.out.println("Eval took: " + (duration / (count * 1.0E6)) + "ms");
+        System.out.println("Std-Eval took: " +  duration/count  + "ns");
+        System.out.println("val1 = " + val);
 
+        start = System.nanoTime();
         for (int i = 1; i <= count; i++) {
-            String val = func.evalArgs("p(" + i + ")");
+            val = func.evalArgs("p(" + i + ")");
         }
+        System.out.println("val2 = " + val);
+
         duration = System.nanoTime() - start;
-        System.out.println("Eval took: " + (duration / (count * 1.0E6)) + "ms");
+        System.out.println("Old-Eval took: " + (duration / (count * 1.0E6)) + "ms");
+        
+        double v = 0;
+        start = System.nanoTime();
+        for (int i = 1; i <= count; i++) {
+            v = func.evalArgsTurbo(i);
+        }
+        System.out.println("val3 = " + v);
+
+        duration = System.nanoTime() - start;
+        System.out.println("Turbo-Eval took: " + duration/count + "ns");
 
     }//end method
 
