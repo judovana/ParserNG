@@ -389,7 +389,6 @@ public class MathExpression implements Savable, Solvable {
             setExpression("(0.0)");
         }
         this.slots = registry.getSlots();
-
     }
 
     public static final VariableRegistry createNewVariableRegistry() {
@@ -445,21 +444,16 @@ public class MathExpression implements Savable, Solvable {
         MathScanner opScanner = new MathScanner(expression);
         opScanner.scanner(variableManager);
         this.commaAlias = opScanner.commaAlias;
-
         scanner = opScanner.getScanner();
-
         correctFunction = opScanner.isRunnable();
-
         parser_Result = opScanner.parser_Result;
         if (parser_Result == ParserResult.VALID) {
             statsVerifier();
-            codeModifier();
             refixCommas();
             mapBrackets();
             functionComponentsAssociation();
             compileToPostfix();  // Compile once if not already done
         }//end if
-
     }//end method initializing(args)
 
     public void setWillFoldConstants(boolean willFoldConstants) {
@@ -781,23 +775,16 @@ public class MathExpression implements Savable, Solvable {
      */
     public Variable getVariable(String name) {
         // 1. Check if this variable exists in our compiled registry
-        if (this.registry.hasVariable(name)) {
-            int slot = this.registry.getSlot(name);
-
+        int slot = this.registry.getSlot(name);
             // 2. Look up the variable in our existing token list or VariableManager
             Variable v = VariableManager.lookUp(name);
-
             if (v == null) {
                 // Fallback: Create a new one if it's a dynamic variable
                 v = new Variable(name);
             }
-
             // 3. IMPORTANT: Sync the index so the Handle knows where to write
             v.setFrameIndex(slot);
-
             return v;
-        }
-        return null;
     }
 
     public static final class Slot {
@@ -900,55 +887,7 @@ public class MathExpression implements Savable, Solvable {
         return cachedPostfix;
     }
 
-    /**
-     * The method establishes meaning to some shorthand techniques in math that
-     * the average mathematician might expect to see in a math device.
-     * :e.g(3+4)(1+2) will become (3+4)*(1+2).It is essentially a stage that
-     * generates code.
-     */
-    private void codeModifier() {
-
-        if (correctFunction) {
-            StringBuilder utility = new StringBuilder();
-
-            /**
-             * This stage serves for negative number detection. Prior to this
-             * stage, all numbers are seen as positive ones. For example: turns
-             * [12,/,-,5] to [12,/,-5]. [2,*,M,-,3,*,M] should not become
-             * [2,*,M,-3,*,M]
-             *
-             * It also counts the number of list-returning operators in the
-             * system.
-             */
-            for (int i = 0; i < scanner.size(); i++) {
-                try {
-                    String tkn = scanner.get(i);
-                    Function f = FunctionManager.lookUp(tkn);
-                    if ((isBinaryOperator(tkn) || isUnaryPreOperator(tkn)
-                            || isOpeningBracket(tkn)
-                            || isLogicOperator(tkn) || isAssignmentOperator(tkn)
-                            || isComma(tkn) || (Method.isStatsMethod(tkn) && f != null && !f.isMatrix()))
-                            && Operator.isPlusOrMinus(scanner.get(i + 1)) && isNumber(scanner.get(i + 2))) {
-                        utility.append(scanner.get(i + 1));
-                        utility.append(scanner.get(i + 2));
-                        scanner.set(i + 1, utility.toString());
-                        scanner.set(i + 2, "");
-                        utility.delete(0, utility.length());//clear the builder.
-                    }//end if
-
-                }//end try
-                catch (IndexOutOfBoundsException ind) {
-                }//end catch
-
-            }//end for
-
-            scanner.removeAll(whitespaceremover);
-
-        } else if (!correctFunction) {
-            //processLogger.writeLog("Beginning Parser Shutdown Tasks Due To Errors In User Input.");
-        }
-
-    }//end method codeModifier
+  
 
     /**
      *
@@ -1227,32 +1166,37 @@ public class MathExpression implements Savable, Solvable {
         return Arrays.asList(String.valueOf(GG.evaluate(list)));
     }
 
-    
     // Automatically strips unbalanced grouping parentheses from captured arguments
     private static String cleanArgument(String arg) {
-        if (arg == null) return "";
+        if (arg == null) {
+            return "";
+        }
         arg = arg.trim();
         int open = 0, close = 0;
-        
+
         for (int i = 0; i < arg.length(); i++) {
-            if (arg.charAt(i) == '(') open++;
-            else if (arg.charAt(i) == ')') close++;
+            if (arg.charAt(i) == '(') {
+                open++;
+            } else if (arg.charAt(i) == ')') {
+                close++;
+            }
         }
-        
+
         // Strip leading redundant '('
         while (open > close && arg.startsWith("(")) {
             arg = arg.substring(1).trim();
             open--;
         }
-        
+
         // Strip trailing redundant ')'
         while (close > open && arg.endsWith(")")) {
             arg = arg.substring(0, arg.length() - 1).trim();
             close--;
         }
-        
+
         return arg;
     }
+
     private Token translate(String s, String next) {
         if (s == null || s.isEmpty()) {
             return null;
@@ -1296,7 +1240,6 @@ public class MathExpression implements Savable, Solvable {
             if (next != null && next.equals("(")) {
                 return new Token(Token.FUNCTION, s, -1, -1); // Arity set during compile
             }
-
             // If NOT followed by "(", treat as a FUNCTION REFERENCE/POINTER
             // This allows passing function names as arguments (like to diff)
             Token t = new Token(0.0);
@@ -1385,7 +1328,7 @@ public class MathExpression implements Savable, Solvable {
                 // FIX: A comma belongs to this function if it is the innermost open function
                 // This allows the comma to penetrate redundant grouping parentheses!
                 boolean isOwningComma = (t.kind == Token.COMMA && i == trackers.size() - 1);
-                
+
                 // The function still closes exactly when its base parenthesis depth resolves
                 boolean isOwningRParen = (t.kind == Token.RPAREN && currentParenDepth == tracker.depthLevel);
 
@@ -1424,9 +1367,8 @@ public class MathExpression implements Savable, Solvable {
                     if (t.v != null) {
                         int slot = registry.getSlot(t.name);
                         t.frameIndex = slot;
-                        t.v.setFrameIndex(slot);
+                        t.v.setFrameIndex(slot); 
                     }
-
                     break;
 
                 case Token.FUNCTION:
@@ -2447,7 +2389,6 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
             for (Map.Entry<String, Integer> entry : nameToSlot.entrySet()) {
                 slots[i++] = entry.getValue();
             }
-
             return slots;
         }
 
@@ -2691,7 +2632,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
         System.out.println("√81 + ³√(27) + 2^10-->>" + new MathExpression("√81 + ³√(27) + 2^10").solve());
         System.out.println(new MathExpression("5! + 9Р3 + 6Č5").solve());
         System.out.println(new MathExpression("f(x,y)=2*x*y;f(3,4);").solve());
-        System.out.println("FUNCTIONS: "+FunctionManager.FUNCTIONS);
+        System.out.println("FUNCTIONS: " + FunctionManager.FUNCTIONS);
         System.out.println("sum(sum(5),sum(6)): " + new MathExpression("sum(sum(5),sum(6))").solve());
         System.out.println("sum(sum(5,3,4,5),sum(6,12,14,1,2,1)): " + new MathExpression("sum(sum(5,3,4,5),sum(6,12,14,1,2,1))").solve());
         System.out.println("prod(sin(5),sin(5)): " + new MathExpression("prod(sin(5),sin(5))").solve());

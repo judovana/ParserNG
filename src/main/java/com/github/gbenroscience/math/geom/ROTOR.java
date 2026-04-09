@@ -344,9 +344,17 @@ public class ROTOR {
         Function f = FunctionManager.lookUp(var);
         if (f != null) {
             String expr = f.getMathExpression().getExpression();
-            return sign + sCoeff + "*" + ((expr.startsWith("(") && expr.endsWith(")")) ? expr : "(" + expr + ")");
+            String prefix = sign + sCoeff + "*";
+            if (prefix.equals("-*")) {
+                prefix = "-";
+            }
+            return prefix + ((expr.startsWith("(") && expr.endsWith(")")) ? expr : "(" + expr + ")");
         }
-        return sign + sCoeff + "*" + var;
+        String prefix = sign + sCoeff + "*";
+        if (prefix.equals("-*")) {
+            prefix = "-";
+        }
+        return prefix + var;
     }
 
     private String rotX() {
@@ -578,7 +586,7 @@ public class ROTOR {
 
         Scanner sc = new Scanner(function, true, Method.getAllFunctions(), parameters, "(", ")");
         List<String> list = sc.scan();
-       
+
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < list.size(); i++) {
             String tk = list.get(i);
@@ -593,7 +601,7 @@ public class ROTOR {
             }
             if (replacement != null) {
                 // Wrapping in parentheses preserves the Order of Operations
-                if (replacement.charAt(0) == '(' && replacement.charAt(replacement.length() - 1) == ')') { 
+                if (replacement.charAt(0) == '(' && replacement.charAt(replacement.length() - 1) == ')') {
                     sb.append(replacement);
                 } else {
                     sb.append("(").append(replacement).append(")");
@@ -604,11 +612,10 @@ public class ROTOR {
         }
         String str = sb.toString();
         if (str.charAt(0) == '(' && str.charAt(str.length() - 1) == ')') {
-            str = str.substring(1, str.length()-1);
-        } 
+            str = str.substring(1, str.length() - 1);
+        }
         return str;
     }
-    
 
     /**
      * Converts a point in the mathematical xy plane to one in the Java screen
@@ -727,6 +734,18 @@ public class ROTOR {
         // Function f = FunctionManager.lookUp("anon1");
         // System.out.println("f = "+f.toString());
         System.out.println("ans:\n" + me.solve());
+
+        me.setExpression("rot(@(x)2*x+1,pi/2,@(1,3)(0,0,0),@(1,3)(1,1,0))");
+        // Function f = FunctionManager.lookUp("anon1");
+        // System.out.println("f = "+f.toString());
+        System.out.println("ans:\n" + me.solve());
+
+        System.out.println("------------------------------------------------------------------------------------------");
+        String expression = "rot(@(x,y,z)sin(x*y*z), pi/2, @(1,3)(1,0,1),@(1,3)(1,1,0))";
+        MathExpression mex = new MathExpression(expression);
+
+        System.out.println("expression-sc: " + mex.getScanner());
+        System.out.println("ans: " + mex.solve());
     }
 
     public static void main1(String args[]) {

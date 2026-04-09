@@ -59,6 +59,7 @@ public class GraphElement {
 
     public void setFunction(String function) {
         this.function = function;
+        this.functionName = null;
     }
 
     public String getFunction() {
@@ -81,39 +82,43 @@ public class GraphElement {
         return verticalCoordinates;
     }
 
-    public void fillCoords(double xLower, double xUpper, double xStep, double yStep, int drg) {
+    public void fillCoords(double xLower, double xUpper, double xStep, double yStep, int drg, boolean useTurbo) {
 
         if (graphType.isFunctionPlot()) {
-
-            Function f = new Function(this.function);
-            this.functionName = f.getName();
-            FunctionManager.add(f);
+            Function f = null;
+            if (this.functionName != null && !this.functionName.isEmpty()) {
+                f = FunctionManager.lookUp(functionName);
+            } else {
+                f = new Function(this.function);
+                FunctionManager.add(f);
+                this.functionName = f.getName();
+            }
             String horVariableName = f.getIndependentVariables().get(0).getName();
-            double[][] values = f.evalRange(xLower, xUpper, xStep, horVariableName, drg);
+            double[][] values = f.evalRange(xLower, xUpper, xStep, horVariableName, drg, useTurbo);
             this.verticalCoordinates = values[0];
             this.horizontalCoordinates = values[1];
- //System.err.println("functionPlot: "+toString());
+            //System.err.println("functionPlot: "+toString());
         } //[-200,200,300,-200:][1,3,-2,1:]
         else if (graphType.isVerticePlot()) {
             this.function = this.function.trim();
             String horizontal = this.function.substring(this.function.indexOf("["), this.function.indexOf("]")).trim();
             String vertical = this.function.substring(this.function.lastIndexOf("[") + 1, this.function.lastIndexOf("]")).trim();
-            Scanner horCs = new Scanner(horizontal, false, ":", ",", "[","]");
-            Scanner verCs = new Scanner(vertical, false, ":", ",", "[","]");
+            Scanner horCs = new Scanner(horizontal, false, ":", ",", "[", "]");
+            Scanner verCs = new Scanner(vertical, false, ":", ",", "[", "]");
 
             List<String> horValues = horCs.scan();
             List<String> verValues = verCs.scan();
-           
+
             int sz = horValues.size();
             if (sz > 0 && sz == verValues.size()) {
-            this.horizontalCoordinates = new double[sz];
-            this.verticalCoordinates = new double[sz];
+                this.horizontalCoordinates = new double[sz];
+                this.verticalCoordinates = new double[sz];
                 for (int i = 0; i < sz; i++) {
                     this.horizontalCoordinates[i] = Double.parseDouble(horValues.get(i));
                     this.verticalCoordinates[i] = Double.parseDouble(verValues.get(i));
                 }
             }
-           // System.err.println("verticesPlot: "+toString());
+            // System.err.println("verticesPlot: "+toString());
 
         }
 
@@ -177,18 +182,16 @@ public class GraphElement {
                 + "  }", function, functionName, Arrays.toString(horizontalCoordinates), Arrays.toString(verticalCoordinates));
     }
 
-    
-  
     public static void main(String[] args) {
         Grid.GraphDataSharer dataSharer = new Grid.GraphDataSharer();
         dataSharer.drg = 1;
         dataSharer.xLower = -100;
         dataSharer.xUpper = 100;
         dataSharer.yStep = 0.1;
-        dataSharer.xStep = 0.1; 
-        
+        dataSharer.xStep = 0.1;
+
         GridExpressionParser gridExpressionParser = new GridExpressionParser("[-3,-1,0,4,-3:][0,3,4,-1,0:];y(x)=sin(x-3*pi);v(x,y)=3*x!-10*y", dataSharer);
-       
+
     }
-    
+
 }

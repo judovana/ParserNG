@@ -401,7 +401,7 @@ public class MethodRegistry {
         });
 
         registerMethod(Declarations.ROTOR, (ctx, arity, args) -> {
-            int sz = args.length;
+           int sz = args.length;
             if (args.length == 4) {//rot(F,a,O,D) function, angle, origin, direction vector
                 //confirm the last 3 other args
                 double angle = args[1].scalar;
@@ -409,6 +409,7 @@ public class MethodRegistry {
                 String anonFuncDir = args[3].textRes;
                 Function origFun = FunctionManager.lookUp(anonFuncOrig);
                 Function dirFun = FunctionManager.lookUp(anonFuncDir);
+          
                 if (origFun == null) {
                     return MathExpression.EvalResult.ERROR;
                 }
@@ -440,21 +441,21 @@ public class MethodRegistry {
                 }
                 ArrayList<Variable> vars = f.getIndependentVariables();
                 int siz = vars.size();
-                if (siz > 2) {
+                if (siz > 3) {
                     return MathExpression.EvalResult.ERROR;
                 }
                 if (f.getType() == TYPE.ALGEBRAIC_EXPRESSION) {
                     String expr = f.getMathExpression().getExpression();
                   
                     ROTOR r = new ROTOR(angle, origin, dir);
-                    if (siz == 2) {
-                        r.setZAxisName(f.getDependentVariable().getName());
+                    if (siz == 3) {
                         r.setXAxisName(vars.get(0).getName());
                         r.setYAxisName(vars.get(1).getName());
+                        r.setZAxisName(vars.get(2).getName());
                     }
-                    if (siz == 1) {
-                        r.setYAxisName(f.getDependentVariable().getName());
+                    if (siz == 2) {
                         r.setXAxisName(vars.get(0).getName());
+                        r.setYAxisName(vars.get(1).getName());
                     } 
                     String res = r.rotate(expr); 
                     return ctx.wrap(res);

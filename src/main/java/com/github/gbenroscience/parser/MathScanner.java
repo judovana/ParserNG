@@ -1208,7 +1208,6 @@ private static boolean isExactlyOne(String s) {
 
             if (!Variable.isVariableString(scanner.get(i)) && !Operator.isOperatorString(scanner.get(i)) && !validNumber(scanner.get(i))
                     && !Method.isMethodName(scanner.get(i))) {
-                System.out.println("scanner-debug-000: " + scanner);
                 errorList.add("Syntax Error! Strange Object Found: " + scanner.get(i));
                 parser_Result = ParserResult.STRANGE_INPUT;
                 setRunnable(false);
@@ -1228,7 +1227,6 @@ private static boolean isExactlyOne(String s) {
             else {
                 if (i + 1 < sz && Variable.isVariableString(scanner.get(i)) && !isOpeningBracket(scanner.get(i + 1)) && !varMan.contains(scanner.get(i))
                         && !FunctionManager.containsAny(scanner.get(i))) {
-                        System.out.println("scanner-debug-001: " + scanner);
                     errorList.add(" Unknown Variable: " + scanner.get(i) + "\n Please Declare And Initialize This Variable Before Using It.\n"
                             + "Use The Command, \'variableName=value\' To Accomplish This.");
                     parser_Result = ParserResult.STRANGE_INPUT;
@@ -1715,8 +1713,10 @@ private static boolean isExactlyOne(String s) {
      * @param args Command line args (((2+3)^2))!-------((25))!-------
      */
     public static void main(String args[]) {//tester method for STRING methods
+  FunctionManager.add("y=@(x)x^2");
+  MathExpression msce = new MathExpression("(sin(x+y+3*z^2))");
 
-        
+        System.out.println(msce.scanner);
         String s4 = "((cos(x)*1)+(-sin(x)*1))";
              System.out.println(new MathScanner(s4).scanner());
         //String s5 = "sum(3,4,1,6,7,8,4,32,1)";

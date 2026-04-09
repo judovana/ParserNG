@@ -184,6 +184,8 @@ public class Grid {
 
     private volatile GraphDataSharer dataSharer = new GraphDataSharer();
 
+    private boolean useTurbo;
+
     /**
      * @param function The function to be plotted on this Grid object. It may be
      * an algebraic one or a geometric or vertices based one. The algebraic one
@@ -209,13 +211,14 @@ public class Grid {
      * @param xStep The resolution of the graph along x.
      * @param yStep
      * @param font
+     * @param useTurbo
      * @param component The component on which this grid will be laid.
      */
     public Grid(String function, boolean showGridLines, boolean labelAxis,
             int gridSize, GraphColor gridColor, GraphColor majorAxesColor, GraphColor tickColor, GraphColor plotColor,
             int majorTickLength, int minorTickLength,
             double lowerXLimit, double upperXLimit,
-            double xStep, double yStep, GraphFont font, AbstractView component) {
+            double xStep, double yStep, GraphFont font, boolean useTurbo, AbstractView component) {
         /**
          * identifies the kind of input, be it a vertices based plot or an
          * algebraic one. Based on the recommendations of this section, it then
@@ -229,6 +232,7 @@ public class Grid {
         this.majorAxesColor = majorAxesColor;
         this.tickColor = tickColor;
         this.plotColor = plotColor;
+        this.useTurbo = useTurbo;
         setMajorTickLength(majorTickLength);
         setMinorTickLength(minorTickLength);
 
@@ -249,6 +253,14 @@ public class Grid {
         this.font = font;
     }//end constructor
 
+    public Grid(String function, boolean showGridLines, boolean labelAxis,
+            int gridSize, GraphColor gridColor, GraphColor majorAxesColor, GraphColor tickColor, GraphColor plotColor,
+            int majorTickLength, int minorTickLength,
+            double lowerXLimit, double upperXLimit,
+            double xStep, double yStep, GraphFont font, AbstractView component) {
+        this(function, showGridLines, labelAxis, gridSize, gridColor, majorAxesColor, tickColor, plotColor, majorTickLength, minorTickLength, lowerXLimit, upperXLimit, xStep, yStep, font, false, component);
+    }//end constructor
+
     public static class GraphDataSharer {
 
         public double xStep = 1.0;
@@ -256,6 +268,7 @@ public class Grid {
         public int drg = 0;
         public double xLower = 0.0;
         public double xUpper = 0.0;
+        public boolean useTurbo;
 
         public GraphDataSharer() {
 
@@ -342,6 +355,8 @@ public class Grid {
         return font;
     }
 
+
+    
     public GridExpressionParser getGridExpressionParser() {
         return gridExpressionParser;
     }
@@ -504,7 +519,7 @@ public class Grid {
                             for (GraphElement gr : gridExpressionParser.getGraphElements()) {
                                 if (gr.getGraphType() == GraphType.FunctionPlot) {
                                     synchronized (gr) {
-                                        gr.fillCoords(Grid.this.lowerXLimit, Grid.this.upperXLimit, Grid.this.xStep, Grid.this.yStep, Grid.this.DRG);
+                                        gr.fillCoords(Grid.this.lowerXLimit, Grid.this.upperXLimit, Grid.this.xStep, Grid.this.yStep, Grid.this.DRG, useTurbo);
                                     }
                                 }
                             }
@@ -557,6 +572,15 @@ public class Grid {
 
     public double getUpperXLimit() {
         return upperXLimit;
+    }
+    public void setUseTurbo(boolean useTurbo) {
+        this.useTurbo = useTurbo;
+         this.dataSharer.useTurbo = this.useTurbo;
+         setRefreshingIndices(true);
+    }
+
+    public boolean isUseTurbo() {
+        return useTurbo;
     }
 
     /**

@@ -120,7 +120,7 @@ public class GridExpressionParser {
                     String instructionToken = instructionTokens.get(i);
 
                     final GraphElement elem = new GraphElement(instructionToken, determineType(instructionToken));
-                    elem.fillCoords(dataSharer.xLower, dataSharer.xUpper, dataSharer.xStep, dataSharer.yStep, dataSharer.drg);
+                    elem.fillCoords(dataSharer.xLower, dataSharer.xUpper, dataSharer.xStep, dataSharer.yStep, dataSharer.drg, dataSharer.useTurbo);
                     graphElements.add(elem);
                 } catch (NullPointerException nol) {
                     nol.printStackTrace();
