@@ -1044,7 +1044,7 @@ public class Method {
      * the parser.
      */
     public static boolean isDefinedMethod(String methodName) {
-        return arrayContains(getInbuiltMethods(), methodName) || FunctionManager.contains(methodName);
+        return arrayContains(getInbuiltMethods(), methodName) || FunctionManager.containsAlgebraicFunction(methodName);
     }//end method
 
     /**
@@ -1061,7 +1061,7 @@ public class Method {
      *
      * @param array An array of strings
      * @param str The string to check for.
-     * @return true if the array contains the specified string.
+     * @return true if the array containsAlgebraicFunction the specified string.
      */
     public static boolean arrayContains(String array[], String str) {
         for (String s : array) {

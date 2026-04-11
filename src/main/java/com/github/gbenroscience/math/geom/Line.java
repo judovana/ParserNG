@@ -59,6 +59,7 @@ public class Line {
         }
 
     }
+    
 
     /**
      * Creates a line between points joining: the points x1,y1 and x2,y2

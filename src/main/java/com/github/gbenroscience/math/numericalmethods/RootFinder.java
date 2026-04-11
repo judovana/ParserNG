@@ -64,12 +64,12 @@ import java.util.logging.Logger;
  *
  * <br><br>
  * <b>Usage:</b><br>
- * The input that initializes objects of this class is a String value that
- * contains information about the function whose roots we seek and the range in
- * which we need to search for the function. Always specify 2 values for the
- * range,please. If the variable has been initialized before in the workspace
- * and is visible to the currently evaluating object of this class then an
- * example could be:<br>
+The input that initializes objects of this class is a String value that
+containsAlgebraicFunction information about the function whose roots we seek and the range in
+which we need to search for the function. Always specify 2 values for the
+range,please. If the variable has been initialized before in the workspace
+and is visible to the currently evaluating object of this class then an
+example could be:<br>
  * <b>
  * 2x^3-5x+sin(x)-1=0,-3,5
  * </b><br>
@@ -343,7 +343,7 @@ public class RootFinder {
         if (methodName.equals("root") && list.get(1).equals("(") && list.get(list.size() - 1).equals(")")) {
             String functionName = list.get(2);
             if (Variable.isVariableString(functionName)) {
-                boolean exists = FunctionManager.contains(functionName);
+                boolean exists = FunctionManager.containsAlgebraicFunction(functionName);
                 if (exists) {
                     for (int i = 3; i < list.size(); i++) {
                         if (Operator.isOpeningBracket(list.get(i))) {

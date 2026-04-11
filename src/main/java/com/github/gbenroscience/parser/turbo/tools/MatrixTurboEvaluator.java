@@ -18,24 +18,28 @@ package com.github.gbenroscience.parser.turbo.tools;
 /**
  *
  * @author GBEMIRO
- */ 
+ */
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.MathExpression.EvalResult;
 import com.github.gbenroscience.parser.ParserResult;
+import static com.github.gbenroscience.parser.TYPE.ALGEBRAIC_EXPRESSION;
+import static com.github.gbenroscience.parser.TYPE.MATRIX;
+import com.github.gbenroscience.parser.Variable;
 import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.util.FunctionManager;
+import com.github.gbenroscience.util.VariableManager;
 import java.lang.invoke.*;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom; 
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Allocation-free Turbo compiler optimized for ParserNG's flat-array Matrix
- * implementation. Uses compile-time bound ResultCaches and Zero-Argument MethodHandle
- * trees to maximize JIT inlining and execution speed.
+ * implementation. Uses compile-time bound ResultCaches and Zero-Argument
+ * MethodHandle trees to maximize JIT inlining and execution speed.
  *
  * @author GBEMIRO
  */
@@ -60,13 +64,12 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
     // 1. ThreadLocal holding a reusable array of EvalResults to avoid GC pressure
     private static final ThreadLocal<MathExpression.EvalResult[]> WRAPPER_CACHE
             = ThreadLocal.withInitial(() -> {
-        MathExpression.EvalResult[] arr = new MathExpression.EvalResult[12];
-        for (int i = 0; i < 12; i++) {
-            arr[i] = new MathExpression.EvalResult();
-        }
-        return arr;
-    });
-
+                MathExpression.EvalResult[] arr = new MathExpression.EvalResult[12];
+                for (int i = 0; i < 12; i++) {
+                    arr[i] = new MathExpression.EvalResult();
+                }
+                return arr;
+            });
 
     // ========== THE RESULT CACHE ==========
     /**
@@ -223,10 +226,12 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
                         for (int i = 0; i < t.arity; i++) {
                             stack.pop();
                         }
-                        MethodHandle bridge = LOOKUP.findStatic(MatrixTurboEvaluator.class, "executeMatrixPrint",
+                        
+                        MethodHandle bridge = LOOKUP.findStatic(MatrixTurboEvaluator.class, "executePrint",
                                 MethodType.methodType(EvalResult.class, String[].class));
                         String[] rawArgs = t.getRawArgs();
                         stack.push(MethodHandles.insertArguments(bridge, 0, (Object) rawArgs));
+
                     } else if (Method.isMatrixMethod(t.name)) {
                         MethodHandle[] args = new MethodHandle[t.arity];
                         for (int i = t.arity - 1; i >= 0; i--) {
@@ -322,9 +327,37 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
         return MethodHandles.collectArguments(dispatcher, 0, operand);
     }
 
-    public static EvalResult executeMatrixPrint(String[] args) throws Throwable {
-        double result = ScalarTurboEvaluator1.executePrint(args);
-        return new EvalResult().wrap(result);
+ static MathExpression.EvalResult executePrint(String[] args) {
+       MathExpression.EvalResult ctx = new EvalResult();
+        StringBuilder sb = new StringBuilder();
+        for (String arg : args) {
+            Function v = FunctionManager.lookUp(arg);
+            if (v != null) {
+                switch (v.getType()) {
+                    case ALGEBRAIC_EXPRESSION: 
+                          sb.append(v.toString()).append("\n");
+                          break;
+                    case MATRIX: 
+                           sb.append(v.getName()).append("=").append(v.getMatrix() != null ? v.getMatrix().toString() : "null").append("\n");
+                           break;
+                    default:
+                        sb.append(v.toString()).append("\n");
+                        break;
+                }
+                continue;
+            }
+            Variable myVar = VariableManager.lookUp(arg);
+            if (myVar != null) { 
+                sb.append(myVar.toString()).append("\n");
+            } else if (com.github.gbenroscience.parser.Number.isNumber(arg)) { 
+                sb.append(arg).append("\n");
+            } else { 
+                sb.append("null").append("\n");
+            }
+        }
+        String v = sb.toString();
+        System.out.println(v);
+        return ctx.wrap(v);
     }
 
     private MethodHandle compileMatrixFunction(MathExpression.Token t, MethodHandle[] args) throws Throwable {
@@ -338,7 +371,7 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
         MethodHandle collector = LOOKUP.findStatic(MatrixTurboEvaluator.class, "collectArgsArray",
                 MethodType.methodType(EvalResult[].class, EvalResult[].class)).asVarargsCollector(EvalResult[].class);
-        
+
         collector = collector.asType(MethodType.methodType(EvalResult[].class,
                 Collections.nCopies(t.arity, EvalResult.class).toArray(new Class[0])));
 
@@ -412,17 +445,23 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
                     cache.result.wrap(left.scalar / right.scalar);
                 } else if (leftType == EvalResult.TYPE_MATRIX && rightType == EvalResult.TYPE_MATRIX) {
                     double det = right.matrix.determinant();
-                    if (Math.abs(det) < 1e-15) throw new ArithmeticException("Matrix B is singular");
+                    if (Math.abs(det) < 1e-15) {
+                        throw new ArithmeticException("Matrix B is singular");
+                    }
                     Matrix adjB = right.matrix.adjoint();
                     Matrix invB = flatMatrixScalarMultiply(1.0 / det, adjB, cache);
                     Matrix out = cache.getMatrixBuffer(left.matrix.getRows(), invB.getCols());
                     cache.result.wrap(flatMatrixMultiply(left.matrix, invB, out));
                 } else if (leftType == EvalResult.TYPE_MATRIX && rightType == EvalResult.TYPE_SCALAR) {
-                    if (Math.abs(right.scalar) < 1e-15) throw new ArithmeticException("Division by zero scalar");
+                    if (Math.abs(right.scalar) < 1e-15) {
+                        throw new ArithmeticException("Division by zero scalar");
+                    }
                     cache.result.wrap(flatMatrixScalarMultiply(1.0 / right.scalar, left.matrix, cache));
                 } else if (leftType == EvalResult.TYPE_SCALAR && rightType == EvalResult.TYPE_MATRIX) {
                     double det = right.matrix.determinant();
-                    if (Math.abs(det) < 1e-15) throw new ArithmeticException("Matrix is singular");
+                    if (Math.abs(det) < 1e-15) {
+                        throw new ArithmeticException("Matrix is singular");
+                    }
                     Matrix adjB = right.matrix.adjoint();
                     cache.result.wrap(flatMatrixScalarMultiply(left.scalar / det, adjB, cache));
                 }
@@ -454,7 +493,9 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
     private static double computeDeterminantTurbo(Matrix minor, ResultCache cache) {
         int n = minor.getRows();
-        if (n == 1) return minor.getFlatArray()[0];
+        if (n == 1) {
+            return minor.getFlatArray()[0];
+        }
         Matrix work = cache.getTertiaryBuffer(n, n);
         System.arraycopy(minor.getFlatArray(), 0, work.getFlatArray(), 0, n * n);
         double det = 1.0;
@@ -462,14 +503,18 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
         for (int i = 0; i < n; i++) {
             int pivot = i;
             for (int j = i + 1; j < n; j++) {
-                if (Math.abs(data[j * n + i]) > Math.abs(data[pivot * n + i])) pivot = j;
+                if (Math.abs(data[j * n + i]) > Math.abs(data[pivot * n + i])) {
+                    pivot = j;
+                }
             }
             if (pivot != i) {
                 work.swapRow(i, pivot);
                 det *= -1;
             }
             double v = data[i * n + i];
-            if (Math.abs(v) < 1e-18) return 0;
+            if (Math.abs(v) < 1e-18) {
+                return 0;
+            }
             det *= v;
             for (int row = i + 1; row < n; row++) {
                 double factor = data[row * n + i] / v;
@@ -503,10 +548,14 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
     private static void fillMinor(double[] src, double[] dst, int rowExc, int colExc, int n) {
         int d = 0;
         for (int i = 0; i < n; i++) {
-            if (i == rowExc) continue;
+            if (i == rowExc) {
+                continue;
+            }
             int rowOff = i * n;
             for (int j = 0; j < n; j++) {
-                if (j == colExc) continue;
+                if (j == colExc) {
+                    continue;
+                }
                 dst[d++] = src[rowOff + j];
             }
         }
@@ -538,13 +587,17 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
             case Declarations.LINEAR_SYSTEM:
                 Matrix input;
                 if (args.length == 1) {
-                    if (args[0] == null || args[0].matrix == null) return cache.result.wrap(ParserResult.UNDEFINED_ARG);
+                    if (args[0] == null || args[0].matrix == null) {
+                        return cache.result.wrap(ParserResult.UNDEFINED_ARG);
+                    }
                     input = args[0].matrix;
                 } else {
                     int n = (int) ((-1 + Math.sqrt(1 + 4 * args.length)) / 2.0);
                     input = cache.getMatrixBuffer(n, n + 1);
                     double[] flat = input.getFlatArray();
-                    for (int i = 0; i < args.length; i++) flat[i] = args[i].scalar;
+                    for (int i = 0; i < args.length; i++) {
+                        flat[i] = args[i].scalar;
+                    }
                 }
                 Matrix result = cache.getMatrixBuffer(input.getRows(), 1);
                 solveEquationInto(input, result, cache);
@@ -576,8 +629,10 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
                 }
                 return cache.result.wrap(adjoint);
             case Declarations.MATRIX_DIVIDE:
-                Matrix A = args[0].matrix, B = args[1].matrix;
-                n = B.getRows(); int m = A.getCols();
+                Matrix A = args[0].matrix,
+                 B = args[1].matrix;
+                n = B.getRows();
+                int m = A.getCols();
                 Matrix augmented = cache.getSecondaryBuffer(n, n + m);
                 double[] augF = augmented.getFlatArray();
                 for (int i = 0; i < n; i++) {
@@ -589,14 +644,17 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
                 for (int k = 0; k < m; k++) {
                     for (int i = n - 1; i >= 0; i--) {
                         double sum = 0;
-                        for (int j = i + 1; j < n; j++) sum += augF[i * (n + m) + j] * result.getFlatArray()[j * m + k];
+                        for (int j = i + 1; j < n; j++) {
+                            sum += augF[i * (n + m) + j] * result.getFlatArray()[j * m + k];
+                        }
                         result.getFlatArray()[i * m + k] = (augF[i * (n + m) + n + k] - sum) / augF[i * (n + m) + i];
                     }
                 }
                 return cache.result.wrap(result);
             case Declarations.MATRIX_EDIT:
                 Matrix target = args[0].matrix;
-                int row = (int) args[1].scalar, col = (int) args[2].scalar;
+                int row = (int) args[1].scalar,
+                 col = (int) args[2].scalar;
                 result = cache.getMatrixBuffer(target.getRows(), target.getCols());
                 System.arraycopy(target.getFlatArray(), 0, result.getFlatArray(), 0, target.getFlatArray().length);
                 result.getFlatArray()[row * target.getCols() + col] = args[3].scalar;
@@ -605,7 +663,7 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
                 throw new UnsupportedOperationException("Function: " + funcName);
         }
     }
- 
+
     private static double executeScalarStatAtCompileTime(String method, double[] args) {
         int n = args.length;
         if (n == 0 && !method.equals(Declarations.RANDOM)) {
@@ -780,20 +838,39 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
         }
     }
 
-
     private static double[] executeVectorStatAtCompileTime(String method, double[] args) {
-        if (method.equals(Declarations.SORT)) { Arrays.sort(args); return args; }
+        if (method.equals(Declarations.SORT)) {
+            Arrays.sort(args);
+            return args;
+        }
         if (method.equals(Declarations.MODE)) {
-            Arrays.sort(args); int maxC = 0, currC = 1;
-            for (int i=1; i<args.length; i++) {
-                if (args[i] == args[i-1]) currC++; else { maxC = Math.max(maxC, currC); currC = 1; }
+            Arrays.sort(args);
+            int maxC = 0, currC = 1;
+            for (int i = 1; i < args.length; i++) {
+                if (args[i] == args[i - 1]) {
+                    currC++;
+                } else {
+                    maxC = Math.max(maxC, currC);
+                    currC = 1;
+                }
             }
             maxC = Math.max(maxC, currC);
-            double[] tmp = new double[args.length]; int idx = 0; currC = 1;
-            for (int i=1; i<args.length; i++) {
-                if (args[i] == args[i-1]) currC++; else { if (currC == maxC) tmp[idx++] = args[i-1]; currC = 1; }
+            double[] tmp = new double[args.length];
+            int idx = 0;
+            currC = 1;
+            for (int i = 1; i < args.length; i++) {
+                if (args[i] == args[i - 1]) {
+                    currC++;
+                } else {
+                    if (currC == maxC) {
+                        tmp[idx++] = args[i - 1];
+                    }
+                    currC = 1;
+                }
             }
-            if (currC == maxC) tmp[idx++] = args[args.length-1];
+            if (currC == maxC) {
+                tmp[idx++] = args[args.length - 1];
+            }
             return Arrays.copyOf(tmp, idx);
         }
         return null;
@@ -801,7 +878,9 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
     public static EvalResult dispatchUnaryOp(EvalResult operand, char op, ResultCache cache) {
         if (op == '²') {
-            if (operand.type == EvalResult.TYPE_SCALAR) return cache.result.wrap(operand.scalar * operand.scalar);
+            if (operand.type == EvalResult.TYPE_SCALAR) {
+                return cache.result.wrap(operand.scalar * operand.scalar);
+            }
             Matrix out = cache.getMatrixBuffer(operand.matrix.getRows(), operand.matrix.getCols());
             return cache.result.wrap(flatMatrixMultiply(operand.matrix, operand.matrix, out));
         }
@@ -811,14 +890,18 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
     private static Matrix flatMatrixAdd(Matrix a, Matrix b, ResultCache cache) {
         double[] aF = a.getFlatArray(), bF = b.getFlatArray();
         Matrix out = cache.getMatrixBuffer(a.getRows(), a.getCols());
-        for (int i = 0; i < aF.length; i++) out.getFlatArray()[i] = aF[i] + bF[i];
+        for (int i = 0; i < aF.length; i++) {
+            out.getFlatArray()[i] = aF[i] + bF[i];
+        }
         return out;
     }
 
     private static Matrix flatMatrixSubtract(Matrix a, Matrix b, ResultCache cache) {
         double[] aF = a.getFlatArray(), bF = b.getFlatArray();
         Matrix out = cache.getMatrixBuffer(a.getRows(), a.getCols());
-        for (int i = 0; i < aF.length; i++) out.getFlatArray()[i] = aF[i] - bF[i];
+        for (int i = 0; i < aF.length; i++) {
+            out.getFlatArray()[i] = aF[i] - bF[i];
+        }
         return out;
     }
 
@@ -829,7 +912,9 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
             int iRow = i * aC, outRow = i * bC;
             for (int j = 0; j < bC; j++) {
                 double s = 0;
-                for (int k = 0; k < aC; k++) s += aF[iRow + k] * bF[k * bC + j];
+                for (int k = 0; k < aC; k++) {
+                    s += aF[iRow + k] * bF[k * bC + j];
+                }
                 resF[outRow + j] = s;
             }
         }
@@ -838,30 +923,43 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
     private static Matrix flatMatrixPower(Matrix m, double exponent, ResultCache cache) {
         int p = (int) exponent;
-        if (p < 0) throw new UnsupportedOperationException("Negative power not supported.");
-        if (p == 0) return identity(m.getRows(), cache);
+        if (p < 0) {
+            throw new UnsupportedOperationException("Negative power not supported.");
+        }
+        if (p == 0) {
+            return identity(m.getRows(), cache);
+        }
         Matrix res = identity(m.getRows(), new ResultCache()), base = new Matrix(m.getFlatArray().clone(), m.getRows(), m.getCols());
         while (p > 0) {
-            if ((p & 1) == 1) res = flatMatrixMultiply(res, base, new Matrix(new double[m.getRows()*m.getCols()], m.getRows(), m.getCols()));
+            if ((p & 1) == 1) {
+                res = flatMatrixMultiply(res, base, new Matrix(new double[m.getRows() * m.getCols()], m.getRows(), m.getCols()));
+            }
             p >>= 1;
-            if (p > 0) base = flatMatrixMultiply(base, base, new Matrix(new double[m.getRows()*m.getCols()], m.getRows(), m.getCols()));
+            if (p > 0) {
+                base = flatMatrixMultiply(base, base, new Matrix(new double[m.getRows() * m.getCols()], m.getRows(), m.getCols()));
+            }
         }
-        System.arraycopy(res.getFlatArray(), 0, cache.getMatrixBuffer(m.getRows(), m.getCols()).getFlatArray(), 0, m.getRows()*m.getCols());
+        System.arraycopy(res.getFlatArray(), 0, cache.getMatrixBuffer(m.getRows(), m.getCols()).getFlatArray(), 0, m.getRows() * m.getCols());
         return cache.matrix;
     }
 
     private static Matrix identity(int dim, ResultCache cache) {
         Matrix id = cache.getMatrixBuffer(dim, dim);
         Arrays.fill(id.getFlatArray(), 0.0);
-        for (int i = 0; i < dim; i++) id.getFlatArray()[i * dim + i] = 1.0;
+        for (int i = 0; i < dim; i++) {
+            id.getFlatArray()[i * dim + i] = 1.0;
+        }
         return id;
     }
 
     public static final class EigenProvider {
+
         private static final EigenEngineTurbo ENGINE = new EigenEngineTurbo();
+
         public static Matrix getEigenvalues(int n, double[] data) {
             return new Matrix(ENGINE.getEigenvalues(n, data), n, 2);
         }
+
         public static Matrix getEigenvectors(int n, double[] data) {
             Matrix m = new Matrix(data, n, n);
             return m.getEigenVectorMatrix(m.computeEigenValues());

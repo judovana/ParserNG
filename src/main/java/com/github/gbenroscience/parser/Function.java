@@ -592,9 +592,6 @@ public class Function implements Savable, MethodRegistry.MethodAction {
     }
 
     public FastCompositeExpression getWideningArgsExpression() {
-        if (Utils.isAndroid()) {
-            throw new RuntimeException("Not allowed on Android! Use Function#getArrayArgsExpression()");
-        }
         try {
             this.turboExpr = TurboEvaluatorFactory.getCompiler(mathExpression, true).compile();
         } catch (Throwable ex) {
@@ -935,12 +932,12 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      *
      * @param rangeDescr Describes the range between which this Function object
      * should be plotted. e.g. x:-10:10:0.0001
-     * @return an 2D array containing two 1d arrays. The first array contains
-     * the values that the Function object will have for all values specified
-     * for the range of the independent variable. The second array contains the
-     * values that the independent variable will assume in its given range. If
-     * the rangeDescr parameter is not valid.. it returns a 2D array containing
-     * 2 null arrays.
+     * @return an 2D array containing two 1d arrays. The first array containsAlgebraicFunction
+the values that the Function object will have for all values specified
+for the range of the independent variable. The second array containsAlgebraicFunction the
+values that the independent variable will assume in its given range. If
+the rangeDescr parameter is not valid.. it returns a 2D array containing
+2 null arrays.
      */
     public double[][] evalRange(String rangeDescr) {
 
@@ -989,12 +986,12 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      * variable..usually x)
      * @param DRG States whether the function should be evaluated in Degrees,
      * Radians, and Grad.
-     * @return an 2D array containing two 1d arrays. The first array contains
-     * the values that the Function object will have for all values specified
-     * for the range of the independent variable. The second array contains the
-     * values that the independent variable will assume in its given range. If
-     * the rangeDescr parameter is not valid.. it returns a2D array containing 2
-     * null arrays.
+     * @return an 2D array containing two 1d arrays. The first array containsAlgebraicFunction
+the values that the Function object will have for all values specified
+for the range of the independent variable. The second array containsAlgebraicFunction the
+values that the independent variable will assume in its given range. If
+the rangeDescr parameter is not valid.. it returns a2D array containing 2
+null arrays.
      */
     public double[][] evalRange(double xLower, double xUpper, double xStep, String variableName, int DRG) {
 

@@ -141,16 +141,18 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
     private int poolPointer = 0;
 
     ////////EvalResult Pool params ends/////////////
-
+/**
+ * 
+ * @param me 
+ */
     public ScalarTurboEvaluator1(MathExpression me) {
         for (int i = 0; i < INIT_POOL_SIZE; i++) {
             pool[i] = new MathExpression.EvalResult();
         }
         this.postfix = me.getCachedPostfix();
         this.willFoldConstants = me.isWillFoldConstants();
-        int num_vars = me.getVariablesNames().length;
         slots = me.getSlots();
-        turboArgs = new double[num_vars];
+        turboArgs = me.getExecutionFrame();
     }
 
 // In ExpressionSolver.getNextResult():
@@ -286,8 +288,6 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
         final MethodHandle genericHandle = rawScalarHandle.asType(
                 java.lang.invoke.MethodType.methodType(Object.class, double[].class)
         );
-
-        ScalarTurboEvaluator1 sc = this;
         return new FastCompositeExpression() {
 
             private void loadVars(double[] variables) {
@@ -313,13 +313,11 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
             public MathExpression.EvalResult apply(double[] variables) {
                 try {
                     loadVars(variables);
-                    // FLEXIBLE PATH
-                    System.out.println("turboArgs: " + Arrays.toString(turboArgs));
+                    // FLEXIBLE PATH 
                     // We use the generic handle to avoid ClassCastExceptions 
                     return handleResult(genericHandle.invokeExact(turboArgs));
                 } catch (Throwable t) {
                     t.printStackTrace();
-                    System.out.println("Post throw!");
                     return execute();
                 }
             }
@@ -330,7 +328,6 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                     Object result = genericHandle.invokeExact(MathExpression.EvalResult.ERROR);
                     return handleResult(result);
                 } catch (Throwable t) {
-                    System.out.println("Post throw---2!");
                     return MathExpression.EvalResult.ERROR;
                 }
             }
@@ -493,11 +490,9 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                         }
 
                         try {
-                            MethodHandle bridge = LOOKUP.findStatic(ScalarTurboEvaluator1.class, "executePrint",
-                                    MethodType.methodType(double.class, String[].class));
-
-                            MethodHandle finalPrintHandle = MethodHandles.insertArguments(bridge, 0, (Object) rawArgs);
-                            stack.push(MethodHandles.dropArguments(finalPrintHandle, 0, double[].class));
+                            MathExpression.EvalResult soln = executePrint(getNextResult(), rawArgs);
+                            MethodHandle constant = MethodHandles.constant(MathExpression.EvalResult.class, soln);
+                            stack.push(MethodHandles.dropArguments(constant, 0, double[].class));
 
                         } catch (Exception e) {
                             throw new RuntimeException("Failed to bind print handle: " + e.getMessage(), e);
@@ -724,46 +719,44 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
      * Combines multiple handles of type (double[])double into a single handle
      * of type (double[])double[].
      */
-    private static MethodHandle combineArgs(List<MethodHandle> argumentHandles) {
+    private static MethodHandle combineArgs(List<MethodHandle> argumentHandles) throws Exception {
         int arity = argumentHandles.size();
 
-        try {
-            // 1. Get a handle to the helper method that creates the array
-            MethodHandle pack;
-            if (arity == 1) {
-                pack = LOOKUP.findStatic(ScalarTurboEvaluator1.class, "pack1",
-                        MethodType.methodType(double[].class, double.class));
-            } else if (arity == 2) {
-                pack = LOOKUP.findStatic(ScalarTurboEvaluator1.class, "pack2",
-                        MethodType.methodType(double[].class, double.class, double.class));
-            } else if (arity == 3) {
-                pack = LOOKUP.findStatic(ScalarTurboEvaluator1.class, "pack3",
-                        MethodType.methodType(double[].class, double.class, double.class, double.class));
+        // JVM Slot Limit check: 1 double = 2 slots. 
+        // We cap at 120 to be safe (leaving room for 'this' and other overhead).
+        if (arity <= 120) {
+            // --- FAST PATH: Recursive Inlining ---
+            MethodHandle packer;
+            if (arity <= 3) {
+                packer = LOOKUP.findStatic(ScalarTurboEvaluator1.class, "pack" + arity,
+                        MethodType.methodType(double[].class, Collections.nCopies(arity, double.class)));
             } else {
-                // Generic fallback for high-arity functions
-                pack = LOOKUP.findStatic(ScalarTurboEvaluator1.class, "packN",
-                        MethodType.methodType(double[].class, double[].class))
-                        .asVarargsCollector(double[].class);
+                // General packer for 4 to 120 args
+                MethodHandle base = LOOKUP.findStatic(ScalarTurboEvaluator1.class, "packN",
+                        MethodType.methodType(double[].class, double[].class));
+                packer = base.asVarargsCollector(double[].class)
+                        .asType(MethodType.methodType(double[].class, Collections.nCopies(arity, double.class)));
             }
 
-            // 2. We have 'pack' which is (double, double...) -> double[]
-            // We need to 'collect' the results of our argumentHandles into these slots.
-            MethodHandle combined = pack;
+            MethodHandle combined = packer;
             for (int i = 0; i < arity; i++) {
-                // argumentHandles.get(i) is (double[])double
-                // We plug it into the i-th argument of the 'pack' handle
                 combined = MethodHandles.collectArguments(combined, i, argumentHandles.get(i));
             }
 
-            // 3. After collecting, we have (double[], double[], ...) -> double[]
-            // Because all argument handles take the SAME double[] (the global vars), 
-            // we must collapse those multiple double[] parameters into one.
-            int[] reorder = new int[arity]; // all point to parameter 0
+            int[] reorder = new int[arity]; // All point to parameter 0 (global double[] vars)
             return MethodHandles.permuteArguments(combined,
                     MethodType.methodType(double[].class, double[].class), reorder);
 
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to combine arguments for turbo function call", e);
+        } else {
+            // --- ROBUST PATH: Massive Arity (120+ args) ---
+            // We cannot expand these into a MethodType descriptor, 
+            // so we pass them as an array to a loop-based evaluator.
+            MethodHandle[] handleArray = argumentHandles.toArray(new MethodHandle[0]);
+            MethodHandle massive = LOOKUP.findStatic(ScalarTurboEvaluator1.class, "massivePacker",
+                    MethodType.methodType(double[].class, MethodHandle[].class, double[].class));
+
+            // Bind the handle array so the final signature is just (double[] vars) -> double[]
+            return MethodHandles.insertArguments(massive, 0, (Object) handleArray);
         }
     }
 
@@ -784,8 +777,18 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
     private static double[] packN(double... args) {
         return args;
     }
-    
-    
+
+    /**
+     * The "Future-Proof" evaluator for functions with hundreds of arguments. It
+     * bypasses MethodType slot limits by using array iteration.
+     */
+    private static double[] massivePacker(MethodHandle[] subExprs, double[] vars) throws Throwable {
+        double[] results = new double[subExprs.length];
+        for (int i = 0; i < subExprs.length; i++) {
+            results[i] = (double) subExprs[i].invokeExact(vars);
+        }
+        return results;
+    }
 
     private static MethodHandle compileFunction(MathExpression.Token t, List<MethodHandle> argumentHandles) throws Throwable {
         // 1. Get the unique ID from MethodRegistry
@@ -1058,36 +1061,37 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
         }
     }
 
-    public static double executePrint(String[] args) throws Throwable {
-        double defReturnType = -1.0;
+    static MathExpression.EvalResult executePrint(MathExpression.EvalResult ctx, String[] args) {
+
+        StringBuilder sb = new StringBuilder();
         for (String arg : args) {
             Function v = FunctionManager.lookUp(arg);
             if (v != null) {
                 switch (v.getType()) {
                     case ALGEBRAIC_EXPRESSION:
-                        System.out.println(v.toString());
-                        return defReturnType;
+                        sb.append(v.toString()).append("\n");
+                        break;
                     case MATRIX:
-                        System.out.println(v.getName() + "=" + v.getMatrix().toString());
-                        return defReturnType;
+                        sb.append(v.getName()).append("=").append(v.getMatrix() != null ? v.getMatrix().toString() : "null").append("\n");
+                         break;
                     default:
-                        System.out.println(v.toString());
-                        return defReturnType;
+                        sb.append(v.toString()).append("\n");
+                         break;
                 }
+                continue;
             }
             Variable myVar = VariableManager.lookUp(arg);
             if (myVar != null) {
-                System.out.println(myVar);
-                return defReturnType;
+                sb.append(myVar.toString()).append("\n");
             } else if (com.github.gbenroscience.parser.Number.isNumber(arg)) {
-                System.out.println(arg);
-                return defReturnType;
+                sb.append(arg).append("\n");
             } else {
-                System.out.println("null");
-                return defReturnType;
+                sb.append("null").append("\n");
             }
         }
-        return defReturnType;
+        String v = sb.toString();
+        System.out.println(v);
+        return ctx.wrap(v);
     }
 
     public static double executeTurboIntegral(Function f, MethodHandle handle, double lower, double upper, int iterations, String[] vars, int[] slots) throws Throwable {
@@ -1918,7 +1922,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
     private static MethodHandle chainGradToRadians(MethodHandle trigOp) throws Throwable {
         // 1 grad = PI / 200 radians
         MethodHandle toRad = MethodHandles.filterArguments(
-                LOOKUP.findStatic(Math.class, "multiply", MT_DOUBLE_DD), // Custom multiply or use a constant
+                LOOKUP.findStatic(ScalarTurboEvaluator1.class, "multiply", MT_DOUBLE_DD), // Custom multiply or use a constant
                 0, MethodHandles.constant(double.class, Math.PI / 200.0)
         );
         // Simplified: Just use a helper method for clarity
@@ -1946,7 +1950,6 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
             }
         }
         switch (name.toLowerCase()) {
-
             case "pow":
                 return LOOKUP.findStatic(Math.class, "pow", MT_DOUBLE_DD);
             case "atan2":
@@ -1960,6 +1963,9 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                 // If your Maths library has a log(a, b) method, point to it here.
                 // Otherwise, remove this case to let it go through the legacy bridge.
                 return LOOKUP.findStatic(Maths.class, "logToAnyBase", MT_DOUBLE_DD);
+            case "alog":
+            case "log-¹":
+                return LOOKUP.findStatic(Maths.class, "antiLogToAnyBase", MT_DOUBLE_DD);
             case "comb":
             case "perm":
                 return LOOKUP.findStatic(Maths.class,

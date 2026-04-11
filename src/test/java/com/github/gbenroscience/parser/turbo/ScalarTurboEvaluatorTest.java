@@ -57,7 +57,7 @@ public class ScalarTurboEvaluatorTest {
         // Warm up turbo JIT
         double[] vars = new double[3];
         MathExpression.EvalResult evr = compiled.apply(vars); 
-        Assertions.assertEquals(-1, evr.scalar);
+        Assertions.assertTrue(evr.textRes.contains("A") && evr.textRes.contains("F"));
 
     }
 

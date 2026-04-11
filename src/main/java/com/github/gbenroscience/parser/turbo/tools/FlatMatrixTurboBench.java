@@ -40,6 +40,7 @@ public class FlatMatrixTurboBench {
         System.out.println("PARSERNG FLAT-ARRAY MATRIX TURBO BENCHMARKS");
         System.out.println(rpt);
 
+        benchmarkPrint();
         benchmarkMatrixAlgrebra();
         benchmarkScalar();
         benchmarkWithVariablesSimple();
@@ -200,6 +201,22 @@ public class FlatMatrixTurboBench {
         System.out.println("res: "+er);
         System.out.printf("Speed: %.2f ns/op%n", duration / 1_000_000.0);
         System.out.printf("Throughput: %.2f ops/sec%n", 1_000_000.0 / (duration / 1e9));
+    }
+    
+    
+    
+      private static void benchmarkPrint() throws Throwable {
+        System.out.println("\n--- SMALL MATRIX (3x3) ---");
+
+        MathExpression expr = new MathExpression(
+                "M=@(3,3)(1,2,3,4,5,6,7,8,9);N=@(3,3)(9,8,7,6,5,4,3,2,1);G=matrix_add(M,N);print(G,M,N)"
+        );
+        FastCompositeExpression turbo = expr.compileTurbo();
+        double[] vars = {};
+           expr.solve();
+           turbo.apply(vars);
+
+     
     }
 
     private static void benchmarkSmallMatrix() throws Throwable {

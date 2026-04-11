@@ -58,6 +58,7 @@ public class MathScanner {
      * Contains the scanned expression
      */
     private List<String> scanner = new ArrayList<>();
+    List<Variable>foundVariables = new ArrayList<>();
 
     /**
      *
@@ -603,7 +604,7 @@ public class MathScanner {
             if (isOpeningBracket(scanner.get(i)) && scanner.get(i + 1).equals("-") && isNumber(scanner.get(i + 2))) {
 
                 int index = scanner.get(i + 2).indexOf(EN_DASH);
-                if (index != -1) {//In case the number at i+2 contains an EN_DASH, replace it with a minus
+                if (index != -1) {//In case the number at i+2 containsAlgebraicFunction an EN_DASH, replace it with a minus
                     scanner.set(i + 2, replace(scanner.get(i + 2), MINUS, index, index + 1));
                 }
                 scanner.set(i + 1, String.valueOf(-1 * Double.parseDouble(scanner.get(i + 2))));
@@ -1075,16 +1076,18 @@ private static boolean isExactlyOne(String s) {
                 if (i + 1 < sz && Variable.isVariableString(tk) && !isOpeningBracket(scanner.get(i + 1)) && !variableManager.contains(tk)
                         && !FunctionManager.containsAny(tk) && !Method.isDefinedMethod(tk)) {
                     variableManager.parseCommand(tk + "=0.0;");
+                    foundVariables.add(new Variable(tk, 0));
                 }//end if
                 else if(i==0 && sz==1 && Variable.isVariableString(tk)){
                     if(!FunctionManager.containsAny(tk)){
                           variableManager.parseCommand(tk + "=0.0;");
+                          foundVariables.add(new Variable(tk, 0));
                     }
                 }
             }//end if
             else {
                 if (i + 1 < sz && Variable.isVariableString(scanner.get(i)) && !isOpeningBracket(scanner.get(i + 1)) && !variableManager.contains(scanner.get(i))
-                        && !FunctionManager.contains(scanner.get(i))) {
+                        && !FunctionManager.containsAny(scanner.get(i))) {
                     errorList.add(" Unknown Variable: " + scanner.get(i) + "\n Please Declare And Initialize This Variable Before Using It.\n"
                             + "Use The Command, \'variableName=value\' To Accomplish This.");
                     parser_Result = ParserResult.STRANGE_INPUT;
@@ -1217,10 +1220,12 @@ private static boolean isExactlyOne(String s) {
                 if (i + 1 < sz && Variable.isVariableString(tk) && !isOpeningBracket(scanner.get(i + 1)) && !varMan.contains(tk)
                         && !FunctionManager.containsAny(tk) && !Method.isDefinedMethod(tk)) {
                     varMan.parseCommand(tk + "=0.0;");
+                    foundVariables.add(new Variable(tk, 0));
                 }//end if
                 else if(i==0 && sz==1 && Variable.isVariableString(tk)){
                     if(!FunctionManager.containsAny(tk)){
                           varMan.parseCommand(tk + "=0.0;");
+                          foundVariables.add(new Variable(tk, 0));
                     }
                 }
             }//end if
@@ -1495,7 +1500,7 @@ private static boolean isExactlyOne(String s) {
                             extractFunctionStringFromExpressionForMatrixMethods(l);
                             i = i - (siz - l.size());
                         } //Most likely you have gotten to the first parameter...ignore it and process the bracket
-                        else if (FunctionManager.contains(token)) {
+                        else if (FunctionManager.containsAlgebraicFunction(token)) {
                             List l = list.subList(open, i + 1);
                             int siz = l.size();
                             MathExpression me = new MathExpression(LISTS.createStringFrom(list, open, i + 1));
@@ -1625,7 +1630,7 @@ private static boolean isExactlyOne(String s) {
 
                             i = i - (siz - l.size());
                         } //Most likely you have gotten to the first parameter...ignore it and process the bracket
-                        else if (FunctionManager.contains(token)) {
+                        else if (FunctionManager.containsAlgebraicFunction(token)) {
                             List l = list.subList(open, i + 1);
                             int siz = l.size();
 

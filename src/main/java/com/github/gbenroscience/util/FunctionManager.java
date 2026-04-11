@@ -42,18 +42,26 @@ public class FunctionManager {
      * full name of the function which is a combination of the name of its
      * dependent variable and its independent variables enclosed in circular
      * parentheses. e.g in y = x^3, either y or y(x) may be supplied.
-     * @return true if a Function exists by the name supplied.
+     * @return true if a Function exists by the name supplied, but it is not a matrix
      */
-    public static boolean contains(String fName) {
+    public static boolean containsAlgebraicFunction(String fName) {
         Function f = lookUp(fName);
         return f != null && f.getType() != TYPE.MATRIX;
     }//end method
-
+/**
+ * 
+ * @param fName
+ * @return true if the function exists and it is matrix type
+ */
     public static boolean containsMatrix(String fName) {
         Function f = lookUp(fName);
         return f != null && f.getType() == TYPE.MATRIX;
     }//end method
-
+/**
+ * 
+ * @param fName
+ * @return true if the function exists and is either Matrix or Algebraic
+ */
     public static boolean containsAny(String fName) {
         Function f = lookUp(fName);
         return f != null;

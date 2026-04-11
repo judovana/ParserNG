@@ -42,6 +42,11 @@ public class Variable implements Savable {
      * Initialized to -1 to indicate it hasn't been mapped yet.
      */
     private int frameIndex = -1;
+    
+    public static MathExpression.EvalResult lastResult = new MathExpression.EvalResult();
+    static {
+        lastResult.wrap(0.0D);
+    }
 
     /**
      * The constant PI
@@ -437,13 +442,12 @@ public class Variable implements Savable {
      *
      * @return the value stored in the variable
      */
-    public double getValue() { 
+    public double getValue() {
         if (isPI(name)) {
             return value = Math.PI;
         } else if (isLastEvaluatedAnswer(name)) {
-            if (Number.isNumber(MathExpression.lastResult)) {
-                return value = Double.parseDouble(MathExpression.lastResult);
-            }
+           value = lastResult != null ? ( (lastResult.type == MathExpression.EvalResult.TYPE_SCALAR) ? lastResult.scalar : 0.0 ) : 0;
+           return value;
         } else if (isExpNumber(name)) {
             return value;
         } else if (isConstant()) {

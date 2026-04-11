@@ -125,9 +125,9 @@ public class NumericalIntegral {
      * cos(sinh(x-2/tan9x)),4,4.32 and so on.
      *
      * @param chooseExpressionType Determines if the expression to integrate
-     * contains the integral symbol or not.
-     *
-     * F(x) = sin(x)/2x; intg(F(x),0,2,iterations)
+containsAlgebraicFunction the integral symbol or not.
+
+F(x) = sin(x)/2x; intg(F(x),0,2,iterations)
      */
     public NumericalIntegral(String expression, int chooseExpressionType) {
         this.targetHandle = null;
@@ -671,7 +671,7 @@ public class NumericalIntegral {
         if (methodName.equals("intg") && list.get(1).equals("(") && list.get(list.size() - 1).equals(")")) {
             String functionName = list.get(2);
             if (Variable.isVariableString(functionName)) {
-                boolean exists = FunctionManager.contains(functionName);
+                boolean exists = FunctionManager.containsAlgebraicFunction(functionName);
                 if (exists) {
                     for (int i = 3; i < list.size(); i++) {
                         if (Operator.isOpeningBracket(list.get(i))) {

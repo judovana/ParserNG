@@ -20,7 +20,9 @@ import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.STRING;
 import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.VariableManager;
+import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,14 +33,16 @@ import java.util.logging.Logger;
  */
 public class ScalarTurboBench {
 
-    private static final int N = 1000000;
-    private static boolean useWidening = true;
+    private static final int N = 10000;
+    private static boolean useWidening = false;
 
     public static void main(String[] args) throws Throwable {
         String rpt = STRING.repeating("=", 80);
         System.out.println(rpt);
         System.out.println("SCALAR TURBO COMPILER BENCHMARKS");
         System.out.println(rpt);
+
+        benchmarkVariablesUsage();
         benchmarkComplexFunctions();
         benchmarkComplexMultiVariateFunctions();
         benchmarkExpressionRotor();
@@ -76,6 +80,23 @@ public class ScalarTurboBench {
         return new ScalarTurboEvaluator(me, useWidening).compile();
     }
 
+    private static void benchmarkVariablesUsage() throws Throwable {
+        System.out.println("\n=== TEST VARIABLES USAGE===\n");
+        String expr = "3*x+y-z^2";
+        System.out.printf("Expression: %s%n", expr);
+        // Warm up JIT
+        MathExpression interpreted = new MathExpression(expr, false);
+        MathExpression.EvalResult ev = interpreted.solveGeneric(3, 1, 5);
+        System.out.println("interpreted: " + ev);
+
+        // Compile to turbo
+        FastCompositeExpression compiled = get(interpreted, useWidening);
+        // Warm up turbo JIT
+        double[] vars = new double[]{3, 1, 5};
+        MathExpression.EvalResult evr = compiled.apply(vars);
+        System.out.println("turbo: " + evr);
+    }
+
     private static void benchmarkPrinting() throws Throwable {
         System.out.println("\n=== TEST PRINTING===\n");
         String expr = "F=@(x,y,z)3*x+y-z^2";
@@ -88,7 +109,7 @@ public class ScalarTurboBench {
         MathExpression.EvalResult ev = interpreted.solveGeneric();
 
         // Compile to turbo
-        FastCompositeExpression compiled = get(interpreted);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
         // Warm up turbo JIT
         double[] vars = new double[3];
         MathExpression.EvalResult evr = compiled.apply(vars);
@@ -107,7 +128,7 @@ public class ScalarTurboBench {
         double interpretedDur = System.nanoTime() - time;
 
         // Compile to turbo
-        FastCompositeExpression compiled = get(interpreted);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
         // Warm up turbo JIT
         double[] vars = new double[0];
         time = System.nanoTime();
@@ -134,7 +155,7 @@ public class ScalarTurboBench {
         double interpretedDur = System.nanoTime() - time;
 
         // Compile to turbo
-        FastCompositeExpression compiled = get(interpreted);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
         // Warm up turbo JIT
         double[] vars = new double[0];
         time = System.nanoTime();
@@ -162,7 +183,7 @@ public class ScalarTurboBench {
         System.out.println("scanner: " + interpreted.getScanner());
 
         // Compile to turbo
-        FastCompositeExpression compiled = get(interpreted, false);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
         // Warm up turbo JIT
         double[] vars = new double[0];
         MathExpression.EvalResult evr = compiled.apply(vars);
@@ -183,7 +204,7 @@ public class ScalarTurboBench {
         System.out.println("turbo: " + FunctionManager.lookUp(ev.textRes));
 
         // Compile to turbo
-        FastCompositeExpression compiled = get(interpreted, false);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
         // Warm up turbo JIT
         double[] vars = new double[3];
         MathExpression.EvalResult evr = compiled.apply(vars);
@@ -200,7 +221,7 @@ public class ScalarTurboBench {
     private static void benchmarkExpressionRotor() throws Throwable {
 
         System.out.println("\n=== EXPRESSION ROTOR; FOLDING OFF===\n");
- 
+
         String expression = "F=@(x,y,z)sin(x+y+3*z^2);rot(F,pi, @(1,3)(1,0,1),@(1,3)(1,1,0))";//
         MathExpression interpreted = new MathExpression(expression);
         MathExpression.EvalResult ev = interpreted.solveGeneric();
@@ -209,7 +230,7 @@ public class ScalarTurboBench {
         System.out.println("interpreted: " + ev.textRes);
 
         // Compile to turbo
-        FastCompositeExpression compiled = get(interpreted, false);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
         // Warm up turbo JIT
         double[] vars = new double[0];
         MathExpression.EvalResult evr = compiled.apply(vars);
@@ -228,56 +249,95 @@ public class ScalarTurboBench {
         MathExpression interpreted = new MathExpression(expression);
 
         MathExpression.EvalResult ev = interpreted.solveGeneric();
+
+        for (int i = 0; i < N; i++) {
+
+        }
+
         System.out.printf("Expression: %s%n", expression);
         System.out.println("interpreted: " + ev);
 
         // Compile to turbo
-        FastCompositeExpression compiled = get(interpreted, false);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
         // Warm up turbo JIT
         double[] vars = new double[1];
         MathExpression.EvalResult evr = compiled.apply(vars);
         System.out.println("turbo: " + evr);
     }
+
     private static void benchmarkComplexFunctions() throws Throwable {
 
         System.out.println("\n=== COMPLEX FUNCTIONS; FOLDING OFF===\n");
-
+        VariableManager.clearVariables();
+        FunctionManager.clear();
         String expression = "y(x)=sin(x);p(x)=cos(x);v(x)=y(x-1)+x*p(x);v(5)";
         MathExpression interpreted = new MathExpression(expression);
-        MathExpression.EvalResult ev = interpreted.solveGeneric();
+        interpreted.solveGeneric();
+        double results[] = new double[10];
+
+        double start = System.nanoTime();
+        for (int i = 0, j = 0; i < N; i++, j++) {
+            results[j < results.length ? j : (j = 0)] = interpreted.solveGeneric().scalar;
+        }
+        double intDur = (System.nanoTime() - start) / N;
 
         System.out.printf("Expression: %s%n", expression);
-        System.out.println("interpreted: " + ev);
+        System.out.println("interpreted-result: " + results[0]);
+        System.out.println("interpreted-duration: " + intDur + " ns");
 
         // Compile to turbo
-        FastCompositeExpression compiled = get(interpreted, false);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
         // Warm up turbo JIT
         double[] vars = new double[]{5};
         MathExpression.EvalResult evr = compiled.apply(vars);
-        System.out.println("turbo: " + evr);
+
+        start = System.nanoTime();
+        for (int i = 0, j = 0; i < N; i++, j++) {
+            results[j < results.length ? j : (j = 0)] = compiled.applyScalar(vars);
+        }
+
+        double turboDur = (System.nanoTime() - start) / N;
+        System.out.println("turbo-result: " + evr);
+        System.out.println("turbo-duration: " + turboDur + " ns");
+        System.out.println("speedup: " + (int) Math.rint(intDur / turboDur) + "x");
     }
-    
-       private static void benchmarkComplexMultiVariateFunctions() throws Throwable {
+
+    private static void benchmarkComplexMultiVariateFunctions() throws Throwable {
 
         System.out.println("\n=== COMPLEX FUNCTIONS; FOLDING OFF===\n");
-//           VariableManager.clearVariables();
-//           FunctionManager.clear();
+        VariableManager.clearVariables();
+        FunctionManager.clear();
 
         String expression = "p(x,y,z)=sin(x+2*y-z);u(x,y,z)=cos(x-y+2*z);v(x,y,z)=p(x,3-y,4+z)+x*u(x+3,y-1,z+2);v(2,5,8)";
+
         MathExpression interpreted = new MathExpression(expression);
-        MathExpression.EvalResult ev = interpreted.solveGeneric();
+
+        interpreted.solveGeneric();
+        double results[] = new double[10];
+
+        double start = System.nanoTime();
+        for (int i = 0, j = 0; i < N; i++, j++) {
+            results[j < results.length ? j : (j = 0)] = interpreted.solveGeneric().scalar;
+        }
+        double intDur = (System.nanoTime() - start) / N;
 
         System.out.printf("Expression: %s%n", expression);
-        System.out.println("interpreted: " + ev);
-
+        System.out.println("interpreted-result: " + results[0]);
+        System.out.println("interpreted-duration: " + intDur + " ns");
         // Compile to turbo
-        FastCompositeExpression compiled = get(interpreted, false);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
         // Warm up turbo JIT
-        double[] vars = new double[]{2,5,8};
-        MathExpression.EvalResult evr = compiled.apply(new double[0]);
-        System.out.println("turbo: " + evr);
+        double[] vars = new double[]{2, 5, 8};
+        MathExpression.EvalResult evr = compiled.apply(vars);
+        start = System.nanoTime();
+        for (int i = 0, j = 0; i < N; i++, j++) {
+            results[j < results.length ? j : (j = 0)] = compiled.applyScalar(vars);
+        }
+        double turboDur = (System.nanoTime() - start) / N;
+        System.out.println("turbo-result: " + evr);
+        System.out.println("turbo-duration: " + turboDur + " ns");
+        System.out.println("speedup: " + (int) Math.rint(intDur / turboDur) + "x");
     }
-
 
     private static void benchmarkBasicArithmetic() throws Throwable {
         System.out.println("\n=== BASIC ARITHMETIC; FOLDING OFF===\n");
@@ -291,7 +351,7 @@ public class ScalarTurboBench {
 
         // Compile to turbo
         MathExpression turbo = new MathExpression(expr, false);
-        FastCompositeExpression compiled = get(interpreted);
+        FastCompositeExpression compiled = get(turbo, useWidening);
 
         // Warm up turbo JIT
         double[] vars = new double[0];
@@ -339,7 +399,7 @@ public class ScalarTurboBench {
         System.out.printf("Expression: %s%n", expr);
 
         // Compile to turbo
-        FastCompositeExpression compiled = get(interpreted);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
         // Warm up turbo JIT
         double[] vars = new double[0];
         MathExpression.EvalResult evr = compiled.apply(vars);
@@ -378,7 +438,7 @@ public class ScalarTurboBench {
         System.out.printf("Expression: %s%n", expr);
 
         // Compile to turbo
-        FastCompositeExpression compiled = get(interpreted);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
         // Warm up turbo JIT
         double[] vars = new double[0];
         MathExpression.EvalResult evr = compiled.apply(vars);
@@ -408,7 +468,7 @@ public class ScalarTurboBench {
         }
 
         MathExpression turbo = new MathExpression(expr, false);
-        FastCompositeExpression compiled = get(interpreted);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
 
         double[] vars = new double[0];
         for (int i = 0; i < 1000; i++) {
@@ -445,7 +505,7 @@ public class ScalarTurboBench {
 
         MathExpression turbo = new MathExpression(expr, withFolding);
         System.out.println("scanner: " + turbo.getScanner());
-        FastCompositeExpression compiled = get(interpreted);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
 
         double[] vars = new double[0];
         for (int i = 0; i < 1000; i++) {
@@ -490,7 +550,7 @@ public class ScalarTurboBench {
         double intDur = System.nanoTime() - start;
 
         MathExpression turbo = new MathExpression(expr, false);
-        FastCompositeExpression compiled = get(interpreted);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
 
         double[] vars = new double[3];
         vars[xSlot] = 2.5;
@@ -522,11 +582,11 @@ public class ScalarTurboBench {
          */
         String expr = "x*sin(x) + y*sin(y) + z / cos(x - y) + sqrt(x^2 + y^2)";
         FunctionManager.delete("y");//Use this to delete any pre-existing function pointers
-        MathExpression interpreted = new MathExpression(expr, false); 
-        int xSlot = interpreted.getVariable("x").getFrameIndex(); 
-        int ySlot = interpreted.getVariable("y").getFrameIndex(); 
+        MathExpression interpreted = new MathExpression(expr, false);
+        int xSlot = interpreted.getVariable("x").getFrameIndex();
+        int ySlot = interpreted.getVariable("y").getFrameIndex();
         int zSlot = interpreted.getVariable("z").getFrameIndex();
-       
+
         double[] res = new double[3];
         long start = System.nanoTime();
         for (int i = 0; i < N; i++) {
@@ -538,7 +598,7 @@ public class ScalarTurboBench {
 
         double intDur = System.nanoTime() - start;
 
-        FastCompositeExpression compiled = get(interpreted, false); 
+        FastCompositeExpression compiled = get(interpreted, false);
         double[] vars = new double[3];
         vars[xSlot] = 2.5;
         vars[ySlot] = 3.7;
@@ -572,7 +632,7 @@ public class ScalarTurboBench {
         double[] vars = new double[1];
 
         double[] v = interpreted.solveGeneric().vector;
-        FastCompositeExpression compiled = get(interpreted);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
         MathExpression.EvalResult evv = compiled.apply(vars);
         double[] v1 = evv.vector;
         System.out.println("v = " + Arrays.toString(v));
@@ -589,7 +649,7 @@ public class ScalarTurboBench {
         double[] vars = new double[0];
 
         double[] v = interpreted.solveGeneric().vector;
-        FastCompositeExpression compiled = get(interpreted);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
         double[] v1 = compiled.apply(vars).vector;
         System.out.println("v = " + Arrays.toString(v));
         System.out.println("v1 = " + Arrays.toString(v1));
@@ -605,7 +665,7 @@ public class ScalarTurboBench {
         double[] vars = new double[0];
 
         double v = interpreted.solveGeneric().scalar;
-        FastCompositeExpression compiled = get(interpreted);
+        FastCompositeExpression compiled = get(interpreted, useWidening);
         double v1 = compiled.applyScalar(vars);
         System.out.println("v = " + v);
         System.out.println("v1 = " + v1);
@@ -676,12 +736,10 @@ public class ScalarTurboBench {
     }
 
     private static void coldRun(String expr, boolean normalMode) {
+        System.out.println("COLD RUN  for " + expr + (normalMode ? " IN NORMAL MODE " : " IN TURBO MODE"));
         int n = 0;
         MathExpression me = new MathExpression(expr);
         if (normalMode) {
-            for (int i = 0; i < n; i++) {
-                me.solveGeneric();
-            }
 
             long start = System.nanoTime();
             double v = me.solveGeneric().scalar;
@@ -692,9 +750,6 @@ public class ScalarTurboBench {
                 FastCompositeExpression fce = get(me);
                 double vars[] = new double[10];
                 vars[0] = 3;
-                for (int i = 0; i < n; i++) {
-                    fce.applyScalar(vars);
-                }
 
                 long start = System.nanoTime();
                 double v = fce.applyScalar(vars);
@@ -755,5 +810,17 @@ public class ScalarTurboBench {
                 // You can use this data to tune MIN_VAR_COUNT_FOR_ARRAY_BASED_EVALUATOR
             }
         }
+    }
+
+    private static final double[] getRandom(int size, int min, int max) {
+        Random r = new Random(System.currentTimeMillis());
+        byte[] b = new byte[256];
+        r.nextBytes(b);
+        SecureRandom sc = new SecureRandom(b);
+        double[] da = new double[size];
+        for (int i = 0; i < size; i++) {
+            da[i] = sc.nextDouble(min, max);
+        }
+        return da;
     }
 }

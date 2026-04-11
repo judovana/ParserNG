@@ -156,7 +156,7 @@ VARIABLES attribute of objects of this class.
             String var = cmd.substring(0, indexOfEqual);
 
             if (Variable.isVariableString(var)) {
-                if (FunctionManager.contains(var)) {
+                if (FunctionManager.containsAlgebraicFunction(var)) {
                     FunctionManager.delete(var);
                 }
                 try {
@@ -245,11 +245,8 @@ VARIABLES attribute of objects of this class.
      * @param varName the name of the Variable object to be deleted
      */
     public static void delete(String varName) {
-
         VARIABLES.remove(varName);
-
         update();
-
     }//end method
 
     /**
@@ -613,7 +610,7 @@ VARIABLES attribute of objects of this class.
                                                 VARIABLES.put(scan.get(i), new Variable(scan.get(i), Double.parseDouble(getValue(part2)), false));
                                             }//end else if
                                             else if (!variable && !contains(scan.get(i))) {
-                                                boolean isFunction = FunctionManager.contains(scan.get(i));
+                                                boolean isFunction = FunctionManager.containsAlgebraicFunction(scan.get(i));
                                                 if (isFunction) {
                                                     FunctionManager.delete(scan.get(i));
                                                 }
@@ -645,7 +642,7 @@ VARIABLES attribute of objects of this class.
                                             VARIABLES.put(scan.get(0), new Variable(scan.get(0), Double.parseDouble(getValue(part2)), false));
                                         }//end else if
                                         else if (!variable && !contains(scan.get(0))) {
-                                            boolean isFunction = FunctionManager.contains(scan.get(0));
+                                            boolean isFunction = FunctionManager.containsAlgebraicFunction(scan.get(0));
                                             if (isFunction) {
                                                 FunctionManager.delete(scan.get(0));
                                             }

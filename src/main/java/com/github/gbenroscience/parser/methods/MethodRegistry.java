@@ -401,7 +401,7 @@ public class MethodRegistry {
         });
 
         registerMethod(Declarations.ROTOR, (ctx, arity, args) -> {
-           int sz = args.length;
+            int sz = args.length;
             if (args.length == 4) {//rot(F,a,O,D) function, angle, origin, direction vector
                 //confirm the last 3 other args
                 double angle = args[1].scalar;
@@ -409,7 +409,7 @@ public class MethodRegistry {
                 String anonFuncDir = args[3].textRes;
                 Function origFun = FunctionManager.lookUp(anonFuncOrig);
                 Function dirFun = FunctionManager.lookUp(anonFuncDir);
-          
+
                 if (origFun == null) {
                     return MathExpression.EvalResult.ERROR;
                 }
@@ -446,7 +446,7 @@ public class MethodRegistry {
                 }
                 if (f.getType() == TYPE.ALGEBRAIC_EXPRESSION) {
                     String expr = f.getMathExpression().getExpression();
-                  
+
                     ROTOR r = new ROTOR(angle, origin, dir);
                     if (siz == 3) {
                         r.setXAxisName(vars.get(0).getName());
@@ -456,8 +456,8 @@ public class MethodRegistry {
                     if (siz == 2) {
                         r.setXAxisName(vars.get(0).getName());
                         r.setYAxisName(vars.get(1).getName());
-                    } 
-                    String res = r.rotate(expr); 
+                    }
+                    String res = r.rotate(expr);
                     return ctx.wrap(res);
                 }
                 if (f.getType() == TYPE.MATRIX) {
@@ -533,7 +533,7 @@ public class MethodRegistry {
 
                         Point p11Rot = r.rotate(p11);
                         Point p22Rot = r.rotate(p22);
-                         return ctx.wrap(new double[]{p11Rot.x, p11Rot.y, p11Rot.z, p22Rot.x, p22Rot.y, p22Rot.z});
+                        return ctx.wrap(new double[]{p11Rot.x, p11Rot.y, p11Rot.z, p22Rot.x, p22Rot.y, p22Rot.z});
                     } else {
                         return MathExpression.EvalResult.ERROR;
                     }
@@ -542,7 +542,7 @@ public class MethodRegistry {
             } else {
                 return MathExpression.EvalResult.ERROR;
             }
-             return MathExpression.EvalResult.ERROR;
+            return MathExpression.EvalResult.ERROR;
 
         });
 
@@ -583,35 +583,41 @@ public class MethodRegistry {
                             switch (f.getType()) {
                                 case ALGEBRAIC_EXPRESSION:
                                     System.out.println(f.toString());
+                                    ctx.wrap(f.toString());
                                     break;
                                 case MATRIX:
                                     System.out.println(f.getName() + "=" + f.getMatrix().toString());
+                                    ctx.wrap(f.getName() + "=" + f.getMatrix().toString());
                                     break;
                                 default:
                                     System.out.println(f.toString());
+                                      ctx.wrap(f.toString());
                                     break;
                             }
                         } else {
                             System.out.println(arg.textRes);
+                            ctx.wrap(arg.textRes);
                         }
                         break;
                     case MathExpression.EvalResult.TYPE_ERROR:
+                        ctx.wrap(arg.toString());
                         System.out.println(arg.toString());
                         break;
                     case MathExpression.EvalResult.TYPE_MATRIX:
-                        System.out.println(arg.matrix.getName() + "=" + arg.matrix.toString());
+                        ctx.wrap(arg.matrix.getName() + "=" + arg.matrix.toString());
                         arg.matrix.print();
                         break;
                     case MathExpression.EvalResult.TYPE_VECTOR:
+                        ctx.wrap(Arrays.toString(arg.vector));
                         System.out.println(Arrays.toString(arg.vector));
                         break;
-
                     default:
                         System.out.println(arg.toString());
+                        ctx.wrap(arg.toString());
                 }
 
             }
-            return ctx.wrap(-1);
+            return ctx;
         });
         /*registerMethod(Declarations.SUM, (ctx, arity, args) -> {
             double x = 0;
@@ -767,10 +773,8 @@ public class MethodRegistry {
         });
         registerMethod(Declarations.RANDOM, (ctx, arity, args) -> {
             double result;
-
             // Use ThreadLocalRandom for peak performance and thread safety
             java.util.concurrent.ThreadLocalRandom rng = java.util.concurrent.ThreadLocalRandom.current();
-
             if (args == null || args.length == 0) {
                 // Case: random() -> [0.0, 1.0)
                 result = rng.nextDouble();
@@ -778,11 +782,18 @@ public class MethodRegistry {
                 // Case: random(n) -> [0.0, n)
                 result = rng.nextDouble() * args[0].scalar;
             }
-
             // Wrap as a scalar and return from the pool
             MathExpression.EvalResult res = ctx;
             res.wrap(result);
             return res;
+        });
+        registerMethod(Declarations.NANOS, (ctx, arity, args) -> {
+            ctx.wrap(System.nanoTime());
+            return ctx;
+        });
+        registerMethod(Declarations.NOW, (ctx, arity, args) -> {
+            ctx.wrap(System.nanoTime());
+            return ctx;
         });
         registerMethod(Declarations.STD_DEV, (ctx, arity, args) -> {
             if (args == null || args.length < 2) {

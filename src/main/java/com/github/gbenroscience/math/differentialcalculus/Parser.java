@@ -177,7 +177,7 @@ public class Parser {
 
             String functionName = list.get(2);
             if (Variable.isVariableString(functionName)) {
-                boolean exists = FunctionManager.contains(functionName);
+                boolean exists = FunctionManager.containsAlgebraicFunction(functionName);
                 if (exists) {
 
                     for (int i = 3; i < list.size(); i++) {
@@ -272,7 +272,7 @@ public class Parser {
             String functionName = list.get(2);
             if (Variable.isVariableString(functionName)) {
 
-                boolean exists = FunctionManager.contains(functionName);
+                boolean exists = FunctionManager.containsAlgebraicFunction(functionName);
                 if (exists) {
                     for (int i = 3; i < list.size(); i++) {
                         String tk = list.get(i);

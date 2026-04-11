@@ -32,6 +32,8 @@ import com.github.gbenroscience.parser.Variable;
 import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
+import com.github.gbenroscience.parser.turbo.tools.FastCompositeExpression;
+import com.github.gbenroscience.parser.turbo.tools.TurboExpressionEvaluator;
 import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.Utils;
 import com.github.gbenroscience.util.VariableManager;
@@ -45,8 +47,9 @@ import java.util.concurrent.ThreadLocalRandom;
  * techniques to pass variables to the evaluator. May be intensely fast. But has
  * limits due to the JVMs limits of 256 slots(so 126-127 args for double args)
  * for method argument count Will balance this with
- * {@linkplain ScalarTurboEvaluator1} which is array based, to allow usage of
- * expressions with thousands of variables and more.
+ * {@linkplain com.github.gbenroscience.parser.turbo.tools.ScalarTurboEvaluator1}
+ * which is array based, to allow usage of expressions with thousands of
+ * variables and more.
  *
  * @author GBEMIRO
  */
@@ -56,7 +59,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
 
     protected final double[] turboArgs;
     protected final int[] slots;
- 
+
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
     private static final MethodHandle QUAD_HANDLE;
     private static final MethodHandle TARTAGLIA_HANDLE;
@@ -84,8 +87,8 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
         return arr;
     });
 
-    private static final java.util.Map<String, MethodHandle> UNARY_MAP = new java.util.HashMap<>(128);
-    private static final java.util.Map<String, MethodHandle> BINARY_MAP = new java.util.HashMap<>(32);
+    private static final Map<String, MethodHandle> UNARY_MAP = new HashMap<>(128);
+    private static final Map<String, MethodHandle> BINARY_MAP = new HashMap<>(32);
     // Define this at the top of ScalarTurboEvaluator2
     private static final MethodHandle MULTIPLY_HANDLE;
     private static final MethodHandle RECIPROCAL_HANDLE;
@@ -151,7 +154,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
             UNARY_MAP.put("ln-¹", exp);
             UNARY_MAP.put("lg-¹", alg);
 
-            java.util.Map<String, MethodHandle> baseTrig = new java.util.HashMap<>();
+            Map<String, MethodHandle> baseTrig = new HashMap<>();
             baseTrig.put("sin", LOOKUP.findStatic(Math.class, "sin", MT_DOUBLE_D));
             baseTrig.put("cos", LOOKUP.findStatic(Math.class, "cos", MT_DOUBLE_D));
             baseTrig.put("tan", LOOKUP.findStatic(Math.class, "tan", MT_DOUBLE_D));
@@ -185,7 +188,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
             MethodHandle toRad = LOOKUP.findStatic(Math.class, "toRadians", MT_DOUBLE_D);
             MethodHandle gradToRad = LOOKUP.findStatic(ScalarTurboEvaluator2.class, "gradToRad", MT_DOUBLE_D);
 
-            for (java.util.Map.Entry<String, MethodHandle> entry : baseTrig.entrySet()) {
+            for (Map.Entry<String, MethodHandle> entry : baseTrig.entrySet()) {
                 String name = entry.getKey();
                 MethodHandle handle = entry.getValue();
 
@@ -233,15 +236,11 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
     private MathExpression.Token[] postfix;
 
     public ScalarTurboEvaluator2(MathExpression me) {
-        if(Utils.isAndroid()){
-            throw new RuntimeException("Platform not supported. Use ScalarTurboEvaluator, MatrixTurboEvaluator or MathExpression(standard)");
-        }
         this.postfix = me.getCachedPostfix();
         this.willFoldConstants = me.isWillFoldConstants();
- 
-        int num_vars = me.getVariablesNames().length;
+
         slots = me.getSlots();
-        turboArgs = new double[num_vars];
+        turboArgs = me.getExecutionFrame();
     }
 
     public void setWillFoldConstants(boolean willFoldConstants) {
@@ -293,13 +292,17 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
 
             // 2. Create a "Scalar-Only" version of the handle (returns double)
             // If it's a vector, we grab the first element. If it's a scalar, we leave it.
+// 2. Create a "Scalar-Only" version of the handle (returns double)
             MethodHandle scalarOnlyHandle = wideHandle;
             if (returnType == double[].class) {
-                MethodHandle getFirst = MethodHandles.arrayElementGetter(double[].class);
+                MethodHandle getFirst = ScalarTurboEvaluator1.AndroidFriendlyMethodHandles.getDoubleArrayGetter();
                 scalarOnlyHandle = MethodHandles.filterReturnValue(wideHandle,
                         MethodHandles.insertArguments(getFirst, 1, 0));
             } else if (returnType == MathExpression.EvalResult.class) {
-                scalarOnlyHandle = scalarOnlyHandle.asType(scalarOnlyHandle.type().changeReturnType(MathExpression.EvalResult.class));
+                // FIX: Actually extract the double value from the EvalResult object
+                MethodHandle extractor = LOOKUP.findStatic(ScalarTurboEvaluator2.class, "extractScalarFromResult",
+                        MethodType.methodType(double.class, MathExpression.EvalResult.class));
+                scalarOnlyHandle = MethodHandles.filterReturnValue(wideHandle, extractor);
             } else {
                 scalarOnlyHandle = scalarOnlyHandle.asType(scalarOnlyHandle.type().changeReturnType(double.class));
             }
@@ -308,8 +311,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
             // This binds the handle to array indices instead of using asSpreader.
             // It allows you to pass a double[11] to a 3-variable expression without cloning.
             // ... inside compile() ...
-            // MULTI-VARIABLE PATH
-            // MULTI-VARIABLE PATH
+            // MULTI-VARIABLE PATH 
             // ... inside compile() ...
             MethodHandle scalarSpreader;
             MethodHandle genericSpreader;
@@ -325,7 +327,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
 
                 // 2. Create an array of filters. Each filter is: (double[]) -> double
                 // specifically: variables -> variables[i]
-                MethodHandle arrayGetter = MethodHandles.arrayElementGetter(double[].class);
+                MethodHandle arrayGetter = ScalarTurboEvaluator1.AndroidFriendlyMethodHandles.getDoubleArrayGetter();
                 MethodHandle[] filters = new MethodHandle[varCount];
                 for (int i = 0; i < varCount; i++) {
                     filters[i] = MethodHandles.insertArguments(arrayGetter, 1, i);
@@ -391,6 +393,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
             };
 
         } catch (Throwable t) {
+            t.printStackTrace();
             throw new RuntimeException("Failed to compile Turbo expression", t);
         }
     }
@@ -404,7 +407,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
         return false;
     }
 
-    private static MethodHandle compileScalarWide(MathExpression.Token[] postfix, int varCount, boolean foldConstants) throws Throwable {
+    private MethodHandle compileScalarWide(MathExpression.Token[] postfix, int varCount, boolean foldConstants) throws Throwable {
         Deque<MethodHandle> stack = new ArrayDeque<>();
 
         if (postfix == null || postfix.length == 0) {
@@ -473,16 +476,72 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
 
                 case MathExpression.Token.FUNCTION:
                 case MathExpression.Token.METHOD:
+                    Function userFunc = FunctionManager.getFunction(t.name);
+
+                    if (userFunc != null) {
+                        int callArity = t.arity;
+                        int defArity = userFunc.getArity();
+
+                        if (callArity != defArity) {
+                            throw new RuntimeException("Function " + t.name + " expects " + defArity + " arguments but received " + callArity);
+                        }
+
+                        List<MethodHandle> argumentHandles = new ArrayList<>(callArity);
+                        for (int i = 0; i < callArity; i++) {
+                            MethodHandle h = stack.pop();
+                            // Ensure every argument is widened to the outer scope
+                            if (h.type().parameterCount() != pTypes.length) {
+                                h = MethodHandles.dropArguments(h, 0, pTypes);
+                            }
+                            argumentHandles.add(0, h);
+                        }
+
+                        MathExpression bodyExpr = userFunc.getMathExpression();
+                        MethodHandle bodyHandle = compileScalarWide(bodyExpr.getCachedPostfix(), defArity, willFoldConstants);
+
+                        if (defArity == 0) {
+                            stack.push(MethodHandles.dropArguments(bodyHandle, 0, pTypes));
+                        } else {
+                            int M = pTypes.length; // Number of variables in the calling scope
+                            int N = defArity;      // Number of arguments the function accepts
+
+                            if (N * M > 120) {
+                                // JVM 255-slot safety net
+                                stack.addAll(argumentHandles);
+                                MethodHandle legacy = compileComplexFunction(t);
+                                stack.push(adaptToWideSignature(legacy, callArity, stack, pTypes));
+                            } else {
+                                // FIX: Pipe arguments into the body using collectArguments
+                                MethodHandle combined = bodyHandle;
+                                for (int i = 0; i < N; i++) {
+                                    // Because each collection replaces 1 parameter with M parameters,
+                                    // the index shifts to the right by exactly M every iteration.
+                                    combined = MethodHandles.collectArguments(combined, i * M, argumentHandles.get(i));
+                                }
+
+                                // Collapse the duplicated variables
+                                int[] reorder = new int[N * M];
+                                for (int i = 0; i < N; i++) {
+                                    for (int j = 0; j < M; j++) {
+                                        reorder[i * M + j] = j;
+                                    }
+                                }
+                                MethodType targetType = MethodType.methodType(double.class, pTypes);
+                                stack.push(MethodHandles.permuteArguments(combined, targetType, reorder));
+                            }
+                        }
+                        break;
+                    }
                     String name = t.name.toLowerCase();
 
                     if (name.equals(Declarations.QUADRATIC) || name.equals(Declarations.TARTAGLIA_ROOTS)
                             || name.equals(Declarations.GENERAL_ROOT) || name.equals(Declarations.DIFFERENTIATION) || name.equals(Declarations.INTEGRATION)
                             || name.equals(Declarations.PRINT) || name.equals(Declarations.ROTOR)) {
                         MethodHandle legacy = compileComplexFunction(t);
-
+                        
                         if (legacy.type().parameterCount() == 0) {
                             if (varCount > 0) {
-                                legacy = MethodHandles.dropArguments(legacy, 0, new Class<?>[varCount]);
+                                legacy = MethodHandles.dropArguments(legacy, 0, pTypes); // <-- FIX HERE
                             }
                             stack.push(legacy);
                         } else {
@@ -490,9 +549,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
                             stack.push(widened);
                         }
                         break;
-                    }
-
-                    if (isIntrinsic(name, t.arity)) {
+                    } else if (isIntrinsic(name, t.arity)) {
                         if (t.arity == 1) {
                             applyUnaryWide(t, stack, foldConstants, varCount);
                         } else if (t.arity == 2) {
@@ -533,27 +590,11 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
                             combined = MethodHandles.permuteArguments(combined, MethodType.methodType(combined.type().returnType(), pTypes), mergeMask);
                         }
                         stack.push(combined);
-                    } else {
-                        MethodHandle legacy = compileComplexFunction(t);
+                    } // Inside compileScalarWide -> case FUNCTION/METHOD:
+                    else {
                         name = t.name.toLowerCase();
-                        if (name.equals("diff") || name.equals("intg") || name.equals(Declarations.GENERAL_ROOT)) {
-                            if (legacy.type().returnType() != Object.class) {
-                                legacy = legacy.asType(legacy.type().changeReturnType(Object.class));
-                            }
-
-                            if (varCount == 0 && legacy.type().parameterCount() > 0) {
-                                Class<?>[] paramTypes = new Class<?>[legacy.type().parameterCount()];
-                                for (int i = 0; i < paramTypes.length; i++) {
-                                    paramTypes[i] = legacy.type().parameterType(i);
-                                }
-                                legacy = MethodHandles.dropArguments(legacy, 0, paramTypes);
-                            }
-
-                            stack.push(legacy);
-                        } else {
-                            MethodHandle widened = adaptToWideSignature(legacy, t.arity, stack, pTypes);
-                            stack.push(widened);
-                        }
+                        MethodHandle legacy = compileComplexFunction(t);
+                        stack.push(adaptToWideSignature(legacy, t.arity, stack, pTypes));
                     }
                     break;
             }
@@ -567,6 +608,19 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
 
     public static double[] collectToArray(double... values) {
         return values;
+    }
+
+    public static double extractScalarFromResult(MathExpression.EvalResult res) {
+        if (res == null) {
+            return Double.NaN;
+        }
+        if (res.type == MathExpression.EvalResult.TYPE_SCALAR) {
+            return res.scalar;
+        }
+        if (res.type == MathExpression.EvalResult.TYPE_VECTOR && res.vector != null && res.vector.length > 0) {
+            return res.vector[0];
+        }
+        return Double.NaN; // Fallback for Strings (like print results) or undefined
     }
 
     private static MethodHandle compileRotorHandle(MathExpression.Token t) throws Throwable {
@@ -583,6 +637,14 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
         }
         MathExpression.EvalResult solution = ScalarTurboEvaluator1.executeRotor(arity, args);
         MethodHandle constant = MethodHandles.constant(MathExpression.EvalResult.class, solution);
+        return constant;
+    }
+
+    private static MethodHandle compilePrintHandle(MathExpression.Token t) throws Throwable {
+        String[] rawArgs = t.getRawArgs();
+        MathExpression.EvalResult e = new MathExpression.EvalResult();
+        e = executePrint(e, rawArgs);
+        MethodHandle constant = MethodHandles.constant(e.getClass(), e);
         return constant;
     }
 
@@ -630,7 +692,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
         }
     }
 
-    private static MethodHandle compileIntegrationHandle(MathExpression.Token t) throws Throwable {
+    private MethodHandle compileIntegrationHandle(MathExpression.Token t) throws Throwable {
         String[] rawArgs = t.getRawArgs();
         Function f = FunctionManager.lookUp(rawArgs[0]);
         MathExpression innerExpr = f.getMathExpression();
@@ -650,7 +712,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
         return MethodHandles.insertArguments(bridge, 0, f, compiledInner, lower, upper, iterations, vars, slots);
     }
 
-    private static MethodHandle compileRootHandle(MathExpression.Token t) throws Throwable {
+    private MethodHandle compileRootHandle(MathExpression.Token t) throws Throwable {
         String[] args = t.getRawArgs();
         String fNameOrExpr = args[0];
         Function f = Variable.isVariableString(fNameOrExpr) ? FunctionManager.lookUp(fNameOrExpr) : FunctionManager.add(fNameOrExpr);
@@ -697,14 +759,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
         return executeTurboRoot(targetHandle, derivHandle, xSlot, lower, upper, iterations);
     }
 
-    private static MethodHandle compilePrintHandle(MathExpression.Token t) throws Throwable {
-        String[] rawArgs = t.getRawArgs();
-        MethodHandle bridge = LOOKUP.findStatic(ScalarTurboEvaluator2.class, "executePrint",
-                MethodType.methodType(double.class, String[].class));
-        return MethodHandles.insertArguments(bridge, 0, (Object) rawArgs);
-    }
-
-    private static MethodHandle compileComplexFunction(MathExpression.Token t) throws Throwable {
+    private MethodHandle compileComplexFunction(MathExpression.Token t) throws Throwable {
         String name = t.name.toLowerCase();
 
         switch (name) {
@@ -716,6 +771,8 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
                 return compileRootHandle(t);
             case Declarations.ROTOR:
                 return compileRotorHandle(t);
+            case Declarations.PRINT:
+                return compilePrintHandle(t);
             case Declarations.QUADRATIC:
             case Declarations.TARTAGLIA_ROOTS:
                 String funcHandle = t.getRawArgs()[0];
@@ -746,7 +803,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
         return null;
     }
 
-    public static MethodHandle compileScalar(MathExpression.Token[] postfix) throws Throwable {
+    public MethodHandle compileScalar(MathExpression.Token[] postfix) throws Throwable {
         if (postfix == null || postfix.length == 0) {
             return MethodHandles.constant(double.class, 0.0);
         }
@@ -880,36 +937,37 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
         stack.push(MethodHandles.collectArguments(op, 0, input));
     }
 
-    public static double executePrint(String[] args) throws Throwable {
-        double defReturnType = -1.0;
+    static MathExpression.EvalResult executePrint(MathExpression.EvalResult ctx, String[] args) {
+
+        StringBuilder sb = new StringBuilder();
         for (String arg : args) {
             Function v = FunctionManager.lookUp(arg);
             if (v != null) {
                 switch (v.getType()) {
                     case ALGEBRAIC_EXPRESSION:
-                        System.out.println(v.toString());
-                        return defReturnType;
+                        sb.append(v.toString()).append("\n");
+                        break;
                     case MATRIX:
-                        System.out.println(v.getName() + "=" + v.getMatrix().toString());
-                        return defReturnType;
+                        sb.append(v.getName()).append("=").append(v.getMatrix() != null ? v.getMatrix().toString() : "null").append("\n");
+                        break;
                     default:
-                        System.out.println(v.toString());
-                        return defReturnType;
+                        sb.append(v.toString()).append("\n");
+                        break;
                 }
+                continue;
             }
             Variable myVar = VariableManager.lookUp(arg);
             if (myVar != null) {
-                System.out.println(myVar);
-                return defReturnType;
+                sb.append(myVar.toString()).append("\n");
             } else if (com.github.gbenroscience.parser.Number.isNumber(arg)) {
-                System.out.println(arg);
-                return defReturnType;
+                sb.append(arg).append("\n");
             } else {
-                System.out.println("null");
-                return defReturnType;
+                sb.append("null").append("\n");
             }
         }
-        return defReturnType;
+        String v = sb.toString();
+        System.out.println(v);
+        return ctx.wrap(v);
     }
 
     private static MethodHandle liftVariable(int index, int total) {
@@ -977,7 +1035,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
         } else if (paramCount == 1 && handle.type().parameterType(0) == double[].class) {
             primitiveHandle = handle;
         } else if (paramCount == 1 && handle.type().parameterType(0) == double.class) {
-            MethodHandle getter = MethodHandles.arrayElementGetter(double[].class);
+            MethodHandle getter = ScalarTurboEvaluator1.AndroidFriendlyMethodHandles.getDoubleArrayGetter();
             MethodHandle indexBinder = MethodHandles.insertArguments(getter, 1, 0);
             primitiveHandle = MethodHandles.collectArguments(handle, 0, indexBinder);
         } else {
@@ -1007,7 +1065,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
             } else if (baseParamCount == 1 && baseHandle.type().parameterType(0) == double[].class) {
                 wideBase = baseHandle;
             } else if (baseParamCount == 1 && baseHandle.type().parameterType(0) == double.class) {
-                MethodHandle getter = MethodHandles.arrayElementGetter(double[].class);
+                MethodHandle getter = ScalarTurboEvaluator1.AndroidFriendlyMethodHandles.getDoubleArrayGetter();
                 MethodHandle indexBinder = MethodHandles.insertArguments(getter, 1, xSlot);
                 wideBase = MethodHandles.collectArguments(baseHandle, 0, indexBinder);
             } else {
@@ -1031,7 +1089,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
                 } else if (derivParamCount == 1 && derivHandle.type().parameterType(0) == double[].class) {
                     wideDeriv = derivHandle;
                 } else if (derivParamCount == 1 && derivHandle.type().parameterType(0) == double.class) {
-                    MethodHandle getter = MethodHandles.arrayElementGetter(double[].class);
+                    MethodHandle getter = ScalarTurboEvaluator1.AndroidFriendlyMethodHandles.getDoubleArrayGetter();
                     MethodHandle indexBinder = MethodHandles.insertArguments(getter, 1, xSlot);
                     wideDeriv = MethodHandles.collectArguments(derivHandle, 0, indexBinder);
                 } else {

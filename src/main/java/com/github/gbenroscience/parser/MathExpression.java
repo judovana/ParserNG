@@ -7,8 +7,7 @@ package com.github.gbenroscience.parser;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Deque;
-import java.util.HashMap;
+import java.util.Deque; 
 import java.util.InputMismatchException;
 import java.util.Iterator;
 import java.util.List;
@@ -51,7 +50,12 @@ import com.github.gbenroscience.util.VariableManager;
 import java.util.LinkedHashMap;
 
 /**
- *
+ * <p style="font-weight:'bold';color:'red'; font-size:'2em';">
+ * This class is NOT thread-safe. 
+ * If multiple threads access a MathExpression concurrently, 
+ * they must synchronize externally or use separate instances.
+ * 
+ * </p>
  * This class models a mathematical parser. It is designed to handle div
  * operators, methods(inbuilt and user-defined.)
  *
@@ -72,10 +76,11 @@ import java.util.LinkedHashMap;
  * and so this gives rise to a problem. For iterative processes, the parser only
  * needs parse (Step 1.)the expression once(which takes the bulk of the time)
  * and then it can evaluate it many times over iteratively in a loop. Step 2 is
- * an high speed one. But if the expression contains statistical functions or
- * user defined ones, the self-referential processes modify the scanner output
- * and so this scanner output cannot be reliably referred to later on by
- * iterative processes or any process that seeks to reuse the scanner's output.
+ * an high speed one. But if the expression containsAlgebraicFunction
+ * statistical functions or user defined ones, the self-referential processes
+ * modify the scanner output and so this scanner output cannot be reliably
+ * referred to later on by iterative processes or any process that seeks to
+ * reuse the scanner's output.
  *
  * </p>
  *
@@ -91,7 +96,6 @@ public class MathExpression implements Savable, Solvable {
     //determines the mode in which trig operations will be carried out on numbers.if DRG==0,it is done in degrees
 //if DRG==1, it is done in radians and if it is 2, it is done in grads.
     private DRG_MODE DRG = Declarations.degGradRadFromVariable();
-    public static String lastResult = "0.0";
     private ArrayList<String> whitespaceremover = new ArrayList<>();//used to remove white spaces from the ArrayList
     /**
      * The expression to evaluate.
@@ -334,13 +338,14 @@ public class MathExpression implements Savable, Solvable {
 
     /**
      *
-     * @param input The function to be evaluated. The general format contains
-     * variable, constant and function declarations for variables, constants and
-     * functions that are not yet initialized, assignment expressions for those
-     * that have been initialized and then an expression to evaluate. e.g. x =
-     * -12; y =x+1/12; const x1,x2,x3=10; z =sin(3x-1)+2.98cos(4x);cos(3x+12);
-     * The last expression is a function to be evaluated and it is always
-     * without any equals sign and may or may not end with a semicolon.
+     * @param input The function to be evaluated. The general format
+     * containsAlgebraicFunction variable, constant and function declarations
+     * for variables, constants and functions that are not yet initialized,
+     * assignment expressions for those that have been initialized and then an
+     * expression to evaluate. e.g. x = -12; y =x+1/12; const x1,x2,x3=10; z
+     * =sin(3x-1)+2.98cos(4x);cos(3x+12); The last expression is a function to
+     * be evaluated and it is always without any equals sign and may or may not
+     * end with a semicolon.
      *
      */
     public MathExpression(String input) {
@@ -389,6 +394,10 @@ public class MathExpression implements Savable, Solvable {
             setExpression("(0.0)");
         }
         this.slots = registry.getSlots();
+    }
+
+    public double[] getExecutionFrame() {
+        return executionFrame;
     }
 
     public static final VariableRegistry createNewVariableRegistry() {
@@ -442,7 +451,13 @@ public class MathExpression implements Savable, Solvable {
         //Scanner operation
 
         MathScanner opScanner = new MathScanner(expression);
+
         opScanner.scanner(variableManager);
+
+        for (Variable v : opScanner.foundVariables) {
+            v.setFrameIndex(registry.getSlot(v.getName()));
+        }
+
         this.commaAlias = opScanner.commaAlias;
         scanner = opScanner.getScanner();
         correctFunction = opScanner.isRunnable();
@@ -454,6 +469,7 @@ public class MathExpression implements Savable, Solvable {
             functionComponentsAssociation();
             compileToPostfix();  // Compile once if not already done
         }//end if
+        
     }//end method initializing(args)
 
     public void setWillFoldConstants(boolean willFoldConstants) {
@@ -673,21 +689,7 @@ public class MathExpression implements Savable, Solvable {
         return optimizable;
     }
 
-    /**
-     *
-     * @param lastResult sets the last answer gotten by this parser
-     */
-    public static void setLastResult(String lastResult) {
-        MathExpression.lastResult = lastResult;
-    }
-
-    /**
-     *
-     * @return the last answer calculated by this tool
-     */
-    public static String getLastResult() {
-        return lastResult;
-    }
+ 
 
     private void computeTreeDepth() {
         treeStats = new MathExpressionTreeDepth(expression).calculate();
@@ -776,15 +778,15 @@ public class MathExpression implements Savable, Solvable {
     public Variable getVariable(String name) {
         // 1. Check if this variable exists in our compiled registry
         int slot = this.registry.getSlot(name);
-            // 2. Look up the variable in our existing token list or VariableManager
-            Variable v = VariableManager.lookUp(name);
-            if (v == null) {
-                // Fallback: Create a new one if it's a dynamic variable
-                v = new Variable(name);
-            }
-            // 3. IMPORTANT: Sync the index so the Handle knows where to write
-            v.setFrameIndex(slot);
-            return v;
+        // 2. Look up the variable in our existing token list or VariableManager
+        Variable v = VariableManager.lookUp(name);
+        if (v == null) {
+            // Fallback: Create a new one if it's a dynamic variable
+            v = new Variable(name);
+        }
+        // 3. IMPORTANT: Sync the index so the Handle knows where to write
+        v.setFrameIndex(slot);
+        return v;
     }
 
     public static final class Slot {
@@ -886,8 +888,6 @@ public class MathExpression implements Savable, Solvable {
     public Token[] getCachedPostfix() {
         return cachedPostfix;
     }
-
-  
 
     /**
      *
@@ -1137,7 +1137,7 @@ public class MathExpression implements Savable, Solvable {
         }
         if (cachedPostfix != null) {
             resetPool();
-            EvalResult r = expressionSolver.evaluate();
+            EvalResult r = Variable.lastResult = expressionSolver.evaluate();
             returnType = r.getType();
             return r;
         }
@@ -1258,10 +1258,14 @@ public class MathExpression implements Savable, Solvable {
         // 6. Fallback: Treat as Variable/Constant
         Token t = new Token(0.0);
         t.name = s;
-        if (!FunctionManager.contains(s) && vv != null) {
+        if (!FunctionManager.containsAlgebraicFunction(s) && isVariableString(s)) {
+            if (vv == null) {
+                vv = new Variable(s, 0.0);
+            }
             t.v = vv;
             t.frameIndex = registry.getSlot(s);
             t.v.setFrameIndex(t.frameIndex);
+
         }
         t.kind = Token.NUMBER;
         return t;
@@ -1367,7 +1371,7 @@ public class MathExpression implements Savable, Solvable {
                     if (t.v != null) {
                         int slot = registry.getSlot(t.name);
                         t.frameIndex = slot;
-                        t.v.setFrameIndex(slot); 
+                        t.v.setFrameIndex(slot);
                     }
                     break;
 
@@ -1449,6 +1453,7 @@ public class MathExpression implements Savable, Solvable {
                 executionFrame[t.frameIndex] = t.v.getValue();
             }
         }
+   
         expressionSolver = new ExpressionSolver();
     }
 
@@ -1838,7 +1843,7 @@ public class MathExpression implements Savable, Solvable {
 
         // ===== SPECIAL HANDLING: Trigonometric functions =====
         // These ARE foldable, but ONLY if NOT being used with setDRG() changes
-        // For safety, we fold them ONLY when the expression contains constants
+        // For safety, we fold them ONLY when the expression containsAlgebraicFunction constants
         // Since we're in compile-time, we CAN fold them with current DRG mode
         java.util.Set<String> trigonometric = new java.util.HashSet<>(
                 Arrays.asList(MethodRegistry.expandedTrigAndHypMethodNames)
