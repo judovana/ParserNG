@@ -16,13 +16,29 @@
 package com.github.gbenroscience.parser.turbo.tools;
 
 import com.github.gbenroscience.parser.MathExpression;
-import com.github.gbenroscience.util.Utils;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 
 /**
  *
  * @author GBEMIRO
  */
 public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
+
+    public static final boolean SUPPORTS_WIDENING = checkWideningSupport();
+
+    private static boolean checkWideningSupport() {
+        try {
+            // Attempt a small version of what ScalarTurboEvaluator2 does
+            MethodHandle identity = MethodHandles.identity(double.class);
+            // Try to widen a simple handle to see if the stack frame logic blows up
+          //  MethodHandles.collectArguments(identity, 0,
+            //        MethodHandles.constant(double.class, 1.0).asCollector(double[].class, 1));
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
 
     private final TurboExpressionEvaluator delegate;
     /**
@@ -49,12 +65,12 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
      */
     public ScalarTurboEvaluator(MathExpression me, boolean useWideningVars) {
         if (useWideningVars) {
-           /* if (Utils.isAndroid()) {//force array passing only on Android
+            /* if (Utils.isAndroid()) {//force array passing only on Android
                 this.delegate = new ScalarTurboEvaluator1(me);
                 System.out.println("Only array based passing is supported on Android!");
                 return;
             }*/
-            this.delegate = new ScalarTurboEvaluator2(me);
+            this.delegate = SUPPORTS_WIDENING ? new ScalarTurboEvaluator2(me) : new ScalarTurboEvaluator1(me);
         } else {
             this.delegate = new ScalarTurboEvaluator1(me);
         }
@@ -87,6 +103,9 @@ public class ScalarTurboEvaluator implements TurboExpressionEvaluator {
         /*if (Utils.isAndroid()) {
             return false;
         }*/
+        if (!SUPPORTS_WIDENING) {
+            return false;
+        }
         int varCount = countVariables(postfix);
         if (varCount > MAX_ALLOWED_METHOD_ARGS_BY_JVM) {//use array based if more than 63 unique variables are in expression
             return false;

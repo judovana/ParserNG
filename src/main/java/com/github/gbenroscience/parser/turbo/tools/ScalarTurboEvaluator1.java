@@ -30,14 +30,18 @@ import com.github.gbenroscience.math.tartaglia.Tartaglia_Equation;
 import com.github.gbenroscience.parser.Bracket;
 import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
+import com.github.gbenroscience.parser.MathScanner;
 import com.github.gbenroscience.parser.TYPE;
 import static com.github.gbenroscience.parser.TYPE.ALGEBRAIC_EXPRESSION;
 import static com.github.gbenroscience.parser.TYPE.MATRIX;
 import com.github.gbenroscience.parser.Variable;
+import com.github.gbenroscience.parser.benchmarks.GG;
+import com.github.gbenroscience.parser.benchmarks.GG2;
 import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.util.FunctionManager;
+import com.github.gbenroscience.util.Utils;
 import com.github.gbenroscience.util.VariableManager;
 import java.lang.invoke.*;
 import java.util.*;
@@ -291,7 +295,15 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
         return new FastCompositeExpression() {
 
             private void loadVars(double[] variables) {
-                for (int i = 0; i < turboArgs.length; i++) {
+                // Safety check: ensure we don't null pointer if arrays aren't initialized
+                if (variables == null || turboArgs == null || slots == null) {
+                    return;
+                }
+
+                // Use the smallest length to prevent out-of-bounds access
+                int limit = Math.min(variables.length, Math.min(turboArgs.length, slots.length));
+
+                for (int i = 0; i < limit; i++) {
                     turboArgs[slots[i]] = variables[i];
                 }
             }
@@ -1073,10 +1085,10 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                         break;
                     case MATRIX:
                         sb.append(v.getName()).append("=").append(v.getMatrix() != null ? v.getMatrix().toString() : "null").append("\n");
-                         break;
+                        break;
                     default:
                         sb.append(v.toString()).append("\n");
-                         break;
+                        break;
                 }
                 continue;
             }
@@ -1494,6 +1506,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
             }
         } else if (args.length == 5) {//rot(P1,P2,a,O,D) function, angle, origin, direction vector---- rotates lines, P1 and P2 are point matrices that define a line
             //confirm the last 3 other args
+       
             double angle = Variable.getConstantValue(args[2]);
             if (Double.isNaN(angle)) {
                 angle = Double.parseDouble(args[2]);
@@ -1600,7 +1613,8 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
         }
         // Case: x^1
         if (n == 1.0) {
-            return MethodHandles.identity(double.class);
+            //return MethodHandles.identity(double.class);
+            return MethodHandlePolyfill.identity(double.class);
         }
         // Case: x^0.5 (Square Root)
         if (n == 0.5) {
@@ -1702,7 +1716,8 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                 return LOOKUP.findStatic(ScalarTurboEvaluator1.class, "negate", MT_DOUBLE_D);
             }
             if (op == '+') {
-                return MethodHandles.identity(double.class);
+                //return MethodHandles.identity(double.class);
+                return MethodHandlePolyfill.identity(double.class);
             }
         }
         String lower = name.toLowerCase();
@@ -2050,41 +2065,112 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
 
         static {
             MethodHandle getter = null;
-            try {
-                // 1. Try the standard JVM way (Fastest on Desktop/Server)
-                getter = MethodHandles.arrayElementGetter(double[].class);
-            } catch (Exception | AssertionError e) {
-                // 2. Fallback for Android/Limited Environments
+            if (!Utils.isAndroid()) {
                 try {
+                    // Standard JVM path
+                    getter = MethodHandles.arrayElementGetter(double[].class);
+                } catch (Throwable t) {
+                    // Fallback if the JVM environment is restricted
+                }
+            }
+
+            if (getter == null) {
+                try {
+                    // Guaranteed safe path for Android
                     getter = MethodHandles.lookup().findStatic(
                             AndroidFriendlyMethodHandles.class,
                             "fallbackGetDouble",
                             MethodType.methodType(double.class, double[].class, int.class)
                     );
-                } catch (NoSuchMethodException | IllegalAccessException fatal) {
-                    throw new RuntimeException("Could not initialize MethodHandles for Turbo engine", fatal);
+                } catch (NoSuchMethodException | IllegalAccessException e) {
+                    throw new ExceptionInInitializerError("Failed to initialize polyfill: " + e.getMessage());
                 }
             }
             DOUBLE_ARRAY_GETTER = getter;
         }
 
-        /**
-         * Static helper used as a MethodHandle target on Android.
-         *
-         * @param array
-         * @param index
-         * @return
-         */
         public static double fallbackGetDouble(double[] array, int index) {
+            if (array == null) {
+                throw new IllegalArgumentException("Internal Error: Array passed to MethodHandle is null");
+            }
             return array[index];
         }
 
-        /**
-         * Returns the most efficient getter available for the current platform.
-         */
         public static MethodHandle getDoubleArrayGetter() {
             return DOUBLE_ARRAY_GETTER;
         }
     }
 
+    public static final class MethodHandlePolyfill {
+
+        private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
+
+        // 1. Define the bare-metal static identity targets for Android fallback
+        private static double idDouble(double x) {
+            return x;
+        }
+
+        private static int idInt(int x) {
+            return x;
+        }
+
+        private static long idLong(long x) {
+            return x;
+        }
+
+        private static Object idObj(Object x) {
+            return x;
+        }
+
+        // 2. Cache the handles
+        private static final MethodHandle DOUBLE_ID;
+        private static final MethodHandle INT_ID;
+        private static final MethodHandle LONG_ID;
+        private static final MethodHandle OBJ_ID;
+
+        static {
+            try {
+                if (Utils.isAndroid()) {
+                    // Android-specific polyfill paths
+                    DOUBLE_ID = LOOKUP.findStatic(MethodHandlePolyfill.class, "idDouble", MethodType.methodType(double.class, double.class));
+                    INT_ID = LOOKUP.findStatic(MethodHandlePolyfill.class, "idInt", MethodType.methodType(int.class, int.class));
+                    LONG_ID = LOOKUP.findStatic(MethodHandlePolyfill.class, "idLong", MethodType.methodType(long.class, long.class));
+                    OBJ_ID = LOOKUP.findStatic(MethodHandlePolyfill.class, "idObj", MethodType.methodType(Object.class, Object.class));
+                } else {
+                    // Standard JVM - Use native highly-optimized identity handles
+                    DOUBLE_ID = MethodHandles.identity(double.class);
+                    INT_ID = MethodHandles.identity(int.class);
+                    LONG_ID = MethodHandles.identity(long.class);
+                    OBJ_ID = MethodHandles.identity(Object.class);
+                }
+            } catch (NoSuchMethodException | IllegalAccessException e) {
+                throw new ExceptionInInitializerError(e);
+            }
+        }
+
+        /**
+         * Drop-in replacement for MethodHandles.identity() that chooses the
+         * most performant path based on the environment.
+         */
+        public static MethodHandle identity(Class<?> type) {
+            if (type == double.class) {
+                return DOUBLE_ID;
+            }
+            if (type == int.class) {
+                return INT_ID;
+            }
+            if (type == long.class) {
+                return LONG_ID;
+            }
+
+            if (!type.isPrimitive()) {
+                // For reference types, adapt the cached Object identity to the specific class
+                return OBJ_ID.asType(MethodType.methodType(type, type));
+            }
+
+            // Fallback for less common primitives (boolean, float, etc.)
+            // This is safe on the JVM, but will still crash on older Android if called for these types.
+            return MethodHandles.identity(type);
+        }
+    }
 }

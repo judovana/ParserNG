@@ -7,7 +7,7 @@ package com.github.gbenroscience.parser;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Deque; 
+import java.util.Deque;
 import java.util.InputMismatchException;
 import java.util.Iterator;
 import java.util.List;
@@ -51,10 +51,9 @@ import java.util.LinkedHashMap;
 
 /**
  * <p style="font-weight:'bold';color:'red'; font-size:'2em';">
- * This class is NOT thread-safe. 
- * If multiple threads access a MathExpression concurrently, 
- * they must synchronize externally or use separate instances.
- * 
+ * This class is NOT thread-safe. If multiple threads access a MathExpression
+ * concurrently, they must synchronize externally or use separate instances.
+ *
  * </p>
  * This class models a mathematical parser. It is designed to handle div
  * operators, methods(inbuilt and user-defined.)
@@ -302,6 +301,7 @@ public class MathExpression implements Savable, Solvable {
                     + "\"isRightAssoc\": " + isRightAssoc + ",\n"
                     + "\"isPostfix\": " + isPostfix + ",\n"
                     + "\"arity\": " + arity + ",\n"
+                    + "\"rawArgs\": " + Arrays.toString(rawArgs) + ",\n"
                     + "\"assignToName\": " + assignToName + ",\n"
                     + "\"isAssignmentTarget\": " + isAssignmentTarget + "\n"
                     + "}\n";
@@ -319,6 +319,7 @@ public class MathExpression implements Savable, Solvable {
                     + "\"isRightAssoc\": " + isRightAssoc + ","
                     + "\"isPostfix\": " + isPostfix + ","
                     + "\"arity\": " + arity + ","
+                    + "\"rawArgs\": " + Arrays.toString(rawArgs) + ",\n"
                     + "\"assignToName\": " + assignToName + ","
                     + "\"isAssignmentTarget\": " + isAssignmentTarget + ","
                     + "\n\"v\": " + (v == null ? "null" : v.toJSON()) + "\n"
@@ -469,7 +470,7 @@ public class MathExpression implements Savable, Solvable {
             functionComponentsAssociation();
             compileToPostfix();  // Compile once if not already done
         }//end if
-        
+
     }//end method initializing(args)
 
     public void setWillFoldConstants(boolean willFoldConstants) {
@@ -688,8 +689,6 @@ public class MathExpression implements Savable, Solvable {
     public boolean isOptimizable() {
         return optimizable;
     }
-
- 
 
     private void computeTreeDepth() {
         treeStats = new MathExpressionTreeDepth(expression).calculate();
@@ -1272,12 +1271,13 @@ public class MathExpression implements Savable, Solvable {
     }
 
     private void compileToPostfix() {
+
         if (cachedPostfix != null) {
             return;
         }
 
         // --- 1. THE FIX: Passive Listeners for Function Arguments ---
-        class FuncArgTracker {
+          class FuncArgTracker {
 
             Token funcToken;
             int depthLevel; // The exact paren depth this function operates at
@@ -1302,7 +1302,7 @@ public class MathExpression implements Savable, Solvable {
         int p = 0;
 
         int len = scanner.size();
-        for (int idx = 0; idx < len; idx++) {
+        for (int idx = 0; idx < len; idx++) { 
             String s = scanner.get(idx);
             String next = idx + 1 < len ? scanner.get(idx + 1) : null;
 
@@ -1453,7 +1453,7 @@ public class MathExpression implements Savable, Solvable {
                 executionFrame[t.frameIndex] = t.v.getValue();
             }
         }
-   
+
         expressionSolver = new ExpressionSolver();
     }
 
@@ -1512,6 +1512,7 @@ public class MathExpression implements Savable, Solvable {
                 switch (t.kind) {
                     case Token.NUMBER:
                         if (t.name != null && !t.name.isEmpty()) {
+
                             // Could be a variable OR a function reference (like anon1)
                             if (t.v != null) {
                                 // It's a variable
@@ -1591,10 +1592,42 @@ public class MathExpression implements Savable, Solvable {
                             args[2] = stack[ptr--];
                             args[1] = stack[ptr--];
                             args[0] = stack[ptr--];
+                        } else if (arity == 4) {
+                            args[3] = stack[ptr--];
+                            args[2] = stack[ptr--];
+                            args[1] = stack[ptr--];
+                            args[0] = stack[ptr--];
+                        } else if (arity == 5) {
+                            args[4] = stack[ptr--];
+                            args[3] = stack[ptr--];
+                            args[2] = stack[ptr--];
+                            args[1] = stack[ptr--];
+                            args[0] = stack[ptr--];
+                        } else if (arity == 6) {
+                            args[5] = stack[ptr--];
+                            args[4] = stack[ptr--];
+                            args[3] = stack[ptr--];
+                            args[2] = stack[ptr--];
+                            args[1] = stack[ptr--];
+                            args[0] = stack[ptr--];
+                        } else if (arity == 7) {
+                            args[6] = stack[ptr--];
+                            args[5] = stack[ptr--];
+                            args[4] = stack[ptr--];
+                            args[3] = stack[ptr--];
+                            args[2] = stack[ptr--];
+                            args[1] = stack[ptr--];
+                            args[0] = stack[ptr--];
                         } else {
-                            // General case for arity > 3
+                            // General case for arity > 7
                             for (int j = arity - 1; j >= 0; j--) {
                                 args[j] = stack[ptr--];
+                            }
+                        }
+
+                        if (t.name == Declarations.DIFFERENTIATION) {
+                            for (int k = 0; k < t.rawArgs.length; k++) {
+                                args[k] = getNextResult().wrap(t.rawArgs[k]);
                             }
                         }
 

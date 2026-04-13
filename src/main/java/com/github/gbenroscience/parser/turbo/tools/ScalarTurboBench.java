@@ -34,13 +34,15 @@ import java.util.logging.Logger;
 public class ScalarTurboBench {
 
     private static final int N = 10000;
-    private static boolean useWidening = false;
+    private static boolean useWidening = true;
 
     public static void main(String[] args) throws Throwable {
         String rpt = STRING.repeating("=", 80);
         System.out.println(rpt);
         System.out.println("SCALAR TURBO COMPILER BENCHMARKS");
         System.out.println(rpt);
+        
+        testLineRotation();
 
         benchmarkVariablesUsage();
         benchmarkComplexFunctions();
@@ -78,6 +80,26 @@ public class ScalarTurboBench {
 
     private static FastCompositeExpression get(MathExpression me, boolean useWidening) throws Throwable {
         return new ScalarTurboEvaluator(me, useWidening).compile();
+    }
+
+    private static void testLineRotation() throws Throwable {
+        System.out.println("-----------LINE ROTOR-------------");
+        //String expr = "diff(@(x)cos(x)+sin(x),2,1)";
+        String expr = "rot(@(1,3)(0,0,0),@(1,3)(0,10,0),pi/2,@(1,3)(0,0,0),@(1,3)(1,0,0))";
+
+        // Warm up JIT
+        MathExpression interpreted = new MathExpression(expr, false);
+        MathExpression.EvalResult ev = interpreted.solveGeneric();
+
+        ScalarTurboEvaluator1 sc = new ScalarTurboEvaluator1(interpreted);
+        // Compile to turbo
+        FastCompositeExpression compiled = sc.compile();//interpreted.compileTurbo();
+        // Warm up turbo JIT
+        double[] vars = new double[0];
+        MathExpression.EvalResult evr = compiled.apply(vars);
+        System.out.println("std: " + ev);
+        System.out.println("tur: " + evr);
+
     }
 
     private static void benchmarkVariablesUsage() throws Throwable {

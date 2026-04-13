@@ -30,7 +30,7 @@ public class Line {
     }
 
     /**
-     * Creates a new Line object give the gradient and the y intercept
+     * Creates a new Line object given the gradient and the y intercept
      *
      * @param m the gradient of the Line object
      * @param c the y intercept of the Line object
@@ -38,10 +38,7 @@ public class Line {
     public Line(double m, double c) {
         this.m = m;
         this.c = c;
-
-        if (isVertical()) {
-            throw new ArithmeticException("BAD LINE.");
-        }
+ 
     }
 
     /**

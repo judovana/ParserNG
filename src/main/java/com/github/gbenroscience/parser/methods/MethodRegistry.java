@@ -358,7 +358,7 @@ public class MethodRegistry {
 //            System.out.println("Derivatives Action");
 //            System.out.println("funcName: " + funcName);
 //            System.out.println("arity: " + arity);
-//            System.out.println("args: " + Arrays.toString(args));
+        
             int sz = args.length;
             switch (sz) {
                 case 1: {

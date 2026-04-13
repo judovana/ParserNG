@@ -236,13 +236,15 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
     private MathExpression.Token[] postfix;
 
     public ScalarTurboEvaluator2(MathExpression me) {
-        this.postfix = me.getCachedPostfix();
-        this.willFoldConstants = me.isWillFoldConstants();
-
-        slots = me.getSlots();
-        turboArgs = me.getExecutionFrame();
+        if(ScalarTurboEvaluator.SUPPORTS_WIDENING) {
+            this.postfix = me.getCachedPostfix();
+            this.willFoldConstants = me.isWillFoldConstants();
+            slots = me.getSlots();
+            turboArgs = me.getExecutionFrame();
+        }else {
+            throw new UnsupportedOperationException("This evaluator does not support adaptive widening of method signatures\nPlease use ScalarTurboEvaluator1");
+        }
     }
-
     public void setWillFoldConstants(boolean willFoldConstants) {
         this.willFoldConstants = willFoldConstants;
     }
@@ -975,7 +977,8 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
             return MethodHandles.constant(double.class, 0.0);
         }
 
-        MethodHandle getter = MethodHandles.identity(double.class);
+        //MethodHandle getter = MethodHandles.identity(double.class);
+        MethodHandle getter = ScalarTurboEvaluator1.MethodHandlePolyfill.identity(double.class);
         if (index > 0) {
             Class<?>[] prefix = new Class<?>[index];
             Arrays.fill(prefix, double.class);
@@ -1366,7 +1369,8 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
 
         // Positive integer powers
         if (n == 1.0) {
-            return MethodHandles.identity(double.class);
+            //return MethodHandles.identity(double.class);
+             return ScalarTurboEvaluator1.MethodHandlePolyfill.identity(double.class);
         }
         if (n == 2.0) {
             return LOOKUP.findStatic(ScalarTurboEvaluator2.class, "square", MethodType.methodType(double.class, double.class));

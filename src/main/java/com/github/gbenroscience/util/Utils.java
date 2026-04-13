@@ -147,6 +147,24 @@ public class Utils {
                 || runtime.toLowerCase().contains("android");
     }
 
+    public static boolean isAndroidEmulator() {
+        String runtime = System.getProperty("java.runtime.name", "");
+        String vmName = System.getProperty("java.vm.name", "");
+
+        // Check if we are on Android first
+        if (runtime.toLowerCase().contains("android") || vmName.toLowerCase().contains("dalvik")) {
+            // Properties often set in emulators
+            String hardware = System.getProperty("ro.hardware", "");
+            String kernel = System.getProperty("os.arch", "");
+
+            // BlueStacks and other emulators often present specific hardware strings
+            return hardware.contains("goldfish")
+                    || hardware.contains("ranchu")
+                    || hardware.contains("vbox86");
+        }
+        return false;
+    }
+
     public static boolean isPerfectSquare(int num) {
         if (num < 0) {
             return false;
@@ -154,8 +172,8 @@ public class Utils {
         int sqrt = (int) Math.sqrt(num);
         return sqrt * sqrt == num;
     }
-    
+
     public static void main(String[] args) {
-        System.out.println( "isAndroid: "+isAndroid());
+        System.out.println("isAndroid: " + isAndroid());
     }
 }

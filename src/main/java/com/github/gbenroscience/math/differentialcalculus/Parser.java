@@ -61,6 +61,8 @@ public class Parser {
      */
     private int orderOfDifferentiation = Integer.MAX_VALUE;
     public ParserResult result = ParserResult.VALID;
+    private String returnHandle;
+    
 
     /**
      * This is a very important field as it tells if the function is to be
@@ -140,6 +142,16 @@ public class Parser {
         return diffType == GRAD_VAL;
     }
 
+    public void setReturnHandle(String returnHandle) {
+        this.returnHandle = returnHandle;
+    }
+
+    public String getReturnHandle() {
+        return returnHandle;
+    }
+    
+    
+
     /**
      *
      * @param list A list containing the scanned form of an expression
@@ -191,17 +203,12 @@ public class Parser {
                         } else if (Variable.isVariableString(tk) & !Method.isDefinedMethod(tk)) {
                             Variable v = VariableManager.getVariable(list.get(i));
                             if (v != null) {
- 
                                 double val = v.getValue();
                                 list.set(i, String.valueOf(val));
- 
                             }
                         }
-
                     }
-
                 }
-
             }
 
             if (Bracket.isCloseBracket(args1 = list.get(3))) {// diff(F)
@@ -210,9 +217,10 @@ public class Parser {
             } else if (Bracket.isCloseBracket(args1 = list.get(4))) {// diff(F,v|n)
                 if (Number.isNumber(args1 = list.get(3))) {// diff(F,v)
                     this.diffType = GRAD_FUNC;
-                    this.orderOfDifferentiation = (int) Double.parseDouble(list.get(3));
+                    this.orderOfDifferentiation = (int) Double.parseDouble(args1);
                 } else if (Variable.isVariableString(args1 = list.get(3))) {// diff(F,v)
                     this.diffType = GRAD_FUNC;
+                    this.returnHandle = args1;
                     this.orderOfDifferentiation = 1;
                 }
             } else if (Bracket.isCloseBracket(args1 = list.get(5))) {// diff(F,v|x, n)
@@ -222,6 +230,7 @@ public class Parser {
                     this.orderOfDifferentiation = (int) Double.parseDouble(list.get(4));
                 } else if (Variable.isVariableString(args1 = list.get(3))) {//second arg not available
                     this.diffType = GRAD_FUNC;
+                    this.returnHandle = args1;
                     this.orderOfDifferentiation = (int) Double.parseDouble(list.get(4));
                 }
             }

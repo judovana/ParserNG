@@ -258,9 +258,7 @@ public class Variable implements Savable {
             }//end else if
 
             if (isVariableBeginner(var.substring(0, 1))) {
-
                 int sz = var.length();
-
                 for (int i = 0; i < sz; i++) {
                     if (!isVariableBuilder(var.substring(i, i + 1))) {
                         return false;
@@ -358,7 +356,8 @@ public class Variable implements Savable {
         if(isGoldenRatio(str)){
             return Variable.GOLDEN_RATIO.value;
         }
-        return Double.NaN;
+        
+        return new MathExpression(str).solveGeneric().scalar;
     }
     
 

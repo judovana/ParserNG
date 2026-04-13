@@ -1,6 +1,9 @@
 # ParserNG
 
 
+### Parser 1.0.8 has been released on maven-central!
+Bug fixes and more Android compatibility issues resolved.
+
 ### Parser 1.0.6 has been released on maven-central!
 Bug fixes and Android compatibility issues resolved.
 
