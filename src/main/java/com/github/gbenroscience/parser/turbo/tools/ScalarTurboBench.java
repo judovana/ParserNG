@@ -41,7 +41,7 @@ public class ScalarTurboBench {
         System.out.println(rpt);
         System.out.println("SCALAR TURBO COMPILER BENCHMARKS");
         System.out.println(rpt);
-        
+
         testLineRotation();
 
         benchmarkVariablesUsage();
@@ -833,16 +833,17 @@ public class ScalarTurboBench {
             }
         }
     }
+// It is better to reuse a single SecureRandom instance
+    private static final SecureRandom sc = new SecureRandom();
 
     private static final double[] getRandom(int size, int min, int max) {
-        Random r = new Random(System.currentTimeMillis());
-        byte[] b = new byte[256];
-        r.nextBytes(b);
-        SecureRandom sc = new SecureRandom(b);
         double[] da = new double[size];
+
         for (int i = 0; i < size; i++) {
-            da[i] = sc.nextDouble(min, max);
+            // Manual scaling for Java 8/11
+            da[i] = min + (max - min) * sc.nextDouble();
         }
+
         return da;
     }
 }
