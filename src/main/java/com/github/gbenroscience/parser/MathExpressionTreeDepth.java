@@ -15,6 +15,8 @@
  */
 package com.github.gbenroscience.parser;
 
+import com.github.gbenroscience.interfaces.Savable;
+
 /**
  *
  * @author GBEMIRO
@@ -47,8 +49,8 @@ package com.github.gbenroscience.parser;
  *   "sin(2 + 3 * 4)"     -> depth 4
  *   "(1 + (2 + (3 + 4)))"-> depth 4
  */
-public class MathExpressionTreeDepth {
-
+public class MathExpressionTreeDepth implements Savable{
+private static final long serialVersionUID = 1L;
     private final String expr;
     private int pos;
 
@@ -63,7 +65,8 @@ public class MathExpressionTreeDepth {
         this.pos = 0;
     }
 
-    public static class Result {
+    public static class Result implements Savable{
+        private static final long serialVersionUID = 1L;
         public final int depth;
         public final int binaryOperators;
         public final int unaryOperators;

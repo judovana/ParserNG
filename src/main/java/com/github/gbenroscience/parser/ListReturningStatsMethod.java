@@ -11,14 +11,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Examples are sort function, mode function and other methods that will
- * return a list of numbers after acting on a number or a list of numbers
+ * Examples are sort function, mode function and other methods that will return
+ * a list of numbers after acting on a number or a list of numbers
+ *
  * @author GBEMIRO
  */
 public final class ListReturningStatsMethod implements Validatable {
-/**
- * The method Name
- */
+
+    /**
+     * The method Name
+     */
     private String name;
     /**
      * The container of all ListTypeOperator objects in the scanned function.
@@ -41,8 +43,7 @@ public final class ListReturningStatsMethod implements Validatable {
     private Bracket closeBracket;
 
     /**
-     * The ListReturningStatsMethod object that immediately envelopes this
-one.
+     * The ListReturningStatsMethod object that immediately envelopes this one.
      */
     private ListReturningStatsMethod parent;
 
@@ -161,7 +162,7 @@ one.
     /**
      *
      * @param superParent sets whether or not this is the container
-ListReturningStatsMethod object for the data set.
+     * ListReturningStatsMethod object for the data set.
      */
     public void setSuperParent(boolean superParent) {
         this.superParent = superParent;
@@ -169,8 +170,8 @@ ListReturningStatsMethod object for the data set.
 
     /**
      *
-     * @return true if this is the container ListReturningStatsMethod object
-for the data set.
+     * @return true if this is the container ListReturningStatsMethod object for
+     * the data set.
      */
     public boolean isSuperParent() {
         return superParent;
@@ -190,7 +191,7 @@ for the data set.
      * the next ListReturningStatsOperator to it.
      *
      * @param parent sets the ListReturningStatsMethod object that immediately
-envelopes this one.
+     * envelopes this one.
      */
     public void setParent(ListReturningStatsMethod parent) {
         this.parent = parent;
@@ -199,7 +200,7 @@ envelopes this one.
     /**
      *
      * @return the ListReturningStatsMethod object that immediately envelopes
-this one.
+     * this one.
      */
     public ListReturningStatsMethod getParent() {
         return parent;
@@ -225,8 +226,8 @@ this one.
     /**
      *
      * @param scan the ArrayList containing the scanned function
-     * @return true if the first ListReturningStatsMethod object to its left
-is its parent. So it can have a parent and yet return false here.
+     * @return true if the first ListReturningStatsMethod object to its left is
+     * its parent. So it can have a parent and yet return false here.
      */
     public boolean hasParent(List<String> scan) {
         boolean isEnveloped = false;
@@ -296,7 +297,8 @@ is its parent. So it can have a parent and yet return false here.
                     boolean openBracsOnly = true;
                     for (int i = index - 1; i >= 0; i--) {
                         //this logic disallows non-listtypestatsoperators from enveloping listtypestatsoperators.
-                        if (isOpeningBracket(scan.get(i)) && Method.isUnaryPreOperatorORDefinedMethod(scan.get(i - 1))) {
+                        String prevToken = scan.get(i - 1);
+                        if (isOpeningBracket(scan.get(i)) && Method.isUnaryPreOperatorORDefinedMethod(prevToken) && !Method.isStatsMethod(prevToken)) {
                             int compIndex = Bracket.getComplementIndex(true, i, scan);
                             if (compIndex > closeBracket.getIndex()) {
                                 valid = false;
@@ -318,10 +320,10 @@ is its parent. So it can have a parent and yet return false here.
                         // and their operands within brackets e.g sort(3,2,4)+((sort(1,3,1,-9,3))
                         if (!isOpeningBracket(scan.get(i))) {
                             openBracsOnly = false;
-                            errorMessage += "\n MBracket Sequence Established. Trend Finished. Apllying Other Validation Techniques.";
+                            errorMessage += "\n MBracket Sequence Established. Trend Finished. Applying Other Validation Techniques.";
                         }
 
-                        if (openBracsOnly && isBinaryOperator(scan.get(i - 1)) || Method.isUnaryPreOperatorORDefinedMethod(scan.get(i - 1))) {
+                        if (openBracsOnly && isBinaryOperator(prevToken) || (Method.isUnaryPreOperatorORDefinedMethod(prevToken) && !Method.isStatsMethod(prevToken))) {
                             valid = false;
                             errorMessage += "\n Bad Syntax For Data Set Returning Operator " + name + "\n"
                                     + "REASON:::"
@@ -335,16 +337,13 @@ is its parent. So it can have a parent and yet return false here.
                 loopForwards:
                 {
                     boolean closeBracsOnly = true;
-
                     for (int i = closeBracket.getIndex() + 1; i < scan.size(); i++) {
-
                         //this logic recognizes the end point of backwards bracket
                         //validation for a given object of this class. A close bracket
                         //indicates the end of data that can affect this object
                         if (isOpeningBracket(scan.get(i)) || Method.isStatsMethod(scan.get(i))) {
                             break loopForwards;
                         }//end if
-
                         //this logic (the next two ifs)will disallow binary operations
                         //on encapsulations of objects of this class
                         // and their operands within brackets e.g sort(3,2,4)+((sort(1,3,1,-9,3))
@@ -387,7 +386,7 @@ is its parent. So it can have a parent and yet return false here.
         boolean validity = true;
 
         for (int i = 0; i < scan.size(); i++) {
-            if (Method.isListReturningStatsMethod(scan.get(i))) { 
+            if (Method.isListReturningStatsMethod(scan.get(i))) {
                 list = new ListReturningStatsMethod(scan.get(i), i, scan);
                 validity = list.validate(scan);
                 i = list.getCloseBracket().getIndex();

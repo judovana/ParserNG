@@ -47,9 +47,11 @@ public class BracketCleaner {
     // Fast lookup for known functions (covers Method.isMethodName)
     private static final List<String> FUNCTIONS = Arrays.asList(Method.getAllFunctions());
 
+  
     /**
      * Removes excess brackets **in-place**. 
      * The list you pass in is modified directly — exactly like your original method.
+     * @param scanner 
      */
     public static void removeExcessBrackets(List<String> scanner) {
         if (scanner == null || scanner.isEmpty()) {

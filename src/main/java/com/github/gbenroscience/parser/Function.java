@@ -12,6 +12,7 @@ import java.util.InputMismatchException;
 import java.util.List;
 
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
+import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.parser.turbo.tools.*;
 import com.github.gbenroscience.util.FunctionManager;
@@ -19,6 +20,7 @@ import static com.github.gbenroscience.util.FunctionManager.*;
 import com.github.gbenroscience.util.Serializer;
 import com.github.gbenroscience.util.Utils;
 import com.github.gbenroscience.util.VariableManager;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -262,10 +264,17 @@ public class Function implements Savable, MethodRegistry.MethodAction {
          * Check if the user used the form f(x)=.... instead of f=@(x).... If so
          * convert to the latter format, and then recompute the necessary
          * indexes.
-         */
+         */ 
         if (indexOfOpenBrac != -1 && indexOfOpenBrac < equalsIndex) {
-            input = input.substring(0, indexOfOpenBrac)
-                    + "=@" + input.substring(indexOfOpenBrac, Bracket.getComplementIndex(true, indexOfOpenBrac, input) + 1) + input.substring(equalsIndex + 1);
+            if (semiColonIndex == -1) {
+                input = input.substring(0, indexOfOpenBrac)
+                       + "=@" + input.substring(indexOfOpenBrac, Bracket.getComplementIndex(true, indexOfOpenBrac, input) + 1) + "(" + input.substring(equalsIndex + 1) + ")";
+            }else{
+                input = input.substring(0, semiColonIndex);
+                  input = input.substring(0, indexOfOpenBrac)
+                       + "=@" + input.substring(indexOfOpenBrac, Bracket.getComplementIndex(true, indexOfOpenBrac, input) + 1) + "(" + input.substring(equalsIndex + 1) + ");";
+             }
+       
             //recompute the indexes.
             equalsIndex = input.indexOf("=");
             semiColonIndex = input.indexOf(";");
@@ -302,7 +311,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 success = true;
             } else {
                 MathExpression expr = null;
-                if (rhs.startsWith("@")) {
+                if (rhs.startsWith("@")) { 
                     Function anonFunc = new Function(rhs);
                     FunctionManager.update(anonFunc.dependentVariable.getName(), newFuncName);
                     if (anonFunc.isMatrix()) {
@@ -318,6 +327,16 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 }
 
                 List<String> scanner = expr.getScanner();
+
+                if (!scanner.isEmpty() && scanner.get(0).equals("(")) {
+                    int compIndex = Bracket.getComplementIndex(true, 0, scanner);
+                    if (compIndex == scanner.size() - 1) {
+                        scanner.remove(0);
+                        scanner.remove(scanner.size() - 1);
+                    }
+                }
+             
+
                 int sz = scanner.size();
                 if ((sz == 3 && scanner.get(1).startsWith(ANON_PREFIX))
                         || (sz == 1 && scanner.get(0).startsWith(ANON_PREFIX))) {//function assigments will always be like this: [(,anon1,)] when they get here
@@ -344,7 +363,68 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                     }
                     return true;
                 }
+                if (sz == 1 && Variable.isVariableString(rhs)) {//Handle assignments like D=C
+                    Function f = FunctionManager.lookUp(rhs);
+                    if (f != null) {
+                        Function q = f.copy();
+                        q.setDependentVariable(new Variable(newFuncName));
+                        if (q.type == TYPE.MATRIX) {
+                            q.getMatrix().setName(newFuncName);
+                        }
+                        FunctionManager.add(q);
+                        return true;
+                    }
+
+                }
+                if (scanner.get(0).equals(Declarations.ROTOR)) {
+                    sz = scanner.size();
+                    if (sz == 10) {//point or expression rotation---[rot, (, F, ,, pi, ,, anon2, ,, anon3, )]
+                        String fn = scanner.get(2);
+                        Function f = FunctionManager.lookUp(fn);
+                        MathExpression.EvalResult ev = expr.solveGeneric();
+                        if (f.type == TYPE.STRING || f.type == TYPE.ALGEBRAIC_EXPRESSION) {//
+                            String fname = f.getFullName();
+                            String fullName = "@" + fname.substring(fname.indexOf("("));
+                            String fexpr = newFuncName + "=" + fullName + ev.textRes;
+
+                            Function rotF = new Function(fexpr);
+                            rotF = FunctionManager.lookUp(newFuncName);
+                            Variable v = VariableManager.lookUp(newFuncName);
+                            if (v != null) {
+                                rotF.setDependentVariable(v);
+                            } else {
+                                rotF.setDependentVariable(new Variable(newFuncName));
+                            }
+                            FunctionManager.add(rotF);
+                            return true;
+                        }
+                        if (f.type == TYPE.MATRIX) {//is a Point rotation
+                            String fname = f.getFullName();
+                            String fullName = "@" + fname.substring(fname.indexOf("("));
+                            String fexpr = newFuncName + "=" + fullName + ev.toString().replace('[', '(').replace(']', ')');
+                            Function rotP = new Function(fexpr);
+                            FunctionManager.add(rotP);
+                            return true;
+                        }
+                    } else if (sz == 12) {// line rotation: [rot, (, P, ,, Q ,, pi, ,, anon2, ,, anon3, )] P AND Q are 2 points on the line
+
+                        String pn = scanner.get(2);
+                        String qn = scanner.get(4);
+                        Function p = FunctionManager.lookUp(pn);
+                        Function q = FunctionManager.lookUp(qn);
+                        MathExpression.EvalResult ev = expr.solveGeneric();
+                        if (p.type == TYPE.MATRIX && q.type == TYPE.MATRIX) {//is a Point rotation
+                            double[] points = ev.vector;
+                            String pexpr = newFuncName + "=@(1," + points.length + ")" + ev.toString().replace('[', '(').replace(']', ')');
+                            Function rotP = new Function(pexpr);
+                            FunctionManager.add(rotP);
+                            return true;
+                        }
+                    }
+
+                }
                 MathExpression.EvalResult val = expr.solveGeneric();
+
                 String referenceName = null;
 
                 if (Variable.isVariableString(newFuncName) || isVarNamesList) {
@@ -584,10 +664,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         try {
             this.mathExpression = mathExpression;
             this.type = TYPE.ALGEBRAIC_EXPRESSION;
-            this.turboExpr = TurboEvaluatorFactory.getCompiler(mathExpression, false).compile();
+            this.turboExpr = mathExpression.compileTurbo();
         } catch (Throwable ex) {
             this.turboExpr = null;
-            Logger.getLogger(Function.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
@@ -932,12 +1011,12 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      *
      * @param rangeDescr Describes the range between which this Function object
      * should be plotted. e.g. x:-10:10:0.0001
-     * @return an 2D array containing two 1d arrays. The first array containsAlgebraicFunction
-the values that the Function object will have for all values specified
-for the range of the independent variable. The second array containsAlgebraicFunction the
-values that the independent variable will assume in its given range. If
-the rangeDescr parameter is not valid.. it returns a 2D array containing
-2 null arrays.
+     * @return an 2D array containing two 1d arrays. The first array
+     * containsAlgebraicFunction the values that the Function object will have
+     * for all values specified for the range of the independent variable. The
+     * second array containsAlgebraicFunction the values that the independent
+     * variable will assume in its given range. If the rangeDescr parameter is
+     * not valid.. it returns a 2D array containing 2 null arrays.
      */
     public double[][] evalRange(String rangeDescr) {
 
@@ -986,12 +1065,12 @@ the rangeDescr parameter is not valid.. it returns a 2D array containing
      * variable..usually x)
      * @param DRG States whether the function should be evaluated in Degrees,
      * Radians, and Grad.
-     * @return an 2D array containing two 1d arrays. The first array containsAlgebraicFunction
-the values that the Function object will have for all values specified
-for the range of the independent variable. The second array containsAlgebraicFunction the
-values that the independent variable will assume in its given range. If
-the rangeDescr parameter is not valid.. it returns a2D array containing 2
-null arrays.
+     * @return an 2D array containing two 1d arrays. The first array
+     * containsAlgebraicFunction the values that the Function object will have
+     * for all values specified for the range of the independent variable. The
+     * second array containsAlgebraicFunction the values that the independent
+     * variable will assume in its given range. If the rangeDescr parameter is
+     * not valid.. it returns a2D array containing 2 null arrays.
      */
     public double[][] evalRange(double xLower, double xUpper, double xStep, String variableName, int DRG) {
 
@@ -1343,13 +1422,19 @@ null arrays.
         try {
             // Create new instance from expression
             Function copy = new Function();
-            copy.independentVariables = new ArrayList<>(independentVariables);
-            copy.dependentVariable = new Variable(dependentVariable.getName(), dependentVariable.getValue());
-            copy.mathExpression = mathExpression.clone();
-            try {
-                copy.turboExpr = copy.mathExpression.compileTurbo();//write clone for it
-            } catch (Throwable ex) {
-                Logger.getLogger(Function.class.getName()).log(Level.SEVERE, null, ex);
+            if (independentVariables != null) {
+                copy.independentVariables = new ArrayList<>(independentVariables);
+            }
+            if (dependentVariable != null) {
+                copy.dependentVariable = new Variable(dependentVariable.getName(), dependentVariable.getValue());
+            }
+            if (mathExpression != null) {
+                copy.mathExpression = mathExpression.copy();  
+                try {
+                    copy.turboExpr = copy.mathExpression.getCompiledTurbo();
+                } catch (Throwable ex) {
+                    Logger.getLogger(Function.class.getName()).log(Level.SEVERE, null, ex);
+                }
             }
 
             copy.matrix = matrix == null ? null : new Matrix(matrix.getFlatArray(), matrix.getRows(), matrix.getCols());
@@ -1361,6 +1446,7 @@ null arrays.
             return copy;
 
         } catch (Exception e) {
+            e.printStackTrace();
             throw new RuntimeException("Failed to copy Function: " + e.getMessage(), e);
         }
     }
@@ -1410,7 +1496,7 @@ null arrays.
             val = func.evalArgs(i);
         }
         double duration = System.nanoTime() - start;
-        System.out.println("Std-Eval took: " +  duration/count  + "ns");
+        System.out.println("Std-Eval took: " + duration / count + "ns");
         System.out.println("val1 = " + val);
 
         start = System.nanoTime();
@@ -1421,7 +1507,7 @@ null arrays.
 
         duration = System.nanoTime() - start;
         System.out.println("Old-Eval took: " + (duration / (count * 1.0E6)) + "ms");
-        
+
         double v = 0;
         start = System.nanoTime();
         for (int i = 1; i <= count; i++) {
@@ -1430,7 +1516,7 @@ null arrays.
         System.out.println("val3 = " + v);
 
         duration = System.nanoTime() - start;
-        System.out.println("Turbo-Eval took: " + duration/count + "ns");
+        System.out.println("Turbo-Eval took: " + duration / count + "ns");
 
     }//end method
 

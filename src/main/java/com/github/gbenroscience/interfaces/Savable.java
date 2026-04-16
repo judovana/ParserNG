@@ -15,14 +15,16 @@
  */
 package com.github.gbenroscience.interfaces;
 
+import com.github.gbenroscience.util.Serializer;
 import java.io.Serializable;
 
 /**
  *
  * @author GBEMIRO JIBOYE
  */
-public interface Savable extends Serializable{
-    
-    public String serialize();
+public interface Savable extends Serializable {
+    default String serialize() {
+        return Serializer.serialize(this);
+    }
     
 }

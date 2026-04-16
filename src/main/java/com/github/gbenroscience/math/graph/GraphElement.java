@@ -84,6 +84,10 @@ public class GraphElement {
 
     public void fillCoords(double xLower, double xUpper, double xStep, double yStep, int drg, boolean useTurbo) {
 
+        if(graphType == null){
+            System.out.println("WARNING: Invalid graph plot found!");
+            return;
+        }
         if (graphType.isFunctionPlot()) {
             Function f = null;
             if (this.functionName != null && !this.functionName.isEmpty()) {

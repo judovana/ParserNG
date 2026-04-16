@@ -48,6 +48,8 @@ import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.Serializer;
 import com.github.gbenroscience.util.VariableManager;
 import java.util.LinkedHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * <p style="font-weight:'bold';color:'red'; font-size:'2em';">
@@ -87,6 +89,7 @@ import java.util.LinkedHashMap;
  */
 public class MathExpression implements Savable, Solvable {
 
+    private static final long serialVersionUID = 1L;
     /**
      * Backup the alias from the scanner here
      */
@@ -138,7 +141,7 @@ public class MathExpression implements Savable, Solvable {
      * The VariableManager object that allows an object of this class to
      * remember its variables.
      */
-    private VariableManager variableManager;
+    private transient VariableManager variableManager;
 
     private static final int INIT_POOL_SIZE = 64;
     // A simple pre-allocated array of results to act as a stack
@@ -176,8 +179,9 @@ public class MathExpression implements Savable, Solvable {
     public static final String SYNTAX_ERROR = "SYNTAX ERROR";
 
     // Updated Token class (from your provided)
-    public static final class Token {
+    public static final class Token implements Savable {
 
+        private static final long serialVersionUID = 1L;
         public static final int NUMBER = 0, OPERATOR = 1, FUNCTION = 2, METHOD = 3, LPAREN = 5, RPAREN = 6, COMMA = 7;
         public int kind;
         public double value;
@@ -251,6 +255,32 @@ public class MathExpression implements Savable, Solvable {
             this(kind, name, arity, id);
             this.assignToName = assignToName;
             this.isAssignmentTarget = (assignToName != null);
+        }
+
+        public Token clone() {
+            Token t = new Token(kind);
+            t.action = action;
+            t.arity = arity;
+            t.assignToName = assignToName;
+            t.frameIndex = frameIndex;
+            t.id = id;
+            t.isAssignmentTarget = isAssignmentTarget;
+            t.isPostfix = isPostfix;
+            t.isRightAssoc = isRightAssoc;
+            t.name = name;
+            t.opChar = opChar;
+            t.precedence = precedence;
+            if (rawArgs != null) {
+                t.rawArgs = new String[rawArgs.length];
+                for (int i = 0; i < rawArgs.length; i++) {
+                    t.rawArgs[i] = rawArgs[i];
+                }
+            }
+            if (v != null) {
+                t.v = new Variable(v.getName(), v.getValue());
+            }
+            t.value = value;
+            return t;
         }
 
         public String[] getRawArgs() {
@@ -369,7 +399,6 @@ public class MathExpression implements Savable, Solvable {
         Scanner cs = new Scanner(STRING.purifier(input), false, VariableManager.endOfLine);
 
         List<String> scanned = cs.scan();
-
         String mathExpr = null;
         int exprCount = 0;
 
@@ -443,6 +472,10 @@ public class MathExpression implements Savable, Solvable {
         return autoInitOn;
     }
 
+    public FastCompositeExpression getCompiledTurbo() {
+        return compiledTurbo;
+    }
+
     private void initializing(String expression) {
         computeTreeDepth();
         setCorrectFunction(true);
@@ -452,7 +485,6 @@ public class MathExpression implements Savable, Solvable {
         //Scanner operation
 
         MathScanner opScanner = new MathScanner(expression);
-
         opScanner.scanner(variableManager);
 
         for (Variable v : opScanner.foundVariables) {
@@ -461,14 +493,17 @@ public class MathExpression implements Savable, Solvable {
 
         this.commaAlias = opScanner.commaAlias;
         scanner = opScanner.getScanner();
+     
         correctFunction = opScanner.isRunnable();
         parser_Result = opScanner.parser_Result;
+
         if (parser_Result == ParserResult.VALID) {
+            //refixCommas(); 
             statsVerifier();
             refixCommas();
             mapBrackets();
             functionComponentsAssociation();
-            compileToPostfix();  // Compile once if not already done
+            compileToPostfix();  // Compile once if not already done 
         }//end if
 
     }//end method initializing(args)
@@ -526,7 +561,7 @@ public class MathExpression implements Savable, Solvable {
 
         if (!isScannedAndOptimized() || cachedPostfix == null) {
             throw new IllegalStateException(
-                    "Expression not properly compiled.");
+                    "Expression not properly compiled. " + (cachedPostfix == null ? "RPN tokens array empty" : " Expression not scanned and optimized"));
         }
 
         try {
@@ -788,8 +823,9 @@ public class MathExpression implements Savable, Solvable {
         return v;
     }
 
-    public static final class Slot {
+    public static final class Slot implements Savable {
 
+        private static final long serialVersionUID = 1L;
         /**
          * The slot or frame index
          */
@@ -998,6 +1034,7 @@ public class MathExpression implements Savable, Solvable {
                 }//end else if
 
             }//end for
+
             if (correctFunction) {
                 setCorrectFunction(validateAll(scanner));
             }
@@ -1277,7 +1314,7 @@ public class MathExpression implements Savable, Solvable {
         }
 
         // --- 1. THE FIX: Passive Listeners for Function Arguments ---
-          class FuncArgTracker {
+        class FuncArgTracker {
 
             Token funcToken;
             int depthLevel; // The exact paren depth this function operates at
@@ -1302,7 +1339,7 @@ public class MathExpression implements Savable, Solvable {
         int p = 0;
 
         int len = scanner.size();
-        for (int idx = 0; idx < len; idx++) { 
+        for (int idx = 0; idx < len; idx++) {
             String s = scanner.get(idx);
             String next = idx + 1 < len ? scanner.get(idx + 1) : null;
 
@@ -1466,14 +1503,30 @@ public class MathExpression implements Savable, Solvable {
         return s.equals("³√");
     }
 
-    private final class ExpressionSolver {
+    private final class ExpressionSolver implements Savable {
 
+        private static final long serialVersionUID = 1L;
         private static final int MAX_ARITY = 32;
         private static final int ABSOLUTE_MAX_ARITY = 100_000;
 
         // Pre-allocate and reuse
         private final EvalResult[] stack;
         private final EvalResult[][] argCache;
+
+        public ExpressionSolver clone() {
+            ExpressionSolver e = new ExpressionSolver();
+            for (int i = 0; i < stack.length; i++) {
+                e.stack[i] = stack[i].clone();
+            }
+
+            for (int i = 0; i <= MAX_ARITY; i++) {
+                e.argCache[i] = new EvalResult[i];
+                for (int j = 0; j < i; j++) {
+                    e.argCache[i][j] = argCache[i][j].clone();  // Initialize
+                }
+            }
+            return e;
+        }
 
         public ExpressionSolver() {
             // Allocate stack ONCE, with sufficient capacity
@@ -2141,8 +2194,9 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
         return false;
     }
 
-    public static final class EvalResult {
+    public static final class EvalResult implements Savable {
 
+        private static final long serialVersionUID = 1L;
         public static final int TYPE_SCALAR = 0;
         public static final int TYPE_VECTOR = 1;
         public static final int TYPE_MATRIX = 2;
@@ -2208,6 +2262,37 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
             this.error = s;
             this.type = TYPE_ERROR;
             return this;
+        }
+
+        public EvalResult clone() {
+            EvalResult e = new EvalResult();
+            e.boolVal = boolVal;
+            e.error = error;
+            e.errorText = errorText;
+            if (matrix != null) {
+                double[] flatArr = matrix.getFlatArray();
+                double[] arr = new double[flatArr.length];
+                System.arraycopy(flatArr, 0, arr, 0, flatArr.length);
+                Matrix m = new Matrix(flatArr, matrix.getRows(), matrix.getCols());
+                e.matrix = m;
+                e.matrix.setName(matrix.getName());
+            } else {
+                e.matrix = null;
+            }
+            e.scalar = scalar;
+            e.textRes = textRes;
+            e.type = type;
+            if (vector == null) {
+                e.vector = null;
+            } else {
+                double[] v = new double[vector.length];
+                System.arraycopy(e.vector, 0, v, 0, vector.length);
+                e.vector = v;
+
+            }
+
+            return e;
+
         }
 
         public EvalResult wrap(EvalResult evr) {
@@ -2385,8 +2470,9 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
      * Manages the mapping of variable names to frame slots. Use one instance
      * per MathExpression compilation.
      */
-    public static final class VariableRegistry {
+    public static final class VariableRegistry implements Savable {
 
+        private static final long serialVersionUID = 1L;
         private final Map<String, Integer> nameToSlot = new LinkedHashMap<>();
         private int nextAvailableSlot = 0;
 
@@ -2446,11 +2532,94 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
             nameToSlot.clear();
             nextAvailableSlot = 0;
         }
+
+        protected VariableRegistry clone() {
+            VariableRegistry vr = new VariableRegistry();
+            vr.nextAvailableSlot = nextAvailableSlot;
+            for (Map.Entry<String, Integer> entry : nameToSlot.entrySet()) {
+                vr.nameToSlot.put(entry.getKey(), entry.getValue());
+            }
+
+            return vr;
+        }
+    }
+
+    /**
+     * Manual deep copy method that will most certainly outperform the clone
+     * method. But needs to be updated whenever the MathExpression object's
+     * field structure changes. The clone method does not necessarily need this,
+     * except for its need for all fields of the {@link MathExpression} to be
+     * {@link Savable}
+     *
+     * @return
+     */
+    public MathExpression copy() {
+        MathExpression me = new MathExpression();
+        me.DRG = DRG;
+        Token tokens[] = new Token[cachedPostfix.length];
+        int i = 0;
+        for (Token t : cachedPostfix) {
+            tokens[i] = t.clone();
+            i++;
+        }
+        me.cachedPostfix = tokens;
+        me.commaAlias = commaAlias;
+
+        me.correctFunction = correctFunction;
+        me.executionFrame = new double[executionFrame.length];
+
+        System.arraycopy(executionFrame, 0, me.executionFrame, 0, executionFrame.length);
+        me.expression = expression;
+        if (expressionSolver != null) {
+            me.expressionSolver = expressionSolver.clone();
+        }
+        me.hasFunctionOrVariableInitStatement = hasFunctionOrVariableInitStatement;
+        me.hasListReturningOperators = hasListReturningOperators;
+        me.help = help;
+        me.noOfListReturningOperators = noOfListReturningOperators;
+        me.optimizable = optimizable;
+        me.parser_Result = ParserResult.valueOf(parser_Result.name());
+        me.pool = new EvalResult[pool.length];
+        for (i = 0; i < pool.length; i++) {
+            me.pool[i] = pool[i].clone();
+        }
+        me.poolPointer = poolPointer;
+        if (registry != null) {
+            me.registry = registry.clone();
+        }
+        me.returnObjectName = returnObjectName;
+        me.returnType = TYPE.valueOf(returnType.name());
+        me.scanner = new ArrayList<>(scanner);
+        me.slots = new int[slots.length];
+        System.arraycopy(slots, 0, me.slots, 0, slots.length);
+        me.treeStats = new MathExpressionTreeDepth.Result(treeStats.depth, treeStats.binaryOperators, treeStats.divOperators, treeStats.unaryOperators, treeStats.functions);
+        me.turboCompiled = turboCompiled;
+        me.variableManager = new VariableManager();
+        me.whitespaceremover = new ArrayList<>(whitespaceremover);
+        me.willFoldConstants = willFoldConstants;
+//        me.compiledTurbo = new FastCompositeExpression() {
+//            @Override
+//            public EvalResult apply(double[] variables) {
+//                return compiledTurbo.apply(variables);
+//            }
+//
+//            @Override
+//            public double applyScalar(double[] variables) {
+//                return compiledTurbo.applyScalar(variables);
+//            }
+//        };//clone this
+        try {
+            me.compiledTurbo = me.compileTurbo();
+        } catch (Throwable ex) {
+            System.out.println("Failed to compile turbo for cloned MathExpression");
+            Logger.getLogger(MathExpression.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return me;
     }
 
     @Override
-    public MathExpression clone() throws CloneNotSupportedException {
-        return (MathExpression) super.clone();
+    protected MathExpression clone() throws CloneNotSupportedException {
+        return Serializer.deepClone(this);
     }
 
     public static void main1(String... args) {
@@ -2787,7 +2956,14 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
         System.out.println("FUNCTIONS: " + FunctionManager.FUNCTIONS);
         MathExpression printer = new MathExpression("print(anon9,C)");
         System.out.println("anon9: " + FunctionManager.lookUp("anon9"));
+        MathExpression mee = new MathExpression("sum(2,3,sort(3,0,1,2))");
+
+        System.out.println("sum(2,3,sort(3,0,1,2)): " + mee.solve());
         System.out.println(printer.solve());
+
+        MathExpression me = new MathExpression("A=@(x,y)sin(x)+cos(y-x);B=@(x,y)cos(x*y);C(x,y)=A(x,2*y)+B(3*x,2*y);D=C;print(D)");
+        System.out.println("solve: " + me.solveGeneric());
+        System.out.println(FunctionManager.FUNCTIONS);
 
         //   double N = 100; 
         //   Shootouts.benchmark(s2, (int) N);

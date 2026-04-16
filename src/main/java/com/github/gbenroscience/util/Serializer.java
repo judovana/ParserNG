@@ -1,211 +1,124 @@
-/*
- * Copyright 2021 GBEMIRO JIBOYE.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.github.gbenroscience.util;
 
 import com.github.gbenroscience.interfaces.Savable;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.List;
-import com.github.gbenroscience.parser.Scanner;
+import java.io.*;
+import java.util.Base64;
 
 /**
- *
- * @author GBEMIRO JIBOYE
+ * 1. Interface must extend Serializable for ObjectOutputStream to work.
  */
 public class Serializer {
 
-  
-    
     /**
-     * 
-     * @param yourObject Serializes the object to a byte array and returns it as a string printed as: [num1, num2, num3, num4, .....]
-     * @return a string representation for the byte array representation of the object.
+     * Converts an object to a Base64 encoded string.
      */
     public static final String serialize(Savable yourObject) {
-     return stringifyBytes(ser(yourObject));
-    }
-    
-    public static final Savable deserialize(String encoded) {
-          byte[] data = getBytes(encoded); 
-          return (Savable) deSer(data);
+        byte[] data = ser(yourObject);
+        return (data != null) ? Base64.getEncoder().encodeToString(data) : null;
     }
 
     /**
-     * 
-     * @param ser The serialized format for the byte array of the object
-     * @return the byte array from the serialized format of the object
+     * Reconstructs an object from a Base64 encoded string.
      */
-    public static final byte[] getBytes(String ser) {
-         Scanner cs = new Scanner(ser , false, "[" ,"]", "," );
-        List<String> list = cs.scan();
-        byte[]data = new byte[list.size()];
-        
-        int i=0;
-        for(String txt : list){
-            data[i] = Byte.parseByte(txt);
-            i++;
+    public static final Savable deserialize(String encoded) {
+        if (encoded == null || encoded.isEmpty()) {
+            return null;
         }
-        
-        return data;
+        byte[] data = Base64.getDecoder().decode(encoded);
+        return (Savable) deSer(data);
     }
 
-      /**
-     * Prepare the byte array
-     *
-     * @param yourObject
-     * @return
+    /**
+     * Internal: Object to Byte Array
      */
-    public static final byte[] ser(Savable yourObject) {
-
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ObjectOutputStream out = null;
-        try {
-            out = new ObjectOutputStream(bos);
+    public static final byte[] ser(Serializable yourObject) {
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); ObjectOutputStream out = new ObjectOutputStream(bos)) {
             out.writeObject(yourObject);
             out.flush();
             return bos.toByteArray();
-
-        } catch (Exception e) {
+        } catch (IOException e) {
+            e.printStackTrace(); // Always print errors during debugging
             return null;
-        } finally {
-            try {
-                bos.close();
-            } catch (IOException ex) {
-                // ignore close exception
-            }
         }
-
     }
-    
+
     /**
-     * Create an object from a byte array:
-     *
-     * @param yourBytes
-     * @return
+     * Internal: Byte Array to Object
      */
     private static final Object deSer(byte[] yourBytes) {
-
-        ByteArrayInputStream bis = new ByteArrayInputStream(yourBytes);
-        ObjectInput in = null;
-
-        try {
-            in = new ObjectInputStream(bis);
-            return in.readObject();
-
-        } catch (Exception e) {
+        if (yourBytes == null) {
             return null;
-        } finally {
-            try {
-                if (in != null) {
-                    in.close();
-                }
-            } catch (IOException ex) {
-                // ignore close exception
-            }
+        }
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(yourBytes); ObjectInputStream in = new ObjectInputStream(bis)) {
+            return in.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+            return null;
         }
     }
-    
-    
-    
-    
-    private static String stringifyBytes(byte[]data){
-        StringBuilder builder = new StringBuilder("[");
-        int i=0;
-        int len = data.length;
-        for(byte b : data){
-            if(i!=len-1){
-                       builder.append(b).append(", ");   
-            }else{
-                    builder.append(b).append("]");   
-            }
-            i++;
+
+    /**
+     * Performs a 100% deep clone of any Serializable object (including 2D
+     * arrays).
+     *
+     * @param <T> The type of the object
+     * @param object The object to clone
+     * @return A completely independent copy of the object
+     */
+    @SuppressWarnings("unchecked")
+    public static <T extends Serializable> T deepClone(T object) {
+        if (object == null) {
+            return null;
         }
-        return builder.toString();
+
+        // We use the existing ser/deSer logic
+        // This creates a brand new object graph in memory
+        return (T) deSer(ser(object));
     }
-    
- 
-    
+
+    /**
+     * Test Class: Must be static so it doesn't try to serialize the
+     * "Serializer" class along with it.
+     */
+    public static class Box implements Savable {
+
+        private static final long serialVersionUID = 1L; // Ensures compatibility
+
+        String name;
+        int len, brd, hei;
+
+        public Box(String name, int len, int brd, int hei) {
+            this.name = name;
+            this.len = len;
+            this.brd = brd;
+            this.hei = hei;
+        }
+
+        @Override
+        public String toString() {
+            return "Box{name='" + name + "', dimensions=[" + len + "," + brd + "," + hei + "]}";
+        }
+    }
+
     public static void main(String[] args) {
-        
-        class Box implements Savable{
-            String name;
-            int len;
-            int brd;
-            int hei;
+        // Test 1: Single Object
+        Box bx = new Box("kolo-dollar", 12, 13, 5);
+        String encoded = Serializer.serialize(bx);
+        System.out.println("Encoded String: " + encoded);
 
-            public Box(String name, int len, int brd, int hei) {
-                this.name = name;
-                this.len = len;
-                this.brd = brd;
-                this.hei = hei;
-            }
-            
-            public String getName(){
-                return name;
-            }
-            
-            
-            public int getLen(){
-                return len;
-            }
-            
-               
-            public int getBrd(){
-                return brd;
-            }
-            
+        Box decodedBox = (Box) Serializer.deserialize(encoded);
+        System.out.println("Reconstructed box: " + decodedBox);
 
-            public int getHei() {
-                return hei;
-            }
+        // Test 2: Complex 2D Array
+        Box[][] grid = {
+            {new Box("Top-Left", 1, 1, 1), new Box("Top-Right", 2, 2, 2)},
+            {new Box("Bottom-Left", 3, 3, 3), new Box("Bottom-Right", 4, 4, 4)}
+        };
 
-            @Override
-            public String serialize() {
-                return Serializer.serialize(this);
-            }
-            
-            
-            
-            
-            public String toString(){
-                return "box-name="+name+", dimensions: [len="+len+", brd="+brd+", hei="+hei+"]";
-            }
-        }
-        
-        
-        Box bx = new Box("kolo-dollar", 12,13,5);
-        
-        byte[] data = Serializer.ser(bx);
-        
-         
- 
-        Box b = (Box) Serializer.deSer(data);
-       
-        System.out.println("reconstructed box is: "+b.toString());
-       
-       String bytes = "[23, 44, 78, 233, 56, 91, 90, 22, 23, -92]";
-       
-        Scanner cs = new Scanner(bytes , false, "[" ,"]", "," );
-        List<String> list = cs.scan();
-        
-        System.out.println(list);
-        
-    }   
+        // Arrays are automatically Serializable if their components are!
+        byte[] gridBytes = Serializer.ser(grid);
+        Box[][] reconstructedGrid = (Box[][]) Serializer.deSer(gridBytes);
+
+        System.out.println("2D Array Row 1, Col 1: " + reconstructedGrid[1][1]);
+    }
 }

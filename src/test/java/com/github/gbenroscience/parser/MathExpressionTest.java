@@ -115,7 +115,7 @@ class MathExpressionTest {
         Declarations.unregisterBasicNumericalMethod(b2.getClass());
         me = new MathExpression("b2(1,2,3)");
         Assertions.assertEquals(MathExpression.isAutoInitOn() ? "0.0" : MathExpression.SYNTAX_ERROR, me.solve());
-         MathExpression.setAutoInitOn(true);//restore the switch
+        MathExpression.setAutoInitOn(true);//restore the switch
     }
 
     @Test
@@ -136,9 +136,10 @@ class MathExpressionTest {
     void moreJunkExamples() {
 
         Function f = FunctionManager.add("f(x,y) = x - x/y");
-        f.updateArgs(2, 3);System.out.println("f="+f);
+        f.updateArgs(2, 3);
+        System.out.println("f=" + f);
         double r = f.calc();
-        Assertions.assertEquals(2.0 - 2.0/3.0, r);
+        Assertions.assertEquals(2.0 - 2.0 / 3.0, r);
         int iterations = 10000;
         long start = System.nanoTime();
         f.updateArgs(2, 3);
@@ -158,9 +159,9 @@ class MathExpressionTest {
         //some other tests could have set them. Eg
         //LogicalExpressionTest variablesDoNotWorks and variablestWorks
         VariableManager.clearVariables();
-        
+
         MathExpression linear = new MathExpression("M=@(3,3)(3,4,1,2,4,7,9,1,-2);N=@(3,3)(4,1,8,2,1,3,5,1,9);C=matrix_sub(M,N);C;");
-        String ls = linear.solve(); 
+        String ls = linear.solve();
         if (print) {
             System.out.println("soln: " + ls);
         }
@@ -169,9 +170,9 @@ class MathExpressionTest {
                 + "    0.0  ,    3.0  ,    4.0            \n"
                 + "    4.0  ,    0.0  ,  -11.0            \n", FunctionManager.lookUp(ls).getMatrix().toString());
 
-        MathExpression expr = new MathExpression("tri_mat(M)");   
-        Matrix m =expr.solveGeneric().matrix; 
-      
+        MathExpression expr = new MathExpression("tri_mat(M)");
+        Matrix m = expr.solveGeneric().matrix;
+
         if (print) {
             System.out.println(m.toString());
         }
@@ -181,8 +182,8 @@ class MathExpressionTest {
         Assertions.assertTrue(f.getMatrix().equals(m));
         FunctionManager.delete("fExpr");
 
-        MathExpression expr2 = new MathExpression("echelon(M)"); 
-           Matrix echelon = expr2.solveGeneric().matrix; 
+        MathExpression expr2 = new MathExpression("echelon(M)");
+        Matrix echelon = expr2.solveGeneric().matrix;
         if (print) {
             System.out.println(echelon);
         }
@@ -280,8 +281,8 @@ class MathExpressionTest {
 
         FunctionManager.add("N=@(x)(sin(x))");
         FunctionManager.add("r=@(x)(ln(sin(x)))");
-        
-        System.out.println("M lookup: "+ FunctionManager.lookUp("M").toString());
+
+        System.out.println("M lookup: " + FunctionManager.lookUp("M").toString());
 
         //WORK ON sum(3,-2sin(3)^2,4,5) error //matrix_mul(@(2,2)(3,1,4,2),@(2,2)(2,-9,-4,3))...sum(3,2sin(4),5,-3cos(2*sin(5)),4,1,3)
         //matrix_mul(invert(@(2,2)(3,1,4,2)),@(2,2)(2,-9,-4,3)).............matrix_mul(invert(@(2,2)(3,1,4,2)),@(2,2)(2,-9,-4,3))
@@ -367,7 +368,7 @@ class MathExpressionTest {
         long start = System.nanoTime();
         int iterations = 100;
         for (int i = 0; i < iterations; i++) {
-        f.updateArgs(i+3);
+            f.updateArgs(i + 3);
             f.calc();
         }
         long elapsedNanos = (System.nanoTime() - start) / iterations;
@@ -395,7 +396,7 @@ class MathExpressionTest {
     public void testMixedConstantVariableFolding() {
         MathExpression expr = new MathExpression("1+2+3+4+5+6+7+8+9+10+11+12+13+14+15+16+17+18+19+20+sin(x)");
 
-        MathExpression.Token[] cachedPostfix = expr.getCachedPostfix(); 
+        MathExpression.Token[] cachedPostfix = expr.getCachedPostfix();
 
         // Print all tokens
         for (int i = 0; i < cachedPostfix.length; i++) {
@@ -435,6 +436,61 @@ class MathExpressionTest {
         // Expected: 210 + sin(π/2) = 210 + 1 = 211
         resultVal = Double.parseDouble(result);
         Assertions.assertEquals(211.0, resultVal, 0.0001);
+    }
+
+    @Test
+    void algebraicFunctionAssignTest() {
+        MathExpression me = new MathExpression("A=@(x,y)sin(x)+cos(y-x);B=@(x,y)cos(x*y);C(x,y)=A(x,2*y)+B(3*x,2*y);D=C;print(D)"); 
+        System.out.println("scanner!!!: " + me.scanner);
+        System.out.println("correctFunction!!!: " + me.correctFunction);
+        System.out.println("cachedPostfix!!!: " + me.getCachedPostfix());
+        System.out.println("solve: " + me.solveGeneric());
+        System.out.println(FunctionManager.FUNCTIONS);
+
+        Assertions.assertTrue(true);
+    }
+
+    @Test
+    void matrixAssignTest() {
+        MathExpression me = new MathExpression("A=@(2,2)(3,1,2,8);B=@(2,2)(2,1,4,-3);C=matrix_add(A,B);D=C;print(D);");
+        System.out.println("solve: " + me.solveGeneric());
+        System.out.println(FunctionManager.FUNCTIONS);
+
+        Assertions.assertTrue(true);
+    }
+
+    @Test
+    void rotAssignFunctionTest() {
+        MathExpression me = new MathExpression("F=@(x,y,z)3*x-5*y-4*z;f=rot(F,pi,@(1,3)(0,0,0),@(1,3)(1,1,0));f(0,0,0)");
+        System.out.println("solve: " + me.solveGeneric().scalar);
+        System.out.println("F=" + FunctionManager.lookUp("F"));
+        System.out.println("f=" + FunctionManager.lookUp("f"));
+
+        Assertions.assertTrue(true);
+    }
+
+    @Test
+    void rotAssignPointTest() {
+        MathExpression me = new MathExpression("P=@(1,3)(1,2,3);p=rot(P,pi,@(1,3)(0,0,0),@(1,3)(1,1,0));print(p)");
+        System.out.println("solve: " + me.solveGeneric());
+        System.out.println("P=" + FunctionManager.lookUp("P"));
+        Function p = FunctionManager.lookUp("p");
+        System.out.println("p=" + p);
+
+        Assertions.assertTrue(true);
+        Assertions.assertTrue(p.getType() == TYPE.MATRIX && ((p.getMatrix().getRows() == 1 && p.getMatrix().getCols() == 3) || (p.getMatrix().getRows() == 3 && p.getMatrix().getCols() == 1)));
+    }
+
+    @Test
+    void rotAssignLineTest() {
+        MathExpression me = new MathExpression("P=@(1,3)(1,2,3);Q=@(1,3)(2,1,3);p=rot(P,Q,pi,@(1,3)(0,0,0),@(1,3)(1,1,0));print(p)");
+        System.out.println("solve: " + me.solveGeneric());
+        System.out.println("P=" + FunctionManager.lookUp("P"));
+        System.out.println("Q=" + FunctionManager.lookUp("Q"));
+        Function p = FunctionManager.lookUp("p");
+        System.out.println("p=" + p);
+
+        Assertions.assertTrue(p.getType() == TYPE.MATRIX && ((p.getMatrix().getRows() == 1 && p.getMatrix().getCols() == 6) || (p.getMatrix().getRows() == 6 && p.getMatrix().getCols() == 1)));
     }
 
 }

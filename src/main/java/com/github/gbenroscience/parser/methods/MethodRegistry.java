@@ -36,6 +36,7 @@ import com.github.gbenroscience.parser.TYPE;
 import com.github.gbenroscience.parser.Variable;
 import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.Utils;
+import com.github.gbenroscience.util.io.ByteArrayBuilder;
 import com.github.gbenroscience.util.io.TextFileWriter;
 import java.io.File;
 import java.util.ArrayList;
@@ -358,7 +359,7 @@ public class MethodRegistry {
 //            System.out.println("Derivatives Action");
 //            System.out.println("funcName: " + funcName);
 //            System.out.println("arity: " + arity);
-        
+
             int sz = args.length;
             switch (sz) {
                 case 1: {
@@ -591,7 +592,7 @@ public class MethodRegistry {
                                     break;
                                 default:
                                     System.out.println(f.toString());
-                                      ctx.wrap(f.toString());
+                                    ctx.wrap(f.toString());
                                     break;
                             }
                         } else {
@@ -628,20 +629,22 @@ public class MethodRegistry {
         });
          */
         registerMethod(Declarations.LIST_SUM, (ctx, arity, args) -> {
-
+           // System.out.println("arg-type-in-registry-call: " + Arrays.toString(args));
             double total = 0.0;
-            //    System.out.println("arg-type-in-registryp-call: "+args[0].type+", arg: "+args[0].toString());
-            for (MathExpression.EvalResult arg : args) {
-                //  System.out.println("arg-type-in-registryp-call: "+arg.type+", arg: "+arg.toString());
-                if (arg.type == MathExpression.EvalResult.TYPE_SCALAR) {                    // scalar
-                    total += arg.scalar;
-                } else if (arg.type == MathExpression.EvalResult.TYPE_VECTOR && arg.vector != null) {   // list/vector from sort/mode
-                    for (double v : arg.vector) {
-                        total += v;
-                    }
+
+            ByteArrayBuilder bab = new ByteArrayBuilder();
+            for (MathExpression.EvalResult e : args) {
+                if (e.type == MathExpression.EvalResult.TYPE_SCALAR) {
+                    bab.append(e.scalar);
+                } else {
+                    bab.append(e.vector);
                 }
             }
+            double[] data = bab.getAsDoubleArray();
 
+            for (double d : data) {
+                total += d;
+            } 
             ctx.wrap(total);
             return ctx;
         });
@@ -893,25 +896,19 @@ public class MethodRegistry {
 
             // 2. Clone the array to ensure the original dataset (args) remains 
             // unchanged for other parts of the expression evaluation.
-            MathExpression.EvalResult[] sortedData = args.clone();
-
-            // 3. Perform the high-speed Dual-Pivot Quicksort 
-            java.util.Arrays.sort(sortedData, (MathExpression.EvalResult o1, MathExpression.EvalResult o2) -> {
-                // Assuming primary sorting by scalar (type 0) - adjust if needed for other types
-                // If non-scalar, treat as equal or handle specifically (e.g., compare lengths for vectors)
-                double v1 = (o1.type == 0) ? o1.scalar : 0.0;
-                double v2 = (o2.type == 0) ? o2.scalar : 0.0;
-                return Double.compare(v1, v2);  // Ascending order
-            });
-            double[] out = new double[sortedData.length];
-            for (int i = 0; i < out.length; i++) {
-                out[i] = sortedData[i].scalar;
+            ByteArrayBuilder bab = new ByteArrayBuilder();
+            for (MathExpression.EvalResult e : args) {
+                if (e.type == MathExpression.EvalResult.TYPE_SCALAR) {
+                    bab.append(e.scalar);
+                } else {
+                    bab.append(e.vector);
+                }
             }
-
-            // 4. Wrap the result as a Vector (type 1) and return from the pool
-            MathExpression.EvalResult res = ctx;
-            res.wrap(out);
-            return res;
+            double[] sortedData = bab.getAsDoubleArray();
+            // 3. Perform the high-speed Dual-Pivot Quicksort 
+            java.util.Arrays.sort(sortedData);
+            ctx.wrap(sortedData);
+            return ctx;
         });
 
         registerMethod(Declarations.MIN, (ctx, arity, args) -> {

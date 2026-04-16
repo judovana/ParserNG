@@ -58,7 +58,7 @@ public class MathScanner {
      * Contains the scanned expression
      */
     private List<String> scanner = new ArrayList<>();
-    List<Variable>foundVariables = new ArrayList<>();
+    List<Variable> foundVariables = new ArrayList<>();
 
     /**
      *
@@ -627,7 +627,7 @@ public class MathScanner {
             if (i + 1 >= scanner.size()) {
                 break;
             }
-            
+
             String nextToken = scanner.get(i + 1);
             if (token.equals("diff") && nextToken.equals("(")) {
                 ///diff,(,@,(x),log,(,x, , ,2,), , ,4,)
@@ -817,13 +817,14 @@ public class MathScanner {
         }//end for
     }//end validateTokens
 
-    private void plusAndMinusStringHandler() { 
-       scanner=plusAndMinusStringHandlerHelper(scanner);
+    private void plusAndMinusStringHandler() {
+        scanner = plusAndMinusStringHandlerHelper(scanner);
     }
+
     /**
      * Handles unary plus and minus operations on the numbers that come after
      * them Also handles repeated concatenations of plus and minus operators.
-     */ 
+     */
     public static final List<String> plusAndMinusStringHandlerHelper1(List<String> scanner) {
         List<String> result = new ArrayList<>();
 
@@ -875,97 +876,93 @@ public class MathScanner {
         }
         return result;
     }
-    
-    
-    
+
     public static final List<String> plusAndMinusStringHandlerHelper(List<String> scanner) {
-    List<String> result = new ArrayList<>();
-    
-    for (int i = 0; i < scanner.size(); i++) {
-        String tk = scanner.get(i);
+        List<String> result = new ArrayList<>();
 
-        // --- 1. HANDLE SIGN CHAINS (+, -, ---, etc) ---
-        if (isSign(tk)) {
-            int signMultiplier = 1;
-            int j = i;
-            // Squash: --+- -> -
-            while (j < scanner.size() && isSign(scanner.get(j))) {
-                if (scanner.get(j).equals("-")) signMultiplier *= -1;
-                j++;
-            }
-            
-            // CONTEXT CHECK: Is this sign at the start, after a bracket, or after an operator?
-            boolean isUnaryPos = result.isEmpty() || 
-                                 result.get(result.size() - 1).equals("(") || 
-                                 isOperator(result.get(result.size() - 1));
+        for (int i = 0; i < scanner.size(); i++) {
+            String tk = scanner.get(i);
 
-            if (isUnaryPos) {
-                // Peek at what follows the sign chain
-                if (j < scanner.size() && isNumber(scanner.get(j))) {
-                    // Case: -5 -> Merge into one token "-5.0"
-                    double val = Double.parseDouble(scanner.get(j));
-                    result.add(String.valueOf(val * signMultiplier));
-                    i = j; 
-                } else {
-                    // Case: -sin(x) or -(5+2) -> Convert to -1 * ...
-                    if (signMultiplier == -1) {
-                        result.add("-1");
-                        result.add("*");
+            // --- 1. HANDLE SIGN CHAINS (+, -, ---, etc) ---
+            if (isSign(tk)) {
+                int signMultiplier = 1;
+                int j = i;
+                // Squash: --+- -> -
+                while (j < scanner.size() && isSign(scanner.get(j))) {
+                    if (scanner.get(j).equals("-")) {
+                        signMultiplier *= -1;
                     }
-                    // If it's a unary +, we just discard it as it's mathematically neutral
+                    j++;
+                }
+
+                // CONTEXT CHECK: Is this sign at the start, after a bracket, or after an operator?
+                boolean isUnaryPos = result.isEmpty()
+                        || result.get(result.size() - 1).equals("(")
+                        || isOperator(result.get(result.size() - 1));
+
+                if (isUnaryPos) {
+                    // Peek at what follows the sign chain
+                    if (j < scanner.size() && isNumber(scanner.get(j))) {
+                        // Case: -5 -> Merge into one token "-5.0"
+                        double val = Double.parseDouble(scanner.get(j));
+                        result.add(String.valueOf(val * signMultiplier));
+                        i = j;
+                    } else {
+                        // Case: -sin(x) or -(5+2) -> Convert to -1 * ...
+                        if (signMultiplier == -1) {
+                            result.add("-1");
+                            result.add("*");
+                        }
+                        // If it's a unary +, we just discard it as it's mathematically neutral
+                        i = j - 1;
+                    }
+                } else {
+                    // Binary case: It's an addition or subtraction operator (e.g., 5 - 3)
+                    result.add(signMultiplier == 1 ? "+" : "-");
                     i = j - 1;
                 }
-            } else {
-                // Binary case: It's an addition or subtraction operator (e.g., 5 - 3)
-                result.add(signMultiplier == 1 ? "+" : "-");
-                i = j - 1;
+                continue;//2²+3³+√9
             }
-            continue;//2²+3³+√9
-        }
 
-        // --- 2. REDUNDANT "* 1" or "/ 1" REMOVAL ---
-        if ((tk.equals("*") || tk.equals("/")) && i + 1 < scanner.size() && isExactlyOne(scanner.get(i + 1))) {
-            // Only remove if the previous token is "operand-like" (number, variable, or closing bracket/factorial)
-            if (!result.isEmpty() && isOperandLike(result.get(result.size() - 1))) {
-                i++; // Skip the operator and the '1'
-                continue;
+            // --- 2. REDUNDANT "* 1" or "/ 1" REMOVAL ---
+            if ((tk.equals("*") || tk.equals("/")) && i + 1 < scanner.size() && isExactlyOne(scanner.get(i + 1))) {
+                // Only remove if the previous token is "operand-like" (number, variable, or closing bracket/factorial)
+                if (!result.isEmpty() && isOperandLike(result.get(result.size() - 1))) {
+                    i++; // Skip the operator and the '1'
+                    continue;
+                }
             }
-        }
 
-        result.add(tk);
+            result.add(tk);
+        }
+        return result;
     }
-    return result;
-}
 
 // --- HELPER METHODS ---
-
-private static boolean isOperator(String s) {
-    // These are tokens that, if they appear BEFORE a sign, make that sign UNARY
-    return s.equals("+") || s.equals("-") || s.equals("*") || s.equals("/") || 
-           s.equals("^") || s.equals("%") || s.equals("Р") || s.equals("Č") || 
-           s.equals("(") || s.equals("√");
-}
-
-private static boolean isOperandLike(String s) {
-    // These are tokens that can be followed by a redundant * 1
-    // Includes numbers, variables (x), closing brackets, and factorials
-    return isNumber(s) || s.equals(")") || s.equals("!") || isVariableString(s) || s.equals("²") || s.equals("³");
-}
-
-private static boolean isSign(String s) {
-    return s.equals("+") || s.equals("-");
-}
-
-private static boolean isExactlyOne(String s) {
-    try {
-        return Double.parseDouble(s) == 1.0;
-    } catch (Exception e) {
-        return false;
+    private static boolean isOperator(String s) {
+        // These are tokens that, if they appear BEFORE a sign, make that sign UNARY
+        return s.equals("+") || s.equals("-") || s.equals("*") || s.equals("/")
+                || s.equals("^") || s.equals("%") || s.equals("Р") || s.equals("Č")
+                || s.equals("(") || s.equals("√");
     }
-}
- 
 
-    
+    private static boolean isOperandLike(String s) {
+        // These are tokens that can be followed by a redundant * 1
+        // Includes numbers, variables (x), closing brackets, and factorials
+        return isNumber(s) || s.equals(")") || s.equals("!") || isVariableString(s) || s.equals("²") || s.equals("³");
+    }
+
+    private static boolean isSign(String s) {
+        return s.equals("+") || s.equals("-");
+    }
+
+    private static boolean isExactlyOne(String s) {
+        try {
+            return Double.parseDouble(s) == 1.0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     /**
      * Utility method,more popularly used as a scanner into mathematical tokens
@@ -990,13 +987,13 @@ private static boolean isExactlyOne(String s) {
      */
     public List<String> scanner() {
         VariableManager variableManager = new VariableManager();
-            
+
         splitStringOnMethods_Variables_And_Operators();
         if (parser_Result != ParserResult.VALID) {
             scanner.clear();
             return scanner;
         }
-       
+
         validateInputAfterSplitOnMethodsAndOps();
         if (parser_Result != ParserResult.VALID) {
             scanner.clear();
@@ -1024,7 +1021,7 @@ private static boolean isExactlyOne(String s) {
                 }//end catch
             }//end if
         }//end for
- 
+
 //enable interpretation of things like 3^-4 or 3^+4 i.e ^- or ^+ patterns
         for (int i = 0; i < scanner.size(); i++) {
             try {
@@ -1045,9 +1042,9 @@ private static boolean isExactlyOne(String s) {
 
             }
         }//end for
- 
+
         validateTokens();
- 
+
         /**
          * Automatically initialize and store undeclared variables to 0 in the
          * first if block. To enforce variable declaration and initialization,
@@ -1078,10 +1075,10 @@ private static boolean isExactlyOne(String s) {
                     variableManager.parseCommand(tk + "=0.0;");
                     foundVariables.add(new Variable(tk, 0));
                 }//end if
-                else if(i==0 && sz==1 && Variable.isVariableString(tk)){
-                    if(!FunctionManager.containsAny(tk)){
-                          variableManager.parseCommand(tk + "=0.0;");
-                          foundVariables.add(new Variable(tk, 0));
+                else if (i == 0 && sz == 1 && Variable.isVariableString(tk)) {
+                    if (!FunctionManager.containsAny(tk)) {
+                        variableManager.parseCommand(tk + "=0.0;");
+                        foundVariables.add(new Variable(tk, 0));
                     }
                 }
             }//end if
@@ -1096,7 +1093,7 @@ private static boolean isExactlyOne(String s) {
                 }//end if
             }//end else
         }
-       
+
         if (!runnable) {
             errorList.add("\n"
                     + "Sorry, Errors Were Found In Your Expression."
@@ -1127,9 +1124,9 @@ private static boolean isExactlyOne(String s) {
      * write minor code to concatenate the - and the 2.873 and so on.
      *
      */
-    public List<String> scanner(VariableManager varMan) {
-        splitStringOnMethods_Variables_And_Operators();
-        validateInputAfterSplitOnMethodsAndOps();
+    public List<String> scanner(VariableManager varMan) { 
+        splitStringOnMethods_Variables_And_Operators(); 
+        validateInputAfterSplitOnMethodsAndOps(); 
 
         /*
          * Re-build the negative numbers in a statistical
@@ -1150,6 +1147,7 @@ private static boolean isExactlyOne(String s) {
          * So we need to manually couple the split objects together
          *
          */
+ 
         for (int i = 0; i < scanner.size(); i++) {
             try {
 
@@ -1166,7 +1164,7 @@ private static boolean isExactlyOne(String s) {
             }//end catch
         }//end for
 
-     
+  
 //enable interpretation of things like 3^-4 or 3^+4 i.e ^- or ^+ patterns
         for (int i = 0; i < scanner.size(); i++) {
             try {
@@ -1187,11 +1185,9 @@ private static boolean isExactlyOne(String s) {
 
             }
         }//end for
-        
-   
+      
         validateTokens();
-
-   
+      
         /**
          * Automatically initialize and store undeclared variables to 0 in the
          * first if block. To enforce variable declaration and initialization,
@@ -1222,10 +1218,10 @@ private static boolean isExactlyOne(String s) {
                     varMan.parseCommand(tk + "=0.0;");
                     foundVariables.add(new Variable(tk, 0));
                 }//end if
-                else if(i==0 && sz==1 && Variable.isVariableString(tk)){
-                    if(!FunctionManager.containsAny(tk)){
-                          varMan.parseCommand(tk + "=0.0;");
-                          foundVariables.add(new Variable(tk, 0));
+                else if (i == 0 && sz == 1 && Variable.isVariableString(tk)) {
+                    if (!FunctionManager.containsAny(tk)) {
+                        varMan.parseCommand(tk + "=0.0;");
+                        foundVariables.add(new Variable(tk, 0));
                     }
                 }
             }//end if
@@ -1241,7 +1237,7 @@ private static boolean isExactlyOne(String s) {
             }//end else
         }//end for loop
 
-    
+        
         if (!runnable) {
             errorList.add("\n"
                     + "Sorry, Errors Were Found In Your Expression."
@@ -1254,7 +1250,6 @@ private static boolean isExactlyOne(String s) {
 
         plusAndMinusStringHandler();
 
-         
         return scanner;
     }
 
@@ -1372,9 +1367,6 @@ private static boolean isExactlyOne(String s) {
         scanner.subList(start, end).clear();
         scanner.add(start, f.getName());
     }
-    
-    
- 
 
     /**
      * This technique will rid tokens of offending brackets up to the last
@@ -1386,15 +1378,16 @@ private static boolean isExactlyOne(String s) {
      * @param scanner The list of scanned tokens.
      *
      */
-    
-    
     public static void removeExcessBrackets(List<String> scanner) {
-         BracketCleaner.removeExcessBrackets(scanner);
+        BracketCleaner.removeExcessBrackets(scanner);
     }
+
     /**
-     * Old version of {@linkplain MathScanner#removeExcessBrackets(java.util.List) }
-     * @deprecated 
-     * @param scanner 
+     * Old version of {@linkplain MathScanner#removeExcessBrackets(java.util.List)
+     * }
+     *
+     * @deprecated
+     * @param scanner
      */
     public static void removeExcessBrackets1(List<String> scanner) {
 
@@ -1718,29 +1711,28 @@ private static boolean isExactlyOne(String s) {
      * @param args Command line args (((2+3)^2))!-------((25))!-------
      */
     public static void main(String args[]) {//tester method for STRING methods
-  FunctionManager.add("y=@(x)x^2");
-  MathExpression msce = new MathExpression("(sin(x+y+3*z^2))");
+        FunctionManager.add("y=@(x)x^2");
+        MathExpression msce = new MathExpression("(sin(x+y+3*z^2))");
 
         System.out.println(msce.scanner);
         String s4 = "((cos(x)*1)+(-sin(x)*1))";
-             System.out.println(new MathScanner(s4).scanner());
+        System.out.println(new MathScanner(s4).scanner());
         //String s5 = "sum(3,4,1,6,7,8,4,32,1)";
         String s5 = "--+-12+2^3+4%2-5-6-7*8+5!+---2E-9-0.00002+70000/32.34^8-19+9Р3+6Č5+2²+5³-3-¹/2.53+3E-12+2*-----3-(-4+32)";
         System.out.println(new MathScanner(s5).scanner());
-        
 
         //String s5 = "sum(sin(3),cos(3),ln(345),sort(3,-4,5,-6,13,2,4,5,sum(3,4,5,6,9,12,23), sum(3,4,8,9,2000)),12000, mode(3,2,2,1), mode(1,5,7,7,1,1,7))";
         FunctionManager.add("M=@(4,5)(3,1,2,4,5,9,2,3,12,7,12,8,7,-2,3,15,4,-5,3,8)");
         System.out.println("FUNCTIONS: " + FunctionManager.FUNCTIONS);
 
         String s2 = "F=@(x,y,z)3*x+y-z^2";
-        System.out.println("s2:\n"+new MathScanner(s2).scanner());
+        System.out.println("s2:\n" + new MathScanner(s2).scanner());
         String s3 = "3*x+y-z^2";
-        System.out.println("s3:\n"+new MathScanner(s3).scanner());
+        System.out.println("s3:\n" + new MathScanner(s3).scanner());
         MathExpression me = new MathExpression(s2);
-        System.out.println("scanner- "+me.getScanner());
-        System.out.println("correct? "+me.isCorrectFunction());
-        System.out.println("postfix? "+me.getCachedPostfix());
+        System.out.println("scanner- " + me.getScanner());
+        System.out.println("correct? " + me.isCorrectFunction());
+        System.out.println("postfix? " + me.getCachedPostfix());
         String s6 = "2a-3b";
         String s7 = "2*M-3*M";
         String s8 = "linear_sys(M)";
@@ -1749,10 +1741,10 @@ private static boolean isExactlyOne(String s) {
         String s11 = "root(@(x)sin(x),2,3)";
         String s12 = "root(@(x)sin(x),sin(2)-cos(1),13*(2+3))";
         String s13 = "2²+3³+√-9";
-        
+
         MathScanner msc = new MathScanner(s13);
-        
-        System.out.println("------------------------------------"+msc.scanner());
+
+        System.out.println("------------------------------------" + msc.scanner());
 
         MathScanner sc0 = new MathScanner(s8);
         System.out.println("*************************" + sc0.scanner(new VariableManager()));

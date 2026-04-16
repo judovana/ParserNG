@@ -43,6 +43,7 @@ import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.Utils;
 import com.github.gbenroscience.util.VariableManager;
+import com.github.gbenroscience.util.io.ByteArrayBuilder;
 import java.lang.invoke.*;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -413,12 +414,25 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                     if (Method.isPureStatsMethod(name)) {
                         int arity = t.arity;
                         String[] rawArgs = t.getRawArgs();
-                        double[] data = new double[arity];
+
+                        ByteArrayBuilder bab = new ByteArrayBuilder();
 
                         for (int i = 0; i < arity; i++) {
                             stack.pop();
-                            data[i] = Double.parseDouble(rawArgs[i]);
+                            String arg = rawArgs[i];
+
+                            if (com.github.gbenroscience.parser.Number.isNumber(arg)) {
+                                bab.append(com.github.gbenroscience.parser.Number.fastParseDouble(arg));
+                            } else {
+                                MathExpression.EvalResult ev = new MathExpression(arg).solveGeneric();//compound args 
+                                if (ev.type == MathExpression.EvalResult.TYPE_SCALAR) {
+                                    bab.append(ev.scalar);
+                                } else if (ev.type == MathExpression.EvalResult.TYPE_VECTOR) {
+                                    bab.append(ev.vector);
+                                }
+                            }
                         }
+                        double[] data = bab.getAsDoubleArray();
 
                         MethodHandle finalOp;
                         if (name.equals(Declarations.SORT) || name.equals(Declarations.MODE)) {
@@ -803,27 +817,71 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
     }
 
     private static MethodHandle compileFunction(MathExpression.Token t, List<MethodHandle> argumentHandles) throws Throwable {
-        // 1. Get the unique ID from MethodRegistry
         int methodId = MethodRegistry.getMethodID(t.name);
 
-        // 2. Setup the bridge handle: (int methodId, double[] args) -> double
+        // Bridge that handles the result mapping
         MethodHandle bridge = LOOKUP.findStatic(ScalarTurboEvaluator1.class, "invokeRegistryMethod",
                 MethodType.methodType(MathExpression.EvalResult.class, int.class, double[].class));
 
-        // 3. Bind the methodId so the resulting handle only needs the double[]
         MethodHandle boundBridge = MethodHandles.insertArguments(bridge, 0, methodId);
 
-        // 4. Transform the handle to accept N individual double arguments instead of one double[]
-        // Signature changes from (double[]) -> double   TO   (double, double, ...) -> double
-        MethodHandle collector = boundBridge.asCollector(double[].class, argumentHandles.size());
+        // If any argument is NOT a primitive double (e.g., a nested sort() returning double[]),
+        // we must use the "Massive/Complex" packer instead of the primitive collector.
+        boolean hasComplexArgs = argumentHandles.stream().anyMatch(h -> h.type().returnType() != double.class);
 
-        // 5. Pipe the results of the sub-expression handles into the collector's arguments
-        // We use collectArguments to "pre-fill" the collector with the outputs of our argument tree
+        if (hasComplexArgs) {
+            // Use a variant of our bridge that can handle Object[] inputs
+            MethodHandle massive = LOOKUP.findStatic(ScalarTurboEvaluator1.class, "invokeComplexStats",
+                    MethodType.methodType(Object.class, MethodHandle.class, String.class, Object[].class, double[].class));
+
+            // We'll treat this like a pseudo-stats method for the sake of the bridge
+            return MethodHandles.insertArguments(massive, 1, t.name, argumentHandles.toArray());
+        }
+
+        // Standard primitive path
+        MethodHandle collector = boundBridge.asCollector(double[].class, argumentHandles.size());
         for (int i = 0; i < argumentHandles.size(); i++) {
             collector = MethodHandles.collectArguments(collector, i, argumentHandles.get(i));
         }
-
         return collector;
+    }
+
+    public static Object invokeComplexStats(MethodHandle gatekeeper, String name, Object[] parts, double[] vars) throws Throwable {
+        int totalSize = 0;
+        Object[] evaluated = new Object[parts.length];
+
+        // Phase 1: Dynamic Evaluation & Unboxing
+        for (int i = 0; i < parts.length; i++) {
+            Object p = parts[i];
+            // Static double[] are used directly; handles are executed
+            Object res = (p instanceof double[]) ? p : ((MethodHandle) p).invokeExact(vars);
+
+            if (res instanceof MathExpression.EvalResult) {
+                MathExpression.EvalResult er = (MathExpression.EvalResult) res;
+                res = (er.type == MathExpression.EvalResult.TYPE_VECTOR) ? er.vector : er.scalar;
+            }
+
+            evaluated[i] = res;
+            if (res instanceof double[]) {
+                totalSize += ((double[]) res).length;
+            } else {
+                totalSize++;
+            }
+        }
+
+        // Phase 2: High-Speed Flattening
+        double[] data = new double[totalSize];
+        int cursor = 0;
+        for (Object obj : evaluated) {
+            if (obj instanceof double[]) {
+                double[] d = (double[]) obj;
+                System.arraycopy(d, 0, data, cursor, d.length);
+                cursor += d.length;
+            } else {
+                data[cursor++] = ((Number) obj).doubleValue();
+            }
+        }
+        return gatekeeper.invoke(name, data);
     }
 
     // ========== ARITY REDUCTION & FOLDING ==========
@@ -1023,7 +1081,8 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                 MethodHandle unwrapper = LOOKUP.findStatic(ScalarTurboEvaluator1.class, "unwrapToDouble",
                         MethodType.methodType(double.class, Object.class));
                 return MethodHandles.filterReturnValue(handle, unwrapper);
-            } catch (Exception e) {
+            } catch (Throwable e) {
+                e.printStackTrace();
                 return handle.asType(handle.type().changeReturnType(double.class));
             }
         }
@@ -1506,7 +1565,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
             }
         } else if (args.length == 5) {//rot(P1,P2,a,O,D) function, angle, origin, direction vector---- rotates lines, P1 and P2 are point matrices that define a line
             //confirm the last 3 other args
-       
+
             double angle = Variable.getConstantValue(args[2]);
             if (Double.isNaN(angle)) {
                 angle = Double.parseDouble(args[2]);
