@@ -1076,7 +1076,7 @@ public class MathScanner {
                     foundVariables.add(new Variable(tk, 0));
                 }//end if
                 else if (i == 0 && sz == 1 && Variable.isVariableString(tk)) {
-                    if (!FunctionManager.containsAny(tk)) {
+                    if (!FunctionManager.containsAny(tk) && !variableManager.contains(tk)) {
                         variableManager.parseCommand(tk + "=0.0;");
                         foundVariables.add(new Variable(tk, 0));
                     }
@@ -1217,7 +1217,7 @@ public class MathScanner {
                     foundVariables.add(new Variable(tk, 0));
                 }//end if
                 else if (i == 0 && sz == 1 && Variable.isVariableString(tk)) {
-                    if (!FunctionManager.containsAny(tk)) {
+                    if (!FunctionManager.containsAny(tk) && !varMan.contains(tk)) {
                         varMan.parseCommand(tk + "=0.0;");
                         foundVariables.add(new Variable(tk, 0));
                     }

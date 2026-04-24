@@ -308,8 +308,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                         }
                     }
                 }
-
-                success = true;
+                success = true; 
             } else {
                 MathExpression expr = null;
                 if (rhs.startsWith("@")) {
@@ -492,7 +491,6 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                             break;
 
                     }//end switch statement
-
                 }//end if
                 else {
                     throw new InputMismatchException("Syntax Error---" + newFuncName);

@@ -501,5 +501,14 @@ class MathExpressionTest {
 
         Assertions.assertTrue(p.getType() == TYPE.MATRIX && ((p.getMatrix().getRows() == 1 && p.getMatrix().getCols() == 6) || (p.getMatrix().getRows() == 6 && p.getMatrix().getCols() == 1)));
     }
+    
+    
+    @Test
+    void testSingleVar(){
+        String expression = "x=5;x";
+        MathExpression me = new MathExpression(expression);        
+        double val = me.solveGeneric().scalar;
+        Assertions.assertTrue(val==5);
+    }
 
 }

@@ -358,10 +358,13 @@ public class MathExpression implements Savable, Solvable {
         }
 
     }
-/**
- * Used internally to have a a cheap way of accessing an empty {@linkplain MathExpression} object
- * @param plain 
- */
+
+    /**
+     * Used internally to have a a cheap way of accessing an empty
+     * {@linkplain MathExpression} object
+     *
+     * @param plain
+     */
     private MathExpression(boolean plain) {
 
     }
@@ -491,7 +494,6 @@ public class MathExpression implements Savable, Solvable {
                     MathScanner sc = new MathScanner(code.substring(indexOfRot, idxOfCloseBracForRot + 1));
                     sc.scanner();
                     sc.unmaskCommas();
-                    System.out.println("scanned sub-portion: " + sc.getScanner());
                     code = processRotScenarios(sc.getScanner());
                 }
 
@@ -509,7 +511,6 @@ public class MathExpression implements Savable, Solvable {
                 ++exprCount;
             }
         }
-
         if (mathExpr != null && !mathExpr.isEmpty() && exprCount == 1) {
             setExpression(mathExpr);
         }//end if
@@ -576,10 +577,9 @@ public class MathExpression implements Savable, Solvable {
         setNoOfListReturningOperators(0);
         whitespaceremover.add("");
         //Scanner operation
-
+        
         MathScanner opScanner = new MathScanner(expression);
         opScanner.scanner(variableManager);
-
         for (Variable v : opScanner.foundVariables) {
             v.setFrameIndex(registry.getSlot(v.getName()));
         }
@@ -1334,9 +1334,29 @@ public class MathExpression implements Savable, Solvable {
         int len = s.length();
         Variable vv = null;
         boolean isNumber = false;
-        // 1. Identify Numbers
+        // 1. Identify Numbers and constants here
         if ((isNumber = isNumber(s)) || ((vv = VariableManager.lookUp(s)) != null && vv.isConstant())) {
             return new Token(isNumber ? fastParseDouble(s) : vv.getValue());
+        }
+
+        if ((isNumber = isNumber(s))) {
+            return new Token(fastParseDouble(s));
+        }
+        if (isVariableString(s)) {
+            vv = VariableManager.lookUp(s);
+            if (vv != null) {
+                if (vv.isConstant()) {
+                    return new Token(vv.getValue());
+                } else {
+                    Token t = new Token(0.0);
+                    t.name = s;
+                    t.v = vv;
+                    t.frameIndex = registry.getSlot(s);
+                    t.v.setFrameIndex(t.frameIndex);
+                    t.kind = Token.NUMBER;
+                    return t;
+                }
+            }
         }
 
         // 2. Identify Brackets
@@ -1645,6 +1665,8 @@ public class MathExpression implements Savable, Solvable {
         public EvalResult evaluate() {
             // Just use the pre-allocated stack - no allocation per call
             int ptr = -1;
+
+
 
             for (int i = 0; i < cachedPostfix.length; i++) {
                 Token t = cachedPostfix[i];
