@@ -403,18 +403,15 @@ public class STRING {
      * @param str The String object that we will search through.
      * @return The number of times c occurs in str
      */
-    public static int countOccurences(String c, String str) {
+    public static int countOccurences(char c, String str) {
         // Validate inputs without expensive concatenation in the exception message
-        if (c == null || c.length() != 1 || str == null) {
+        if (str == null) {
             throw new IllegalArgumentException("Target string must be length 1 and source must not be null.");
         }
-
-        char target = c.charAt(0);
         int count = 0;
         int len = str.length();
-
         for (int i = 0; i < len; i++) {
-            if (str.charAt(i) == target) {
+            if (str.charAt(i) == c) {
                 count++;
             }
         }

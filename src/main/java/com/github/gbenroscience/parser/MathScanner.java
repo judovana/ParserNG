@@ -1124,9 +1124,9 @@ public class MathScanner {
      * write minor code to concatenate the - and the 2.873 and so on.
      *
      */
-    public List<String> scanner(VariableManager varMan) { 
-        splitStringOnMethods_Variables_And_Operators(); 
-        validateInputAfterSplitOnMethodsAndOps(); 
+    public List<String> scanner(VariableManager varMan) {
+        splitStringOnMethods_Variables_And_Operators();
+        validateInputAfterSplitOnMethodsAndOps();
 
         /*
          * Re-build the negative numbers in a statistical
@@ -1147,7 +1147,6 @@ public class MathScanner {
          * So we need to manually couple the split objects together
          *
          */
- 
         for (int i = 0; i < scanner.size(); i++) {
             try {
 
@@ -1164,7 +1163,6 @@ public class MathScanner {
             }//end catch
         }//end for
 
-  
 //enable interpretation of things like 3^-4 or 3^+4 i.e ^- or ^+ patterns
         for (int i = 0; i < scanner.size(); i++) {
             try {
@@ -1185,9 +1183,9 @@ public class MathScanner {
 
             }
         }//end for
-      
+
         validateTokens();
-      
+
         /**
          * Automatically initialize and store undeclared variables to 0 in the
          * first if block. To enforce variable declaration and initialization,
@@ -1237,7 +1235,6 @@ public class MathScanner {
             }//end else
         }//end for loop
 
-        
         if (!runnable) {
             errorList.add("\n"
                     + "Sorry, Errors Were Found In Your Expression."
@@ -1702,8 +1699,19 @@ public class MathScanner {
 
     }//end method
 
-    public void refixCommas() {
+    /**
+     * Hides the commas in the scanner output as a double number which is not
+     * part of the output
+     */
+    public void maskCommas() {
         scanner.replaceAll((String t) -> isComma(t) ? this.commaAlias : t);
+    }
+
+    /**
+     * Brings back the original comma tokens from their masked state
+     */
+    public void unmaskCommas() {
+        scanner.replaceAll((String t) -> t.equals(commaAlias) ? "," : t);
     }
 
     /**

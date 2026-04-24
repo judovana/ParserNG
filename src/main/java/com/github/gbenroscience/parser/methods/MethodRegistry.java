@@ -15,6 +15,7 @@
  */
 package com.github.gbenroscience.parser.methods;
 
+import com.github.gbenroscience.interfaces.Savable;
 import com.github.gbenroscience.logic.DRG_MODE;
 import com.github.gbenroscience.math.Maths;
 import com.github.gbenroscience.math.differentialcalculus.Derivative;
@@ -39,6 +40,7 @@ import com.github.gbenroscience.util.Utils;
 import com.github.gbenroscience.util.io.ByteArrayBuilder;
 import com.github.gbenroscience.util.io.TextFileWriter;
 import java.io.File;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -51,8 +53,9 @@ import java.util.HashSet;
  */
 public class MethodRegistry {
 
-    public interface MethodAction {
+    public interface MethodAction extends Savable{
 
+          static final long serialVersionUID = 1L;
         /**
          * Allows methods like diff(fn,args) to differentiate an expression
          * using the MethodRegistry interface Is the intersection between
@@ -447,18 +450,22 @@ public class MethodRegistry {
                 }
                 if (f.getType() == TYPE.ALGEBRAIC_EXPRESSION) {
                     String expr = f.getMathExpression().getExpression();
+                    String fullExpr=f.getName()+"="+expr;
+                    String transformedFuncName = f.getName(); 
 
                     ROTOR r = new ROTOR(angle, origin, dir);
-                    if (siz == 3) {
-                        r.setXAxisName(vars.get(0).getName());
-                        r.setYAxisName(vars.get(1).getName());
-                        r.setZAxisName(vars.get(2).getName());
-                    }
+                    
                     if (siz == 2) {
                         r.setXAxisName(vars.get(0).getName());
                         r.setYAxisName(vars.get(1).getName());
+                        r.setZAxisName(transformedFuncName);
                     }
-                    String res = r.rotate(expr);
+                    if (siz == 1) {
+                        r.setXAxisName(vars.get(0).getName());
+                        r.setYAxisName(transformedFuncName);
+                    }
+                     
+                    String res = r.rotate(fullExpr);
                     return ctx.wrap(res);
                 }
                 if (f.getType() == TYPE.MATRIX) {

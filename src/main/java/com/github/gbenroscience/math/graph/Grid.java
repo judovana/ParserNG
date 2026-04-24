@@ -18,18 +18,19 @@ package com.github.gbenroscience.math.graph;
 import com.github.gbenroscience.math.graph.tools.GraphColor;
 import com.github.gbenroscience.math.graph.tools.GraphFont;
 import com.github.gbenroscience.parser.*;
-import com.github.gbenroscience.math.*;
+import com.github.gbenroscience.math.*; 
 import static java.lang.Math.*;
 
 import static com.github.gbenroscience.parser.STRING.*;
-import com.github.gbenroscience.util.Dimension;
+import com.github.gbenroscience.util.Dimension; 
 
 /**
  *
  * @author JIBOYE Oluwagbemiro Olaoluwa
  */
-public class Grid {
-
+public class Grid{ 
+    
+   
     public static final int MIN_GRID_SIZE = 6;
     public static final int MAX_GRID_SIZE = 200;
 
@@ -248,6 +249,13 @@ public class Grid {
 
         this.upperXLimit = upperXLimit;
         this.lowerXLimit = lowerXLimit;
+        
+             
+        this.dataSharer.xLower = lowerXLimit;
+        this.dataSharer.xUpper = upperXLimit;
+        this.dataSharer.xStep = xStep;
+        this.dataSharer.yStep = yStep;
+        this.dataSharer.useTurbo = useTurbo;
 
         setRefreshingIndices(true);
         this.font = font;
@@ -500,16 +508,15 @@ public class Grid {
         computeXMaxBoundPossibleOnScreen();
         computeYMinBoundPossibleOnScreen();
         computeYMaxBoundPossibleOnScreen();
-
+ 
         final Thread t = new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
                     // Determine if limits need updating
-                    boolean needsUpdate = false;
+                    
                     if (lowerVisibleX <= lowerXLimit || upperXLimit <= upperVisibleX) {
-                        needsUpdate = true;
-
+                       
                         // Update limits
                         Grid.this.lowerXLimit = Grid.this.lowerVisibleX - 50 * gridSize.width * xStep;
                         Grid.this.upperXLimit = Grid.this.upperVisibleX + 50 * gridSize.width * xStep;
@@ -524,7 +531,7 @@ public class Grid {
                                 }
                             }
                         }
-
+                        
                         String direction = (lowerVisibleX <= lowerXLimit) ? "LEFT" : "RIGHT";
                         System.out.println("Now scrolled to extreme " + direction + ", rebuilding graph values...");
                     }
@@ -625,7 +632,7 @@ public class Grid {
     public void setTickColor(GraphColor tickColor) {
         this.tickColor = tickColor;
     }
-
+ 
     public GraphColor getTickColor() {
         return tickColor;
     }

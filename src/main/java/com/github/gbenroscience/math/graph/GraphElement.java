@@ -195,6 +195,7 @@ public class GraphElement {
         dataSharer.xStep = 0.1;
 
         GridExpressionParser gridExpressionParser = new GridExpressionParser("[-3,-1,0,4,-3:][0,3,4,-1,0:];y(x)=sin(x-3*pi);v(x,y)=3*x!-10*y", dataSharer);
+        System.out.println(gridExpressionParser.getGraphElements().get(0));
 
     }
 

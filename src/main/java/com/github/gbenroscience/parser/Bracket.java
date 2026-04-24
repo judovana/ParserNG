@@ -277,65 +277,7 @@ public class Bracket extends Operator {
         return true;
     }//end method
 
-    /**
-     * @param isOpenBracket boolean variable that should be true if this bracket
-     * object whose complement we seek is an opening bracket i.e (, and should
-     * be set to false if this bracket object whose complement we seek is a
-     * closing bracket i.e )
-     * @param start the index of the given bracket.
-     * @param scan the ArrayList containing the scanned function.
-     * @return the index of the enclosing or complement bracket of this bracket
-     * object
-     */
-    public static int getComplementIndex(boolean isOpenBracket, int start, ArrayList<String> scan) {
-
-        int open = 0;
-        int close = 0;
-        int stop = 0;
-        if (isOpenBracket) {
-            try {
-                for (int i = start; i < scan.size(); i++) {
-                    String s = scan.get(i);
-                    if (s.charAt(0) == '(') {
-                        open++;
-                    } else if (s.charAt(0) == ')') {
-                        close++;
-                    }
-                    if (open == close) {
-                        stop = i;
-                        break;
-                    }
-
-                }//end for
-            }//end try
-            catch (IndexOutOfBoundsException ind) {
-            }
-        }//end if
-        else if (!isOpenBracket) {
-            try {
-                for (int i = start; i >= 0; i--) {
-                    try {
-                        String s = scan.get(i);
-                        if (s.charAt(0) == '(') {
-                            open++;
-                        } else if (s.charAt(0) == ')') {
-                            close++;
-                        }
-                        if (open == close) {
-                            stop = i;
-                            break;
-                        }
-                    }//end try
-                    catch (IndexOutOfBoundsException ind) {
-                    }
-                }//end for
-            }//end try
-            catch (IndexOutOfBoundsException ind) {
-            }
-
-        }
-        return stop;
-    }//end method
+    
 
     /**
      * @param isOpenBracket boolean variable that should be true if this bracket

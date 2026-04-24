@@ -1,11 +1,13 @@
 package com.github.gbenroscience.util;
 
+import com.github.gbenroscience.parser.Bracket;
 import java.io.File;
 
 import com.github.gbenroscience.util.io.FunctionsBackup;
 import com.github.gbenroscience.util.io.VariableBackup;
 import com.github.gbenroscience.util.io.TextFileReader;
 import com.github.gbenroscience.util.io.TextFileWriter;
+import java.util.List;
 
 public class Utils {
 
@@ -171,6 +173,32 @@ public class Utils {
         }
         int sqrt = (int) Math.sqrt(num);
         return sqrt * sqrt == num;
+    }
+
+    public static void unwrapBracket(List<String> data) {
+        if (data.isEmpty()) {
+            return;
+        }
+        if (data.get(0).equals("(")) {
+            int closeIdx = Bracket.getComplementIndex(true, 0, data);
+            if (closeIdx == data.size() - 1) {
+                data.remove(closeIdx);
+                data.remove(0);
+            }
+        }
+    }
+
+    public static String unwrapBracket(String data) {
+        if (data.isEmpty()) {
+            return data;
+        }
+        if (data.charAt(0) == '(') {
+            int closeIdx = Bracket.getComplementIndex(true, 0, data);
+            if (closeIdx == data.length() - 1) {
+                data = data.substring(1, closeIdx);
+            }
+        }
+        return data;
     }
 
     public static void main(String[] args) {

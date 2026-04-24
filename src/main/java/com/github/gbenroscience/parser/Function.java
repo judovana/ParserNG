@@ -93,6 +93,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      */
     public Function(String input) throws InputMismatchException {
         try {
+            input = Utils.unwrapBracket(input);
             input = rewriteAsStandardFunction(STRING.purifier(input));//Change function to standard form immediately
             parseInput(input);
         } catch (Exception e) {
@@ -157,7 +158,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         }
 
         int computeCloseBracIndex = Bracket.getComplementIndex(true, indexOfOpenBrac, input);//this is the index of the matching close bracket for the args list
-        if (computeCloseBracIndex != indexOfCloseBrac) {//Is a major structural flasw in the input...e.g f=@(((args))expr, but this is not allowed! only f=@(args)expr is
+        if (computeCloseBracIndex != indexOfCloseBrac) {//Is a major structural flaw in the input...e.g f=@(((args))expr, but this is not allowed! only f=@(args)expr is
             throw new InputMismatchException("Multiple brackets not allowed on args list e.g: f((x)) is not allowed, only f(x) and f=@((x)) is not allowed");
         }
 
@@ -264,17 +265,17 @@ public class Function implements Savable, MethodRegistry.MethodAction {
          * Check if the user used the form f(x)=.... instead of f=@(x).... If so
          * convert to the latter format, and then recompute the necessary
          * indexes.
-         */ 
+         */
         if (indexOfOpenBrac != -1 && indexOfOpenBrac < equalsIndex) {
             if (semiColonIndex == -1) {
                 input = input.substring(0, indexOfOpenBrac)
-                       + "=@" + input.substring(indexOfOpenBrac, Bracket.getComplementIndex(true, indexOfOpenBrac, input) + 1) + "(" + input.substring(equalsIndex + 1) + ")";
-            }else{
+                        + "=@" + input.substring(indexOfOpenBrac, Bracket.getComplementIndex(true, indexOfOpenBrac, input) + 1) + "(" + input.substring(equalsIndex + 1) + ")";
+            } else {
                 input = input.substring(0, semiColonIndex);
-                  input = input.substring(0, indexOfOpenBrac)
-                       + "=@" + input.substring(indexOfOpenBrac, Bracket.getComplementIndex(true, indexOfOpenBrac, input) + 1) + "(" + input.substring(equalsIndex + 1) + ");";
-             }
-       
+                input = input.substring(0, indexOfOpenBrac)
+                        + "=@" + input.substring(indexOfOpenBrac, Bracket.getComplementIndex(true, indexOfOpenBrac, input) + 1) + "(" + input.substring(equalsIndex + 1) + ");";
+            }
+
             //recompute the indexes.
             equalsIndex = input.indexOf("=");
             semiColonIndex = input.indexOf(";");
@@ -311,7 +312,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 success = true;
             } else {
                 MathExpression expr = null;
-                if (rhs.startsWith("@")) { 
+                if (rhs.startsWith("@")) {
                     Function anonFunc = new Function(rhs);
                     FunctionManager.update(anonFunc.dependentVariable.getName(), newFuncName);
                     if (anonFunc.isMatrix()) {
@@ -335,7 +336,6 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                         scanner.remove(scanner.size() - 1);
                     }
                 }
-             
 
                 int sz = scanner.size();
                 if ((sz == 3 && scanner.get(1).startsWith(ANON_PREFIX))
@@ -383,20 +383,21 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                         Function f = FunctionManager.lookUp(fn);
                         MathExpression.EvalResult ev = expr.solveGeneric();
                         if (f.type == TYPE.STRING || f.type == TYPE.ALGEBRAIC_EXPRESSION) {//
-                            String fname = f.getFullName();
-                            String fullName = "@" + fname.substring(fname.indexOf("("));
-                            String fexpr = newFuncName + "=" + fullName + ev.textRes;
-
-                            Function rotF = new Function(fexpr);
-                            rotF = FunctionManager.lookUp(newFuncName);
-                            Variable v = VariableManager.lookUp(newFuncName);
-                            if (v != null) {
-                                rotF.setDependentVariable(v);
-                            } else {
-                                rotF.setDependentVariable(new Variable(newFuncName));
-                            }
-                            FunctionManager.add(rotF);
-                            return true;
+                            throw new RuntimeException("rotating a function usually creates an implicit expression, do not try to assign the result of function rotation to a function.");
+                            /**
+                             * String fname = f.getFullName(); String fullName =
+                             * "@" + fname.substring(fname.indexOf("(")); String
+                             * fexpr = newFuncName + "=" + fullName +
+                             * ev.textRes;
+                             *
+                             * Function rotF = new Function(fexpr); rotF =
+                             * FunctionManager.lookUp(newFuncName); Variable v =
+                             * VariableManager.lookUp(newFuncName); if (v !=
+                             * null) { rotF.setDependentVariable(v); } else {
+                             * rotF.setDependentVariable(new
+                             * Variable(newFuncName)); }
+                             * FunctionManager.add(rotF); return true;
+                             */
                         }
                         if (f.type == TYPE.MATRIX) {//is a Point rotation
                             String fname = f.getFullName();
@@ -503,6 +504,30 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             VariableManager.update();
         }
         return success;
+    }
+
+    /**
+     * Assigns a stored anonymous function to become a named function.
+     *
+     * @param fname
+     * @param anonFuncName The name of the stored anonymous fucntion
+     */
+    public static boolean assignAnonymousToNamedFunction(String fname, String anonFuncName) {
+        Function f = FunctionManager.lookUp(anonFuncName);
+        FunctionManager.delete(anonFuncName);
+        if (f.isMatrix()) {
+            f.getMatrix().setName(fname);
+            FunctionManager.add(f);
+            return true;
+        } else {
+            Variable v = VariableManager.lookUp(fname);
+            if (v == null) {
+                v = new Variable(fname);
+            }
+            f.setDependentVariable(v);
+            FunctionManager.add(f);
+            return true;
+        }
     }
 
     /**
@@ -1429,7 +1454,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 copy.dependentVariable = new Variable(dependentVariable.getName(), dependentVariable.getValue());
             }
             if (mathExpression != null) {
-                copy.mathExpression = mathExpression.copy();  
+                copy.mathExpression = mathExpression.copy();
                 try {
                     copy.turboExpr = copy.mathExpression.getCompiledTurbo();
                 } catch (Throwable ex) {

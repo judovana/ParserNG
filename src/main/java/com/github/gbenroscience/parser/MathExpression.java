@@ -48,6 +48,7 @@ import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.Serializer;
 import com.github.gbenroscience.util.VariableManager;
 import java.util.LinkedHashMap;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -357,6 +358,13 @@ public class MathExpression implements Savable, Solvable {
         }
 
     }
+/**
+ * Used internally to have a a cheap way of accessing an empty {@linkplain MathExpression} object
+ * @param plain 
+ */
+    private MathExpression(boolean plain) {
+
+    }
 
     /**
      * default no argument constructor for class MathExpression. It creates a
@@ -387,6 +395,75 @@ public class MathExpression implements Savable, Solvable {
         this(input, new VariableManager(), foldConstants);
     }//end constructor MathExpression
 
+    /**
+     * MathExpression me = new
+     * MathExpression("rot(f=@(x)sin(x),pi/2,@(1,3)(0,0,0),@(1,3)(1,1,0))");
+     * scanner-output: [rot, (, (, f, =, anon1, ), ,, (, pi, /, 2, ), ,, anon2,
+     * ,, anon3, )] MathExpression ma = new
+     * MathExpression("rot(t(x)=ln(x),pi/2,@(1,3)(0,0,0),@(1,3)(1,1,0))");
+     * scanner-output: [rot, (, (, t, (, x, ), =, ln, (, x, ), ), ,, (, pi, /,2,
+     * ), ,, anon1, ,, anon2, )] MathExpression m1 = new
+     * MathExpression("rot(@(1,3)(4,2,0),pi/2,@(1,3)(0,0,0),@(1,3)(1,1,0))");
+     * scanner-output: [rot, (, anon1, ,, (, pi, /, 2, ), ,, anon2, ,, anon3, )]
+     * MathExpression m = new
+     * MathExpression("rot(@(x)2*x+1,pi/2,@(1,3)(0,0,0),@(1,3)(1,1,0))");
+     * scanner-output: [rot, (, anon1, ,, (, pi, /, 2, ), ,, anon2, ,, anon3, )]
+     *
+     * @param data
+     */
+    private String processRotScenarios(List<String> data) {
+        if (whitespaceremover.isEmpty()) {
+            whitespaceremover.add("");
+        }
+        int eqIdx = data.indexOf("=");
+        if (eqIdx != -1) {
+            String prev = data.get(eqIdx - 1);
+            String next = data.get(eqIdx + 1);
+            if (prev.equals(")")) {// [rot, (, (, t, (, x, ), =, ln, (, x, ), ), ,, (, pi, /,2, ), ,, anon1, ,, anon2, )] 
+                int fnameIndex = Bracket.getComplementIndex(false, eqIdx - 1, data) - 1;
+                String fnNameToLeftOfEquals = data.get(fnameIndex);
+                int openBracIdxForFnAssignExpression = fnameIndex - 1;
+                int closeBracIdxForFnAssignExpression = Bracket.getComplementIndex(true, openBracIdxForFnAssignExpression, data);
+                List<String> l = data.subList(openBracIdxForFnAssignExpression, closeBracIdxForFnAssignExpression + 1);
+                final StringBuilder s = new StringBuilder();
+                l.forEach(new Consumer<String>() {
+                    @Override
+                    public void accept(String t) {
+                        s.append(t);
+                    }
+                });
+                System.out.println("s:" + s.toString());
+                Function f = FunctionManager.add(s.toString());
+                l.clear();
+                l.add(fnNameToLeftOfEquals);
+            } else {
+                if (isVariableString(prev) && FunctionManager.containsAny(next)) {//e.g f, = , anon1
+                    Function.assignAnonymousToNamedFunction(prev, next);
+                    data.set(eqIdx, "");//squash consumed token
+                    data.set(eqIdx + 1, "");//squash consumed token
+
+                    if (data.get(eqIdx - 2).equals("(")) {// (, f, =, anon1
+                        int closeBracIdx = Bracket.getComplementIndex(true, eqIdx - 2, data);
+                        if (closeBracIdx == eqIdx + 2) {// (, f, =, anon1, )
+                            data.set(eqIdx - 2, "");//squash consumed token
+                            data.set(eqIdx + 2, "");//squash consumed token
+                        }
+                    }
+                    data.removeAll(whitespaceremover);
+                }
+            }
+        }
+
+        final StringBuilder s = new StringBuilder();
+        data.forEach(new Consumer<String>() {
+            @Override
+            public void accept(String t) {
+                s.append(t);
+            }
+        });
+        return s.toString();
+    }
+
     public MathExpression(String input, VariableManager variableManager, boolean foldConstants) {
         this.willFoldConstants = foldConstants;
         this.help = input.equals(Declarations.HELP);
@@ -403,6 +480,22 @@ public class MathExpression implements Savable, Solvable {
         int exprCount = 0;
 
         for (String code : scanned) {
+            int indexOfRot = code.indexOf("rot(");
+            if (indexOfRot != -1) {//rot(f(x)=sin(x),ang,P1,P2) or rot(f=@(x)sin(x),ang,P1,P2)
+                //process rot function if it contains =
+
+                int openBracIdx = indexOfRot + "rot".length();
+                int idxOfCloseBracForRot = Bracket.getComplementIndex(true, openBracIdx, code);
+                int eqIdx = code.indexOf("=", indexOfRot);
+                if (eqIdx != -1 && eqIdx < idxOfCloseBracForRot) {//rot(f,=,jjj,....) e.g equals index lies inside rot's bracket contents
+                    MathScanner sc = new MathScanner(code.substring(indexOfRot, idxOfCloseBracForRot + 1));
+                    sc.scanner();
+                    sc.unmaskCommas();
+                    System.out.println("scanned sub-portion: " + sc.getScanner());
+                    code = processRotScenarios(sc.getScanner());
+                }
+
+            }
             if (code.contains("=")) {
                 boolean success = Function.assignObject(code + ";");
                 if (!success) {
@@ -493,7 +586,7 @@ public class MathExpression implements Savable, Solvable {
 
         this.commaAlias = opScanner.commaAlias;
         scanner = opScanner.getScanner();
-     
+
         correctFunction = opScanner.isRunnable();
         parser_Result = opScanner.parser_Result;
 
@@ -2554,7 +2647,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
      * @return
      */
     public MathExpression copy() {
-        MathExpression me = new MathExpression();
+        MathExpression me = new MathExpression(true);
         me.DRG = DRG;
         Token tokens[] = new Token[cachedPostfix.length];
         int i = 0;
@@ -2580,7 +2673,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
         me.optimizable = optimizable;
         me.parser_Result = ParserResult.valueOf(parser_Result.name());
         me.pool = new EvalResult[pool.length];
-        for (i = 0; i < pool.length; i++) {
+        for (i = 0; i < me.pool.length; i++) {
             me.pool[i] = pool[i].clone();
         }
         me.poolPointer = poolPointer;
@@ -2608,17 +2701,19 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
 //                return compiledTurbo.applyScalar(variables);
 //            }
 //        };//clone this
-        try {
-            me.compiledTurbo = me.compileTurbo();
-        } catch (Throwable ex) {
-            System.out.println("Failed to compile turbo for cloned MathExpression");
-            Logger.getLogger(MathExpression.class.getName()).log(Level.SEVERE, null, ex);
+        if (compiledTurbo != null) {
+            try {
+                me.compiledTurbo = me.compileTurbo();
+            } catch (Throwable ex) {
+                System.out.println("Failed to compile turbo for cloned MathExpression");
+                Logger.getLogger(MathExpression.class.getName()).log(Level.SEVERE, null, ex);
+            }
         }
         return me;
     }
 
     @Override
-    protected MathExpression clone() throws CloneNotSupportedException {
+    public MathExpression clone() throws CloneNotSupportedException {
         return Serializer.deepClone(this);
     }
 

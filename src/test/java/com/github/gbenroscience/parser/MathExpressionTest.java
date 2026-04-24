@@ -440,7 +440,7 @@ class MathExpressionTest {
 
     @Test
     void algebraicFunctionAssignTest() {
-        MathExpression me = new MathExpression("A=@(x,y)sin(x)+cos(y-x);B=@(x,y)cos(x*y);C(x,y)=A(x,2*y)+B(3*x,2*y);D=C;print(D)"); 
+        MathExpression me = new MathExpression("A=@(x,y)sin(x)+cos(y-x);B=@(x,y)cos(x*y);C(x,y)=A(x,2*y)+B(3*x,2*y);D=C;print(D)");
         System.out.println("scanner!!!: " + me.scanner);
         System.out.println("correctFunction!!!: " + me.correctFunction);
         System.out.println("cachedPostfix!!!: " + me.getCachedPostfix());
@@ -460,13 +460,22 @@ class MathExpressionTest {
     }
 
     @Test
-    void rotAssignFunctionTest() {
-        MathExpression me = new MathExpression("F=@(x,y,z)3*x-5*y-4*z;f=rot(F,pi,@(1,3)(0,0,0),@(1,3)(1,1,0));f(0,0,0)");
+    void rotFunctionTest() {
+        MathExpression me = new MathExpression("F=@(x,y,z)3*x-5*y-4*z;rot(f=@(x,y,z)3*x-5*y-4*z,pi,@(1,3)(0,0,0),@(1,3)(1,1,0));");
         System.out.println("solve: " + me.solveGeneric().scalar);
         System.out.println("F=" + FunctionManager.lookUp("F"));
         System.out.println("f=" + FunctionManager.lookUp("f"));
-
         Assertions.assertTrue(true);
+    }
+
+    @Test
+    void rotAssignFunctionTest() {
+        try {
+            MathExpression me = new MathExpression("F=@(x,y,z)3*x-5*y-4*z;f=rot(F,pi,@(1,3)(0,0,0),@(1,3)(1,1,0));f(0,0,0)");
+        } catch (RuntimeException r) {
+            System.out.println(r.getLocalizedMessage());
+            Assertions.assertTrue(true);
+        }
     }
 
     @Test

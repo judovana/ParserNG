@@ -15,6 +15,7 @@
  */
 package com.github.gbenroscience.parser.turbo.tools;
 
+import com.github.gbenroscience.interfaces.Savable;
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.parser.MathExpression;
 
@@ -28,7 +29,13 @@ import com.github.gbenroscience.parser.MathExpression;
  * - Small matrices: 50-200 ns
  * - Large matrices: linear to problem size (excellent cache locality)
  */
-public interface FastCompositeExpression {
+public interface FastCompositeExpression extends Savable{
+    
+    
+    
+    public default MathExpression getRoot(){
+      return null;
+    };
     
     /**
      * Evaluate expression with given variable values.

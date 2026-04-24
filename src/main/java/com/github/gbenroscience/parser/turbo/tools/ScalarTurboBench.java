@@ -22,7 +22,6 @@ import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.VariableManager;
 import java.security.SecureRandom;
 import java.util.Arrays;
-import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,7 +32,7 @@ import java.util.logging.Logger;
  */
 public class ScalarTurboBench {
 
-    private static final int N = 10000;
+    private static final int N = 1000000;
     private static boolean useWidening = true;
 
     public static void main(String[] args) throws Throwable {
@@ -41,6 +40,9 @@ public class ScalarTurboBench {
         System.out.println(rpt);
         System.out.println("SCALAR TURBO COMPILER BENCHMARKS");
         System.out.println(rpt);
+
+        testUserDefinedFunctionWidening();
+        testUserDefinedFunctionArrayBased();
 
         testLineRotation();
 
@@ -539,7 +541,7 @@ public class ScalarTurboBench {
         }
         double interpretedDur = System.nanoTime() - start;
 
-         v[0] *= 1;
+        v[0] *= 1;
         System.out.printf("Expression: %s%n", expr);
 
         // Compile to turbo
@@ -865,6 +867,84 @@ public class ScalarTurboBench {
         }
     }
 
+    static public void testUserDefinedFunctionWidening() throws Throwable {//-1.8719243686213027618871370090528, -3.2052577019546360952204703423861
+        System.out.println("\n=== USER-DEFINED FUNCTION: WIDENING; ===\n");
+
+        String expr = "f(x,y)=3*x*sin(x+y)+cos(x*y);f(x,y)";
+
+        MathExpression turbo = new MathExpression(expr, true);
+
+        double[] vars = new double[2];
+        double[] res = new double[1];
+        long start = System.nanoTime();
+        double[] items = getRandom(1000, -10, 10);
+
+        Function f = FunctionManager.lookUp("f");
+        for (int i = 0; i < N; i++) {
+            double x = items[i % items.length];
+            double y = items[(i + 1) % items.length];
+            f.updateArgs(x, y);
+            res[0] = f.calc();
+        }
+        double interpretedDur = System.nanoTime() - start;
+        System.out.println("res = " + res[0]);
+
+        FastCompositeExpression compiled = new ScalarTurboEvaluator2(turbo).compile();
+
+        start = System.nanoTime();
+        for (int i = 0; i < N; i++) {
+            vars[0] = items[i % items.length];
+            vars[1] = items[(i + 1) % items.length];
+            res[0] = compiled.applyScalar(vars);
+        }
+        double turboDur = System.nanoTime() - start;
+        System.out.println("res = " + res[0]);
+
+        System.out.printf("Expression: %s%n", "f(x,y)"); 
+        System.out.printf("Interpreted:     %.2f ns/op%n", interpretedDur / N);
+        System.out.printf("Turbo:     %.2f ns/op%n", turboDur / N);
+        System.out.printf("Speedup:     %.1fx%n", (double) interpretedDur / turboDur);
+    }
+
+    static public void testUserDefinedFunctionArrayBased() throws Throwable {//-1.8719243686213027618871370090528, -3.2052577019546360952204703423861
+        System.out.println("\n=== USER-DEFINED FUNCTION: ARRAY-BASED; ===\n");
+
+        String expr = "f(x,y)=3*x*sin(x+y)+cos(x*y);f(x,y)";
+
+        MathExpression turbo = new MathExpression(expr, true);
+
+        double[] vars = new double[2];
+        double[] res = new double[1];
+        long start = System.nanoTime();
+        double[] items = getRandom(1000, -10, 10);
+
+        Function f = FunctionManager.lookUp("f");
+        for (int i = 0; i < N; i++) {
+            double x = items[i % items.length];
+            double y = items[(i + 1) % items.length];
+            f.updateArgs(x, y);
+            res[0] = f.calc();
+        }
+        double interpretedDur = System.nanoTime() - start;
+        System.out.println("res = " + res[0]);
+
+        FastCompositeExpression compiled = new ScalarTurboEvaluator1(turbo).compile();
+
+        start = System.nanoTime();
+        for (int i = 0; i < N; i++) {
+            vars[0] = items[i % items.length];
+            vars[1] = items[(i + 1) % items.length];
+            res[0] = compiled.applyScalar(vars);
+        }
+        double turboDur = System.nanoTime() - start;
+        System.out.println("res = " + res[0]);
+
+        System.out.printf("Expression: %s%n", "f(x,y)"); 
+        System.out.printf("Interpreted:     %.2f ns/op%n", interpretedDur / N);
+        System.out.printf("Turbo:     %.2f ns/op%n", turboDur / N);
+        System.out.printf("Speedup:     %.1fx%n", (double) interpretedDur / turboDur);
+    }
+
     private static void runVariableStressTest() throws Throwable {
         String rpt = STRING.repeating("=", 40);
 
@@ -928,4 +1008,5 @@ public class ScalarTurboBench {
 
         return da;
     }
+
 }

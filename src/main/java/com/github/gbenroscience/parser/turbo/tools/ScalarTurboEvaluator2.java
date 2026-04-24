@@ -15,6 +15,7 @@
  */
 package com.github.gbenroscience.parser.turbo.tools;
 
+import com.github.gbenroscience.interfaces.Savable;
 import com.github.gbenroscience.math.Maths;
 import com.github.gbenroscience.math.differentialcalculus.Derivative;
 import com.github.gbenroscience.math.numericalmethods.NumericalIntegrator;
@@ -32,10 +33,7 @@ import com.github.gbenroscience.parser.Variable;
 import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
-import com.github.gbenroscience.parser.turbo.tools.FastCompositeExpression;
-import com.github.gbenroscience.parser.turbo.tools.TurboExpressionEvaluator;
 import com.github.gbenroscience.util.FunctionManager;
-import com.github.gbenroscience.util.Utils;
 import com.github.gbenroscience.util.VariableManager;
 
 import java.lang.invoke.*;
@@ -53,8 +51,9 @@ import java.util.concurrent.ThreadLocalRandom;
  *
  * @author GBEMIRO
  */
-public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
+public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator, Savable {
 
+    private static final long serialVersionUID = 1L;
     private boolean willFoldConstants;
 
     protected final double[] turboArgs;
@@ -354,9 +353,19 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
 
 // ... applyScalar calls finalScalar.invokeExact(variables) ...
             return new FastCompositeExpression() {
+                double args[] = new double[turboArgs == null ? 0 : turboArgs.length];
+
                 private void loadVars(double[] variables) {
-                    for (int i = 0; i < turboArgs.length; i++) {
-                        turboArgs[slots[i]] = variables[i];
+                    // Safety check: ensure we don't null pointer if arrays aren't initialized
+                    if (variables == null || turboArgs == null || slots == null) {
+                        return;
+                    }
+
+                    // Use the smallest length to prevent out-of-bounds access
+                    int limit = Math.min(variables.length, Math.min(args.length, slots.length));
+
+                    for (int i = 0; i < limit; i++) {
+                        args[slots[i]] = variables[i];
                     }
                 }
 
@@ -366,7 +375,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
                         loadVars(variables);
                         // Now this will always work because even if varCount is 0, 
                         // the handle now expects a double[]
-                        return (double) finalScalar.invokeExact(turboArgs);
+                        return (double) finalScalar.invokeExact(args);
                     } catch (Throwable t) {
                         throw new RuntimeException("Turbo scalar execution failed", t);
                     }
@@ -377,7 +386,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator {
                     try {
                         loadVars(variables);
                         // invokeExact is now safe here too
-                        Object result = finalGeneric.invokeExact(turboArgs);
+                        Object result = finalGeneric.invokeExact(args);
                         MathExpression.EvalResult res = new MathExpression.EvalResult();
                         if (result instanceof double[]) {
                             res.type = MathExpression.EvalResult.TYPE_VECTOR;

@@ -15,6 +15,7 @@
  */
 package com.github.gbenroscience.parser.turbo.tools;
 
+import com.github.gbenroscience.interfaces.Savable;
 import com.github.gbenroscience.math.Maths;
 import com.github.gbenroscience.math.differentialcalculus.Derivative;
 import com.github.gbenroscience.math.geom.Direction;
@@ -30,13 +31,10 @@ import com.github.gbenroscience.math.tartaglia.Tartaglia_Equation;
 import com.github.gbenroscience.parser.Bracket;
 import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
-import com.github.gbenroscience.parser.MathScanner;
 import com.github.gbenroscience.parser.TYPE;
 import static com.github.gbenroscience.parser.TYPE.ALGEBRAIC_EXPRESSION;
 import static com.github.gbenroscience.parser.TYPE.MATRIX;
 import com.github.gbenroscience.parser.Variable;
-import com.github.gbenroscience.parser.benchmarks.GG;
-import com.github.gbenroscience.parser.benchmarks.GG2;
 import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
@@ -54,8 +52,9 @@ import java.util.concurrent.ThreadLocalRandom;
  *
  * @author GBEMIRO
  */
-public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
+public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator, Savable {
 
+    private static final long serialVersionUID = 1L;
     private boolean willFoldConstants;
 
     protected final double[] turboArgs;
@@ -272,16 +271,6 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
      */
     ///////////////////////////////////////////UPDATE STARTS////////////////////////////////////////////////////////////////////////////////
     
-    
-    
-    
-    
-    
-
-    /**
-     * Updated compile() method to use the new wide compiler.
-     */  
- 
     @Override
     public FastCompositeExpression compile() throws Throwable {
         // 1. The RAW handle: Returns primitive double, accepts double[]
@@ -294,6 +283,8 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                 java.lang.invoke.MethodType.methodType(Object.class, double[].class)
         );
         return new FastCompositeExpression() {
+            
+            double args[] = new double[turboArgs == null ? 0 : turboArgs.length];
 
             private void loadVars(double[] variables) {
                 // Safety check: ensure we don't null pointer if arrays aren't initialized
@@ -302,10 +293,10 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                 }
 
                 // Use the smallest length to prevent out-of-bounds access
-                int limit = Math.min(variables.length, Math.min(turboArgs.length, slots.length));
+                int limit = Math.min(variables.length, Math.min(args.length, slots.length));
 
                 for (int i = 0; i < limit; i++) {
-                    turboArgs[slots[i]] = variables[i];
+                    args[slots[i]] = variables[i];
                 }
             }
 
@@ -316,7 +307,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                     // HIGH PERFORMANCE PATH
                     // invokeExact here is as fast as a direct method call.
                     // No boxing, no extra objects.
-                    return (double) rawScalarHandle.invokeExact(turboArgs);
+                    return (double) rawScalarHandle.invokeExact(args);
                 } catch (Throwable t) {
                     throw new RuntimeException("Turbo evaluation failed", t);
                 }
@@ -328,7 +319,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
                     loadVars(variables);
                     // FLEXIBLE PATH 
                     // We use the generic handle to avoid ClassCastExceptions 
-                    return handleResult(genericHandle.invokeExact(turboArgs));
+                    return handleResult(genericHandle.invokeExact(args));
                 } catch (Throwable t) {
                     t.printStackTrace();
                     return execute();
@@ -1535,17 +1526,22 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator {
             }
             if (f.getType() == TYPE.ALGEBRAIC_EXPRESSION) {
                 String expr = f.getMathExpression().getExpression();
+                    String fullExpr=f.getName()+"="+expr;
+                    String transformedFuncName = f.getName(); 
+
                 ROTOR r = new ROTOR(angle, origin, dir);
-                if (siz == 3) {
+                    
+                    if (siz == 2) {
                     r.setXAxisName(vars.get(0).getName());
                     r.setYAxisName(vars.get(1).getName());
-                    r.setZAxisName(vars.get(2).getName());
+                        r.setZAxisName(transformedFuncName);
                 }
-                if (siz == 2) {
+                    if (siz == 1) {
                     r.setXAxisName(vars.get(0).getName());
-                    r.setYAxisName(vars.get(1).getName());
+                        r.setYAxisName(transformedFuncName);
                 }
-                String res = r.rotate(expr);
+                     
+                    String res = r.rotate(fullExpr);
                 return ctx.wrap(res);
             }
             if (f.getType() == TYPE.MATRIX) {

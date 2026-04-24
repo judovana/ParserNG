@@ -6,6 +6,7 @@ package com.github.gbenroscience.math.geom;
 
 import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
+import com.github.gbenroscience.parser.STRING;
 import com.github.gbenroscience.parser.Scanner;
 import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.util.FunctionManager;
@@ -325,126 +326,125 @@ public class ROTOR {
 
         return genX + "+" + genY + "+" + genZ + "+" + constant;
     }//end method
+ 
 
+    /**
+     * Efficient term formatter to avoid syntax errors like (+*x) or (1.0*x)
+     */
     private String formatTerm(double coeff, String var, boolean isFirst) {
-        if (Math.abs(coeff) < 1e-10) {
-            return ""; // Effectively zero
+        if (Math.abs(coeff) < 1e-15) {
+            return "";
         }
-        String sCoeff;
-        if (coeff == 1.0) {
-            sCoeff = "";
-        } else if (coeff == -1.0) {
-            sCoeff = "-";
-        } else {
-            sCoeff = String.format("%.16f", coeff); // Limits decimal gore
-        }
-        // Handle leading plus signs
-        String sign = (coeff > 0 && !isFirst) ? "+" : "";
 
-        Function f = FunctionManager.lookUp(var);
-        if (f != null) {
-            String expr = f.getMathExpression().getExpression();
-            String prefix = sign + sCoeff + "*";
-            if (prefix.equals("-*")) {
-                prefix = "-";
+        StringBuilder sb = new StringBuilder();
+        if (coeff > 0 && !isFirst) {
+            sb.append("+");
+        } else if (coeff < 0) {
+            sb.append("-");
+        }
+
+        double absCoeff = Math.abs(coeff);
+        // Handle coefficient of 1.0 implicitly for variables
+        if (Math.abs(absCoeff - 1.0) > 1e-15 || var.isEmpty()) {
+            sb.append(absCoeff);
+            if (!var.isEmpty()) {
+                sb.append("*");
             }
-            return prefix + ((expr.startsWith("(") && expr.endsWith(")")) ? expr : "(" + expr + ")");
         }
-        String prefix = sign + sCoeff + "*";
-        if (prefix.equals("-*")) {
-            prefix = "-";
-        }
-        return prefix + var;
+        sb.append(var);
+        return sb.toString();
     }
 
     private String rotX() {
-        double sin = sin(angle);
-        double cos = cos(angle);
-        double a = direction.getA(), b = direction.getB(), c = direction.getC();
-        double k = sqrt(a * a + b * b + c * c);
-        double K = k * k;
+        double sin = sin(angle), cos = cos(angle);
+        double a = direction.a, b = direction.b, c = direction.c;
+        double k = sqrt(a * a + b * b + c * c), K = k * k;
+        double x1 = rotorCenter.x, y1 = rotorCenter.y, z1 = rotorCenter.z;
 
-        Point cen = getRotorCenter();
-        double x1 = cen.x, y1 = cen.y, z1 = cen.z;
+        double cx = (K * cos + a * a * (1 - cos)) / K;
+        double cy = (a * b * (1 - cos) - k * c * sin) / K;
+        double cz = (a * c * (1 - cos) + k * b * sin) / K;
+        double cConst = ((b * b + c * c) * (1 - cos) * x1
+                - (a * b * (1 - cos) - k * c * sin) * y1
+                - (a * c * (1 - cos) + k * b * sin) * z1) / K;
 
-        // Coefficients for x, y, z and the constant term
-        double cx = (K * cos + (a * a) * (1 - cos)) / K;
-        double cy = -((k * c * sin - a * b * (1 - cos)) / K);
-        double cz = (k * b * sin + a * c * (1 - cos)) / K;
-        double cConst = (((b * b + c * c) * (1 - cos) * x1 + (k * c * sin - a * b * (1 - cos)) * y1 - (k * b * sin + a * c * (1 - cos)) * z1) / K);
-
-        StringBuilder sb = new StringBuilder();
-        sb.append(formatTerm(cx, parameters[0], true));
-        sb.append(formatTerm(cy, parameters[1], sb.length() == 0));
-        sb.append(formatTerm(cz, parameters[2], sb.length() == 0));
-
-        if (Math.abs(cConst) > 1e-10) {
-            sb.append(cConst > 0 ? "+" : "").append(String.format("%.16f", cConst));
-        }
-
-        return sb.toString();
+        return formatTerm(cx, parameters[0], true) + formatTerm(cy, parameters[1], false)
+                + formatTerm(cz, parameters[2], false) + formatTerm(cConst, "", false);
     }
 
-    /**
-     * Returns a clean string expression for the rotated Y coordinate.
-     */
     private String rotY() {
-        double sin = sin(angle);
-        double cos = cos(angle);
-        double a = direction.getA(), b = direction.getB(), c = direction.getC();
-        double k = sqrt(a * a + b * b + c * c);
-        double K = k * k;
+        double sin = sin(angle), cos = cos(angle);
+        double a = direction.a, b = direction.b, c = direction.c;
+        double k = sqrt(a * a + b * b + c * c), K = k * k;
+        double x1 = rotorCenter.x, y1 = rotorCenter.y, z1 = rotorCenter.z;
 
-        Point cen = getRotorCenter();
-        double x1 = cen.x, y1 = cen.y, z1 = cen.z;
-
-        // Coefficients derived from original Rodrigues logic
         double cx = (a * b * (1 - cos) + k * c * sin) / K;
-        double cy = ((b * b) * (1 - cos) + K * cos) / K;
-        double cz = -((k * a * sin - b * c * (1 - cos)) / K);
-        double cConst = ((-k * c * sin - a * b * (1 - cos)) * x1 + (a * a + c * c) * (1 - cos) * y1 + (k * a * sin - b * c * (1 - cos)) * z1) / K;
+        double cy = (K * cos + b * b * (1 - cos)) / K;
+        double cz = (b * c * (1 - cos) - k * a * sin) / K;
+        double cConst = (-(a * b * (1 - cos) + k * c * sin) * x1
+                + (a * a + c * c) * (1 - cos) * y1
+                - (b * c * (1 - cos) - k * a * sin) * z1) / K;
 
-        StringBuilder sb = new StringBuilder();
-        sb.append(formatTerm(cx, parameters[0], true));
-        sb.append(formatTerm(cy, parameters[1], sb.length() == 0));
-        sb.append(formatTerm(cz, parameters[2], sb.length() == 0));
+        return formatTerm(cx, parameters[0], true) + formatTerm(cy, parameters[1], false)
+                + formatTerm(cz, parameters[2], false) + formatTerm(cConst, "", false);
+    }
 
-        if (Math.abs(cConst) > 1e-10) {
-            sb.append(cConst > 0 ? "+" : "").append(String.format("%.16f", cConst));
-        }
+    private String rotZ() {
+        double sin = sin(angle), cos = cos(angle);
+        double a = direction.a, b = direction.b, c = direction.c;
+        double k = sqrt(a * a + b * b + c * c), K = k * k;
+        double x1 = rotorCenter.x, y1 = rotorCenter.y, z1 = rotorCenter.z;
 
-        return sb.toString();
+        double cx = (a * c * (1 - cos) - k * b * sin) / K;
+        double cy = (b * c * (1 - cos) + k * a * sin) / K;
+        double cz = (K * cos + c * c * (1 - cos)) / K;
+        double cConst = (-(a * c * (1 - cos) - k * b * sin) * x1
+                - (b * c * (1 - cos) + k * a * sin) * y1
+                + (a * a + b * b) * (1 - cos) * z1) / K;
+
+        return formatTerm(cx, parameters[0], true) + formatTerm(cy, parameters[1], false)
+                + formatTerm(cz, parameters[2], false) + formatTerm(cConst, "", false);
     }
 
     /**
-     * Returns a clean string expression for the rotated Z coordinate.
+     * 
+     * @param function
+     * @return 
      */
-    private String rotZ() {
-        double sin = sin(angle);
-        double cos = cos(angle);
-        double a = direction.getA(), b = direction.getB(), c = direction.getC();
-        double k = sqrt(a * a + b * b + c * c);
-        double K = k * k;
-
-        Point cen = getRotorCenter();
-        double x1 = cen.x, y1 = cen.y, z1 = cen.z;
-
-        // Coefficients derived from original Rodrigues logic
-        double cx = (a * c * (1 - cos) - k * b * sin) / K;
-        double cy = (k * a * sin + b * c * (1 - cos)) / K;
-        double cz = (K * cos + (c * c) * (1 - cos)) / K;
-        double cConst = ((k * b * sin - a * c * (1 - cos)) * x1 - (k * a * sin + b * c * (1 - cos)) * y1 + (a * a + b * b) * (1 - cos) * z1) / K;
-
-        StringBuilder sb = new StringBuilder();
-        sb.append(formatTerm(cx, parameters[0], true));
-        sb.append(formatTerm(cy, parameters[1], sb.length() == 0));
-        sb.append(formatTerm(cz, parameters[2], sb.length() == 0));
-
-        if (Math.abs(cConst) > 1e-10) {
-            sb.append(cConst > 0 ? "+" : "").append(String.format("%.16f", cConst));
+    public String rotate(String function) {
+        if (function == null || function.trim().isEmpty()) {
+            return function;
+        }
+        
+        int occurencesOfEquals = STRING.countOccurences('=', function);
+        
+        if(occurencesOfEquals == 0){
+            throw new RuntimeException("The expression must be in the form: `y=f(x)` or z=sqrt(64-(x^2+y^2)) e.g y=sqrt(36-x^2) this will allow all parts of the equation to be rotated correctly");
+        }else if(occurencesOfEquals > 1){
+            throw new RuntimeException("The expression must be in the form: `y=f(x)` or z=sqrt(64-(x^2+y^2)). Expected count for '=' is 1, found: "+occurencesOfEquals);
         }
 
-        return sb.toString();
+        try {
+            // Optimized: No redundant MathExpression creation here.
+            Scanner sc = new Scanner(function, true, Method.getAllFunctions(), parameters, "(", ")");
+            List<String> tokens = sc.scan();
+            StringBuilder sb = new StringBuilder();
+
+            for (String token : tokens) {
+                if (token.equals(parameters[0])) {
+                    sb.append("(").append(rotX()).append(")");
+                } else if (token.equals(parameters[1])) {
+                    sb.append("(").append(rotY()).append(")");
+                } else if (token.equals(parameters[2])) {
+                    sb.append("(").append(rotZ()).append(")");
+                } else {
+                    sb.append(token);
+                }
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return function;
+        }
     }
 
     /**
@@ -564,57 +564,16 @@ public class ROTOR {
     }//end method
 
     /**
-     * CARE!!! The developer makes no guarantees about what will happen if an
-     * invalid function string is passed to this method. This method only works
-     * with valid functions that use the names assigned to the coordinate
-     * axes(default is x,y,z). Wherever they occur as variables in the
-     * expression, they MUST BE ENCLOSED IN CIRCULAR BRACKETS!!! THE VARIABLE
-     * NAMES MUST BE SINGLE ALPHABET CHARACTERS ONLY!!!!. No parser or
-     * expression analyzer is used before rotating this function, so be warned.
-     *
-     * IF YOUR FUNCTION WILL CONTAIN METHOD NAMES OR INBUILT FUNCTIONS THAT ARE
-     * NOT LISTED IN THE {@link ROTOR#METHODS} ARRAY, ADD THEM TO THAT ARRAY
-     *
-     * @param function the function string to be rotated.
-     * @return the rotated function.
+     * Helper to count parentheses
      */
-    public String rotate(String function) {
-        // 1. Get the rotation expressions generated by your existing logic
-        String rotXExpr = rotX();
-        String rotYExpr = rotY();
-        String rotZExpr = rotZ();
-
-        Scanner sc = new Scanner(function, true, Method.getAllFunctions(), parameters, "(", ")");
-        List<String> list = sc.scan();
-
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < list.size(); i++) {
-            String tk = list.get(i);
-            String replacement = null;
-
-            if (tk.equals(parameters[0])) {
-                replacement = rotXExpr;
-            } else if (tk.equals(parameters[1])) {
-                replacement = rotYExpr;
-            } else if (tk.equals(parameters[2])) {
-                replacement = rotZExpr;
-            }
-            if (replacement != null) {
-                // Wrapping in parentheses preserves the Order of Operations
-                if (replacement.charAt(0) == '(' && replacement.charAt(replacement.length() - 1) == ')') {
-                    sb.append(replacement);
-                } else {
-                    sb.append("(").append(replacement).append(")");
-                }
-            } else {
-                sb.append(tk);
+    private int countChar(String s, char c) {
+        int count = 0;
+        for (char ch : s.toCharArray()) {
+            if (ch == c) {
+                count++;
             }
         }
-        String str = sb.toString();
-        if (str.charAt(0) == '(' && str.charAt(str.length() - 1) == ')') {
-            str = str.substring(1, str.length() - 1);
-        }
-        return str;
+        return count;
     }
 
     /**
@@ -724,9 +683,13 @@ public class ROTOR {
     }
 
     public static void main(String[] args) {
-        MathExpression me = new MathExpression("rot(@(x)sin(x),pi/2,@(1,3)(0,0,0),@(1,3)(1,1,0))");
-        Function f = FunctionManager.lookUp("anon1");
-        System.out.println("scanner: " + me.getScanner());
+        MathExpression me = new MathExpression("rot(f=@(x)sin(x),pi/2,@(1,3)(0,0,0),@(1,3)(1,1,0))");//scanner-output: [rot, (, (, f, =, anon1, ), ,, (, pi, /, 2, ), ,, anon2, ,, anon3, )]
+        MathExpression ma = new MathExpression("rot(t(x)=ln(x),pi/2,@(1,3)(0,0,0),@(1,3)(1,1,0))");//scanner-output: [rot, (, (, t, (, x, ), =, ln, (, x, ), ), ,, (, pi, /, 2, ), ,, anon1, ,, anon2, )]
+        MathExpression m1 = new MathExpression("rot(@(1,3)(4,2,0),pi/2,@(1,3)(0,0,0),@(1,3)(1,1,0))");//scanner-output: [rot, (, anon1, ,, (, pi, /, 2, ), ,, anon2, ,, anon3, )]
+        MathExpression m = new MathExpression("rot(@(x)2*x+1,pi/2,@(1,3)(0,0,0),@(1,3)(1,1,0))");//scanner-output: [rot, (, anon1, ,, (, pi, /, 2, ), ,, anon2, ,, anon3, )]
+        Function f = FunctionManager.lookUp("f");
+        System.out.println("scanner-me: " + me.getScanner());
+        System.out.println("scanner-ma: " + ma.getScanner());
         System.out.println("f = " + f.toString());
         System.out.println("ans:\n" + me.solve());
 

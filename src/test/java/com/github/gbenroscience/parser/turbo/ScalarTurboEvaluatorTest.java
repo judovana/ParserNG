@@ -131,6 +131,7 @@ public class ScalarTurboEvaluatorTest {
         // Warm up JIT
         MathExpression interpreted = new MathExpression(expr, false);
         MathExpression.EvalResult ev = interpreted.solveGeneric();
+        System.out.println("std: " + ev);
 
         ScalarTurboEvaluator2 sc = new ScalarTurboEvaluator2(interpreted);
         // Compile to turbo
@@ -138,7 +139,6 @@ public class ScalarTurboEvaluatorTest {
         // Warm up turbo JIT
         double[] vars = new double[0];
         MathExpression.EvalResult evr = compiled.apply(vars);
-        System.out.println("std: " + ev);
         System.out.println("tur: " + evr);
 
         Assertions.assertEquals(ev.scalar, evr.scalar);
@@ -152,6 +152,7 @@ public class ScalarTurboEvaluatorTest {
 
         // Warm up JIT
         MathExpression interpreted = new MathExpression(expr, false);
+        System.out.println("sc_int:"+interpreted.getScanner());
         MathExpression.EvalResult ev = interpreted.solveGeneric();
 
         // Compile to turbo
@@ -420,4 +421,5 @@ public class ScalarTurboEvaluatorTest {
         double v1 = fce.applyScalar(vars);
 
     }
+    
 }

@@ -175,6 +175,7 @@ public class FunctionManager {
      */
     public static Function add(String expression) {
         try {
+            
             Function f = new Function(expression); 
             String name = f.getName();
             FUNCTIONS.put(name, f);
