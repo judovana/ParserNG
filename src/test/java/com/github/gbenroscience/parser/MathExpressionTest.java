@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.parser.methods.BasicNumericalMethod;
 import com.github.gbenroscience.parser.methods.Declarations;
+import com.github.gbenroscience.parser.turbo.tools.ScalarTurboEvaluator1;
+import com.github.gbenroscience.parser.turbo.tools.ScalarTurboEvaluator2;
 import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.VariableManager;
 
@@ -14,6 +16,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 class MathExpressionTest {
 
@@ -501,14 +505,35 @@ class MathExpressionTest {
 
         Assertions.assertTrue(p.getType() == TYPE.MATRIX && ((p.getMatrix().getRows() == 1 && p.getMatrix().getCols() == 6) || (p.getMatrix().getRows() == 6 && p.getMatrix().getCols() == 1)));
     }
-    
-    
+
     @Test
-    void testSingleVar(){
+    void testSingleVar() {
         String expression = "x=5;x";
-        MathExpression me = new MathExpression(expression);        
+        MathExpression me = new MathExpression(expression);
         double val = me.solveGeneric().scalar;
-        Assertions.assertTrue(val==5);
+        Assertions.assertTrue(val == 5);
+    }
+
+    @Test
+    void testMultiPointRotation() {
+        String expression = "rot(@(4,3)(1,2,1, 5,4,-9, 12,18,2, 14,9,-1), pi, @(1,3)(0,0,0), @(1,3)(0,0,1))";
+        MathExpression me = new MathExpression(expression);
+        MathExpression.EvalResult v = me.solveGeneric();
+        System.out.println("RESULT:" + v.toString());
+        Assertions.assertTrue(true);
+    }
+
+    @Test
+    void testMultiPointRotationTurbo() {
+        try {
+            String expression = "rot(@(4,3)(1,2,1, 5,4,-9, 12,18,2, 14,9,-1), pi, @(1,3)(0,0,0), @(1,3)(0,0,1))";
+            MathExpression me = new MathExpression(expression);
+            MathExpression.EvalResult v = new ScalarTurboEvaluator2(me).compile().apply(new double[0]);
+            System.out.println("RESULT:" + v.toString());
+            Assertions.assertTrue(true);
+        } catch (Throwable ex) {
+            Logger.getLogger(MathExpressionTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
 }

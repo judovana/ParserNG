@@ -283,7 +283,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator, Savable 
                 java.lang.invoke.MethodType.methodType(Object.class, double[].class)
         );
         return new FastCompositeExpression() {
-            
+
             double args[] = new double[turboArgs == null ? 0 : turboArgs.length];
 
             private void loadVars(double[] variables) {
@@ -1526,35 +1526,45 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator, Savable 
             }
             if (f.getType() == TYPE.ALGEBRAIC_EXPRESSION) {
                 String expr = f.getMathExpression().getExpression();
-                    String fullExpr=f.getName()+"="+expr;
-                    String transformedFuncName = f.getName(); 
+                String fullExpr = f.getName() + "=" + expr;
+                String transformedFuncName = f.getName();
 
                 ROTOR r = new ROTOR(angle, origin, dir);
-                    
-                    if (siz == 2) {
+
+                if (siz == 2) {
                     r.setXAxisName(vars.get(0).getName());
                     r.setYAxisName(vars.get(1).getName());
-                        r.setZAxisName(transformedFuncName);
+                    r.setZAxisName(transformedFuncName);
                 }
-                    if (siz == 1) {
+                if (siz == 1) {
                     r.setXAxisName(vars.get(0).getName());
-                        r.setYAxisName(transformedFuncName);
+                    r.setYAxisName(transformedFuncName);
                 }
-                     
-                    String res = r.rotate(fullExpr);
+
+                String res = r.rotate(fullExpr);
                 return ctx.wrap(res);
             }
             if (f.getType() == TYPE.MATRIX) {
-                //rotate a point
-                Matrix pointVector = f.getMatrix();
+                //rotate a set of points
+                Matrix pointVectors = f.getMatrix();
                 ROTOR r = new ROTOR(angle, origin, dir);
-                rows = pointVector.getRows();
-                cols = pointVector.getCols();//@(1,3)
-                if ((rows == 1 && cols == 3) || (rows == 3 && cols == 1)) {
-                    double[] arr = pointVector.getFlatArray();
-                    Point p = new Point(arr[0], arr[1], arr[2]);
-                    Point rotP = r.rotate(p);
-                    return ctx.wrap(new double[]{rotP.x, rotP.y, rotP.z});
+                rows = pointVectors.getRows();
+                cols = pointVectors.getCols();//@(n,3)
+
+                if (cols == 3) {
+                    int n = rows;
+                    double outArr[] = new double[3 * n];
+                    int j = 0;
+                    for (int i = 0; i < n; i++) {
+                        double[] pm = pointVectors.getRowMatrix(i).getFlatArray();
+                        Point p = new Point(pm[0], pm[1], pm[2]);
+                        Point rotP = r.rotate(p);
+                        outArr[j] = rotP.x;
+                        outArr[j + 1] = rotP.y;
+                        outArr[j + 2] = rotP.z;
+                        j += 3;
+                    }
+                    return ctx.wrap(new Matrix(outArr, rows, 3));
                 } else {
                     return MathExpression.EvalResult.ERROR;
                 }

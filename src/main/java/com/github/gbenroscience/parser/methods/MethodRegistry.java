@@ -32,7 +32,6 @@ import com.github.gbenroscience.math.tartaglia.Tartaglia_Equation;
 import com.github.gbenroscience.parser.Bracket;
 import com.github.gbenroscience.parser.Function;
 import com.github.gbenroscience.parser.MathExpression;
-import com.github.gbenroscience.parser.Scanner;
 import com.github.gbenroscience.parser.TYPE;
 import com.github.gbenroscience.parser.Variable;
 import com.github.gbenroscience.util.FunctionManager;
@@ -40,7 +39,6 @@ import com.github.gbenroscience.util.Utils;
 import com.github.gbenroscience.util.io.ByteArrayBuilder;
 import com.github.gbenroscience.util.io.TextFileWriter;
 import java.io.File;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -469,17 +467,27 @@ public class MethodRegistry {
                     return ctx.wrap(res);
                 }
                 if (f.getType() == TYPE.MATRIX) {
-                    //rotate a point
-                    Matrix pointVector = f.getMatrix();
+                    //rotate a set of points
+                    Matrix pointVectors = f.getMatrix();
                     ROTOR r = new ROTOR(angle, origin, dir);
-                    rows = pointVector.getRows();
-                    cols = pointVector.getCols();//@(1,3)
-                    if ((rows == 1 && cols == 3) || (rows == 3 && cols == 1)) {
-                        double[] arr = pointVector.getFlatArray();
-                        Point p = new Point(arr[0], arr[1], arr[2]);
-                        Point rotP = r.rotate(p);
-                        return ctx.wrap(new double[]{rotP.x, rotP.y, rotP.z});
-                    } else {
+                    rows = pointVectors.getRows();
+                    cols = pointVectors.getCols();//@(n,3)
+                    
+                    if(cols==3){
+                        int n = rows;
+                        double outArr[]=new double[3*n];
+                        int j=0;
+                        for(int i=0;i<n;i++){
+                            double[] pm = pointVectors.getRowMatrix(i).getFlatArray();
+                            Point p = new Point(pm[0], pm[1], pm[2]);
+                            Point rotP = r.rotate(p);
+                            outArr[j]=rotP.x;
+                            outArr[j+1]=rotP.y;
+                            outArr[j+2]=rotP.z;
+                            j+=3;
+                        }
+                        return ctx.wrap(new Matrix(outArr, rows, 3));
+                    }else {
                         return MathExpression.EvalResult.ERROR;
                     }
                 }
