@@ -1,6 +1,9 @@
 # ParserNG
 
 
+### Parser 1.1.1 has been released on maven-central!
+Implemented version retrieval for ParserNG
+
 ### Parser 1.1.0 has been released on maven-central!
 Bug fixes in Rotor and ErrorLog. Matrix of Points upgrade for Rotor
 
