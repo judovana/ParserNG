@@ -1,6 +1,9 @@
 # ParserNG
 
 
+### Parser 1.1.0 has been released on maven-central!
+Bug fixes in Rotor and ErrorLog. Matrix of Points upgrade for Rotor
+
 ### Parser 1.0.8 has been released on maven-central!
 Bug fixes and more Android compatibility issues resolved.
 
