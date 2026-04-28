@@ -184,6 +184,7 @@ Full list: run `help` or `new MathExpression("help").solve()`.
 - [GRAPHING.md](GRAPHING.md) — plotting on Swing / JavaFX / Android
 - [LATEST.md](LATEST.md) — what’s new in 1.1.0
 - Javadoc: https://javadoc.io/doc/com.github.gbenroscience/parser-ng/1.1.0
+- [Hello world and original readme](src/main/java/com/github/gbenroscience/README.md) — what’s new in 1.1.0
 
 ## ❤️ Support the Project
 
