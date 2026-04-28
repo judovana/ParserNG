@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.github.gbenroscience</groupId>
     <artifactId>parser-ng</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
     <packaging>jar</packaging>
     <!-- 
       I started this project 2009 and have been upgrading it since then.
@@ -14,9 +14,7 @@
     <name>ParserNG</name>
     <description>Rich and Performant, Cross Platform Java Library(100% Java).No native dependencies. 
         ParserNG is the height of interpreted Math parsing in Java. It is the fastest of all interpreted Java math parsers.
-        Version 1.1.0 retains high frequency execution and squashes assignment bugs in Functions, Matrices and Rotors.
-        It also allows the rotor function to rotate a Matrix(Nx3) of Points and produces an output which is a Matrix(Nx3) of the rotated points.
-        It continues to support the 2 Point rotation form and also fixes and upgrades a bug in the function rotation form.
+        Version 1.1.1 implements the dynamic version read of ParserNG jar executable
     </description>
     <url>https://github.com/gbenroscience/ParserNG</url>
     
@@ -104,7 +102,7 @@
                 <configuration> 
                     <archive>
                         <manifest>
-                            <mainClass>math.Main</mainClass>
+                            <mainClass>com.github.gbenroscience.math.Main</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

@@ -6,17 +6,37 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.github.gbenroscience.interfaces.Solvable;
-import com.github.gbenroscience.logic.DRG_MODE;
 import com.github.gbenroscience.parser.ExpandingExpression;
 import com.github.gbenroscience.parser.LogicalExpression;
 import com.github.gbenroscience.parser.MathExpression;
 import com.github.gbenroscience.parser.cmd.ParserCmd;
 import com.github.gbenroscience.parser.logical.ExpressionLogger;
 import com.github.gbenroscience.parser.methods.Help;
+import java.util.Properties;
+import java.io.InputStream;
 
 public class Main {
 
+   public static final class RuntimeVersion {
+
+        final static String getVersion() {
+            try (InputStream resourceAsStream = RuntimeVersion.class.getResourceAsStream(
+                    "/META-INF/maven/com.github.gbenroscience/parser-ng/pom.properties")) {
+
+                Properties props = new Properties();
+                if (resourceAsStream != null) {
+                    props.load(resourceAsStream);
+                    return props.getProperty("version");
+                }
+            } catch (Exception e) {
+                // Log error
+            }
+            return "Unknown";
+        }
+    }
+
     public static class MultiSwitch {
+
         private final String[] switches;
 
         public MultiSwitch(String... switches) {
@@ -76,7 +96,7 @@ public class Main {
     private static boolean logic = false;
     private static boolean expandable = false;
 
-    public static void main(String... args) throws IOException {
+    public static void main(String... args) throws IOException { 
         List<String> aargs = new ArrayList<>(Arrays.asList(args));
         if (verboseSwitch.isContained(aargs)) {
             //todo pass, to debug in ParserNG engine
@@ -119,14 +139,14 @@ public class Main {
                 }
                 String r = null;
                 try {
-                    Solvable exp = logic ?
-                            new LogicalExpression(ex, LogicalExpression.verboseStderrLogger) :
-                            expandable ?
-                                    new ExpandingExpression(ex, ExpandingExpression.getValuesFromVariables(), ExpandingExpression.verboseStderrLogger) :
-                                    new MathExpression(ex);
-                    r  = exp.solve();
-                }catch(Exception fatal){
-                    if (verbose){
+                    Solvable exp = logic
+                            ? new LogicalExpression(ex, LogicalExpression.verboseStderrLogger)
+                            : expandable
+                                    ? new ExpandingExpression(ex, ExpandingExpression.getValuesFromVariables(), ExpandingExpression.verboseStderrLogger)
+                                    : new MathExpression(ex);
+                    r = exp.solve();
+                } catch (Exception fatal) {
+                    if (verbose) {
                         throw fatal;
                     } else {
                         r = fatal.getMessage();
@@ -145,10 +165,10 @@ public class Main {
         System.out.println("                     Logical expression parser is much less evolved and slow. Do not use it if you don't must");
         System.out.println("                     If you use logical parse, result is always true/false. If it is not understood, it reuslts to false");
         System.out.println(expandableSwitch + "  Will add expandable parser around logical expression to allow you to work with sets and views on those sets");
-        System.out.println("                     by "+ ExpandingExpression.VALUES_PNG + "/" + ExpandingExpression.VALUES_IPNG + "variables you can pass in the set of numbers");
+        System.out.println("                     by " + ExpandingExpression.VALUES_PNG + "/" + ExpandingExpression.VALUES_IPNG + "variables you can pass in the set of numbers");
         System.out.println("                     and access them by L0,L1,,, L1.. ..L2  L3,..L5 notations (set is space delimited)");
         System.out.println("                     you can calculate dynamic indexes by L{expression} and use MN variable which stores length of input set");
-        System.out.println("                     Expandable parser is not natural by CLI usage. using directly "+ExpandingExpression.class.getName() + " is better, but CLI is crucial for testing expressions");
+        System.out.println("                     Expandable parser is not natural by CLI usage. using directly " + ExpandingExpression.class.getName() + " is better, but CLI is crucial for testing expressions");
         System.out.println(trimSwitch + "         by default, each line is one expression,");
         System.out.println("                     however for better redability, sometimes it is worthy to");
         System.out.println("                     to split the expression to multiple lines. and evaluate as one.");
@@ -246,9 +266,8 @@ public class Main {
         Main.expandable = expandable;
     }
 
-    public static String getVersion() {
-        //todo, read from pom. See JRD how we did it
-        return "0.1.9";
+    public static String getVersion() { 
+        return RuntimeVersion.getVersion();
     }
 
     public static MultiSwitch getLogcalSwitch() {
