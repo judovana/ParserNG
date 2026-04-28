@@ -30,6 +30,7 @@ import com.github.gbenroscience.parser.Variable;
 import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
+import com.github.gbenroscience.util.ErrorLog;
 import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.VariableManager;
 import java.lang.invoke.*;
@@ -50,7 +51,7 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
 
     protected final double[] turboArgs;
     protected final int[] slots;
-
+    private ErrorLog errorLog = new ErrorLog();
     private MathExpression.Token[] postfix;
 
     public MatrixTurboEvaluator(MathExpression me) {
@@ -59,6 +60,7 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
         int num_vars = me.getVariablesNames().length;
         slots = me.getSlots();
         turboArgs = new double[num_vars];
+        me.copyErrorLogTo(errorLog);
     }
 
     // 1. ThreadLocal holding a reusable array of EvalResults to avoid GC pressure
@@ -226,7 +228,7 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
                         for (int i = 0; i < t.arity; i++) {
                             stack.pop();
                         }
-                        
+
                         MethodHandle bridge = LOOKUP.findStatic(MatrixTurboEvaluator.class, "executePrint",
                                 MethodType.methodType(EvalResult.class, String[].class));
                         String[] rawArgs = t.getRawArgs();
@@ -247,13 +249,15 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
                     }
                     break;
                 default:
-                    System.out.println("Unknown Token Kind: " + t.kind + " Name: " + t.name);
+                    errorLog.info("Unknown Token Kind: " + t.kind + " Name: " + t.name);
                     break;
             }
         }
 
         if (stack.size() != 1) {
-            throw new IllegalArgumentException("Invalid postfix stack state.");
+            String err = "Invalid postfix stack state.";
+            errorLog.info(err);
+            throw new IllegalArgumentException(err);
         }
 
         // OPTIMIZED: The final handle now takes zero arguments () -> EvalResult
@@ -273,6 +277,7 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
                     // OPTIMIZED: Invoke without arguments. turboArgs is already bound inside.
                     return (EvalResult) finalHandle.invokeExact();
                 } catch (Throwable e) {
+                    errorLog.error(e);
                     throw new RuntimeException("Turbo matrix execution failed", e);
                 }
             }
@@ -280,6 +285,13 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
             @Override
             public double applyScalar(double[] variables) {
                 return apply(variables).scalar;
+            }
+
+            @Override
+            public String checkErrorLogs() {
+                String logs = errorLog.getLogs();
+                errorLog.print();
+                return logs;
             }
         };
     }
@@ -327,19 +339,19 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
         return MethodHandles.collectArguments(dispatcher, 0, operand);
     }
 
- static MathExpression.EvalResult executePrint(String[] args) {
-       MathExpression.EvalResult ctx = new EvalResult();
+    static MathExpression.EvalResult executePrint(String[] args) {
+        MathExpression.EvalResult ctx = new EvalResult();
         StringBuilder sb = new StringBuilder();
         for (String arg : args) {
             Function v = FunctionManager.lookUp(arg);
             if (v != null) {
                 switch (v.getType()) {
-                    case ALGEBRAIC_EXPRESSION: 
-                          sb.append(v.toString()).append("\n");
-                          break;
-                    case MATRIX: 
-                           sb.append(v.getName()).append("=").append(v.getMatrix() != null ? v.getMatrix().toString() : "null").append("\n");
-                           break;
+                    case ALGEBRAIC_EXPRESSION:
+                        sb.append(v.toString()).append("\n");
+                        break;
+                    case MATRIX:
+                        sb.append(v.getName()).append("=").append(v.getMatrix() != null ? v.getMatrix().toString() : "null").append("\n");
+                        break;
                     default:
                         sb.append(v.toString()).append("\n");
                         break;
@@ -347,11 +359,11 @@ public final class MatrixTurboEvaluator implements TurboExpressionEvaluator {
                 continue;
             }
             Variable myVar = VariableManager.lookUp(arg);
-            if (myVar != null) { 
+            if (myVar != null) {
                 sb.append(myVar.toString()).append("\n");
-            } else if (com.github.gbenroscience.parser.Number.isNumber(arg)) { 
+            } else if (com.github.gbenroscience.parser.Number.isNumber(arg)) {
                 sb.append(arg).append("\n");
-            } else { 
+            } else {
                 sb.append("null").append("\n");
             }
         }

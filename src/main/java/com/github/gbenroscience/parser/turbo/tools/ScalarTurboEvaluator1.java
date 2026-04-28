@@ -38,6 +38,7 @@ import com.github.gbenroscience.parser.Variable;
 import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
+import com.github.gbenroscience.util.ErrorLog;
 import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.Utils;
 import com.github.gbenroscience.util.VariableManager;
@@ -143,6 +144,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator, Savable 
     // A simple pre-allocated array of results to act as a stack
     private MathExpression.EvalResult[] pool = new MathExpression.EvalResult[INIT_POOL_SIZE];
     private int poolPointer = 0;
+    private ErrorLog errorLog = new ErrorLog();
 
     ////////EvalResult Pool params ends/////////////
 /**
@@ -157,6 +159,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator, Savable 
         this.willFoldConstants = me.isWillFoldConstants();
         slots = me.getSlots();
         turboArgs = me.getExecutionFrame();
+        me.copyErrorLogTo(errorLog);
     }
 
 // In ExpressionSolver.getNextResult():
@@ -292,7 +295,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator, Savable 
                     return;
                 }
 
-                // Use the smallest length to prevent out-of-bounds access
+                // Use the smallest length to prevent print-of-bounds access
                 int limit = Math.min(variables.length, Math.min(args.length, slots.length));
 
                 for (int i = 0; i < limit; i++) {
@@ -321,7 +324,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator, Savable 
                     // We use the generic handle to avoid ClassCastExceptions 
                     return handleResult(genericHandle.invokeExact(args));
                 } catch (Throwable t) {
-                    t.printStackTrace();
+                    errorLog.error(t);
                     return execute();
                 }
             }
@@ -332,6 +335,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator, Savable 
                     Object result = genericHandle.invokeExact(MathExpression.EvalResult.ERROR);
                     return handleResult(result);
                 } catch (Throwable t) {
+                    errorLog.error(t);
                     return MathExpression.EvalResult.ERROR;
                 }
             }
@@ -348,6 +352,13 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator, Savable 
                 }
                 return MathExpression.EvalResult.ERROR;
             }
+            @Override
+            public String checkErrorLogs() {
+                String logs = errorLog.getLogs();
+                errorLog.print();
+                return logs;
+            }
+            
         };
     }
 
@@ -479,6 +490,7 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator, Savable 
                             String derivString = Derivative.eval(diffExpr).textRes;
                             derivHandle = compileScalar(FunctionManager.lookUp(derivString).getMathExpression().getCachedPostfix());
                         } catch (Exception e) {
+                            errorLog.error(e);
                             e.printStackTrace();
                             derivHandle = null;
                         }
@@ -624,7 +636,9 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator, Savable 
                             stack.push(ensurePrimitive(compiledDeriv));
                              */
                         } else {
-                            throw new RuntimeException("Invalid expression passed to `diff` method: " + targetExpr);
+                            String err = "Invalid expression passed to `diff` method: " + targetExpr;
+                            errorLog.info(err);
+                            throw new RuntimeException(err);
                         }
                         break;
                     } else if (name.equals("rot")) {
@@ -633,7 +647,9 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator, Savable 
                         }
                         String[] args = t.getRawArgs();
                         if (args == null || args.length < 4 || args.length > 5) {
-                            throw new RuntimeException("Invalid input for `rot`");
+                            String err = "Invalid input for `rot`";
+                            errorLog.info(err);
+                            throw new RuntimeException(err);
                         }
 
                         MathExpression.EvalResult solution = executeRotor(t.arity, args);
@@ -716,7 +732,9 @@ public class ScalarTurboEvaluator1 implements TurboExpressionEvaluator, Savable 
         }
 
         if (stack.size() != 1) {
-            throw new IllegalArgumentException("Invalid postfix expression: stack size = " + stack.size());
+            String err = "Invalid postfix expression: stack size = " + stack.size();
+            errorLog.info(err);
+            throw new IllegalArgumentException(err);
         }
 
         MethodHandle result = stack.pop();

@@ -44,6 +44,7 @@ import com.github.gbenroscience.parser.turbo.tools.FastCompositeExpression;
 import com.github.gbenroscience.parser.turbo.tools.MatrixTurboEvaluator;
 import com.github.gbenroscience.parser.turbo.tools.ScalarTurboEvaluator;
 import com.github.gbenroscience.parser.turbo.tools.TurboExpressionEvaluator;
+import com.github.gbenroscience.util.ErrorLog;
 import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.Serializer;
 import com.github.gbenroscience.util.VariableManager;
@@ -90,13 +91,14 @@ import java.util.logging.Logger;
  */
 public class MathExpression implements Savable, Solvable {
 
+    private final ErrorLog errorLog = new ErrorLog();
     private static final long serialVersionUID = 1L;
     /**
      * Backup the alias from the scanner here
      */
     private String commaAlias;
     public ParserResult parser_Result = ParserResult.VALID;
-    //determines the mode in which trig operations will be carried out on numbers.if DRG==0,it is done in degrees
+    //determines the mode in which trig operations will be carried print on numbers.if DRG==0,it is done in degrees
 //if DRG==1, it is done in radians and if it is 2, it is done in grads.
     private DRG_MODE DRG = Declarations.degGradRadFromVariable();
     private ArrayList<String> whitespaceremover = new ArrayList<>();//used to remove white spaces from the ArrayList
@@ -226,7 +228,7 @@ public class MathExpression implements Savable, Solvable {
         }
 
         // Constructor for Functions/Methods
-        public Token(int kind, String name, int arity, int id) {
+        public Token(int kind, String name, int arity, int id, ErrorLog log) {
             this.kind = kind;
             this.name = name;
             this.arity = arity;
@@ -239,7 +241,9 @@ public class MathExpression implements Savable, Solvable {
             } else {
                 this.action = FunctionManager.lookUp(this.name);
                 if (this.action == null) {
-                    throw new RuntimeException("Function " + this.name + " not found");
+                    String err = "Function " + this.name + " not found";
+                    log.info(err);
+                    throw new RuntimeException(err);
                 }
             }
         }
@@ -252,8 +256,8 @@ public class MathExpression implements Savable, Solvable {
         }
 
         // Add constructor for assignment
-        public Token(int kind, String name, int arity, int id, String assignToName) {
-            this(kind, name, arity, id);
+        public Token(int kind, String name, int arity, int id, String assignToName, ErrorLog log) {
+            this(kind, name, arity, id, log);
             this.assignToName = assignToName;
             this.isAssignmentTarget = (assignToName != null);
         }
@@ -493,13 +497,14 @@ public class MathExpression implements Savable, Solvable {
                 if (eqIdx != -1 && eqIdx < idxOfCloseBracForRot) {//rot(f,=,jjj,....) e.g equals index lies inside rot's bracket contents
                     MathScanner sc = new MathScanner(code.substring(indexOfRot, idxOfCloseBracForRot + 1));
                     sc.scanner();
+                    errorLog.copyFrom(sc.errorLog);
                     sc.unmaskCommas();
                     code = processRotScenarios(sc.getScanner());
                 }
 
             }
             if (code.contains("=")) {
-                boolean success = Function.assignObject(code + ";");
+                boolean success = Function.assignObject(code + ";", errorLog);
                 if (!success) {
                     correctFunction = success;
                     parser_Result = ParserResult.SYNTAX_ERROR;
@@ -569,6 +574,10 @@ public class MathExpression implements Savable, Solvable {
     public FastCompositeExpression getCompiledTurbo() {
         return compiledTurbo;
     }
+    
+    public void copyErrorLogTo(ErrorLog log){
+        log.copyFrom(errorLog);
+    }
 
     private void initializing(String expression) {
         computeTreeDepth();
@@ -577,9 +586,10 @@ public class MathExpression implements Savable, Solvable {
         setNoOfListReturningOperators(0);
         whitespaceremover.add("");
         //Scanner operation
-        
+
         MathScanner opScanner = new MathScanner(expression);
         opScanner.scanner(variableManager);
+        errorLog.copyFrom(opScanner.errorLog);
         for (Variable v : opScanner.foundVariables) {
             v.setFrameIndex(registry.getSlot(v.getName()));
         }
@@ -653,8 +663,9 @@ public class MathExpression implements Savable, Solvable {
         }
 
         if (!isScannedAndOptimized() || cachedPostfix == null) {
-            throw new IllegalStateException(
-                    "Expression not properly compiled. " + (cachedPostfix == null ? "RPN tokens array empty" : " Expression not scanned and optimized"));
+            String err = "Expression not properly compiled. " + (cachedPostfix == null ? "RPN tokens array empty" : " Expression not scanned and optimized");
+            errorLog.info(err);
+            throw new IllegalStateException(err);
         }
 
         try {
@@ -663,11 +674,11 @@ public class MathExpression implements Savable, Solvable {
 
             TurboExpressionEvaluator compiler;
             if (!hasMatrixOps) {
-                //  System.out.println("SELECTED ScalarTurboCompiler");
+                //  System.print.println("SELECTED ScalarTurboCompiler");
                 // Pure scalar expressions: use ultra-fast scalar compiler (~5ns)
                 compiler = new ScalarTurboEvaluator(this);
             } else {
-                //   System.out.println("SELECTED FlatMatrixTurboCompiler");
+                //   System.print.println("SELECTED FlatMatrixTurboCompiler");
                 // Any matrix operations: use flat-array optimized compiler (~50-1000ns)
                 compiler = new MatrixTurboEvaluator(this);
             }
@@ -677,8 +688,10 @@ public class MathExpression implements Savable, Solvable {
             return compiledTurbo;
 
         } catch (Throwable e) {
+            String err = "Failed to compile expression to turbo: " + e.getMessage();
+            errorLog.info(err);
             throw new RuntimeException(
-                    "Failed to compile expression to turbo: " + e.getMessage(), e);
+                    err, e);
         }
     }
 
@@ -911,7 +924,7 @@ public class MathExpression implements Savable, Solvable {
             // Fallback: Create a new one if it's a dynamic variable
             v = new Variable(name);
         }
-        // 3. IMPORTANT: Sync the index so the Handle knows where to write
+        // 3. IMPORTANT: Sync the index so the Handle knows where to error
         v.setFrameIndex(slot);
         return v;
     }
@@ -955,6 +968,15 @@ public class MathExpression implements Savable, Solvable {
 
     }
 
+    public String checkErrorLogs() {
+        String logs = errorLog.getLogs();
+         errorLog.print();
+         return logs;
+    }
+    
+    
+    
+
     private void statsVerifier() {
         scanner.removeAll(whitespaceremover);
 
@@ -968,7 +990,7 @@ public class MathExpression implements Savable, Solvable {
 
         correctFunction = ListReturningStatsMethod.validateFunction(this.scanner);
         parser_Result = correctFunction ? ParserResult.VALID : ParserResult.SYNTAX_ERROR;
-        //processLogger.writeLog(ListReturningStatsMethod.getErrorMessage());
+        errorLog.info(ListReturningStatsMethod.getErrorMessage());
 
         if (noOfListReturningOperators > 0 && correctFunction) {
             setHasListReturningOperators(true);
@@ -984,13 +1006,13 @@ public class MathExpression implements Savable, Solvable {
                     try {
                         if (Method.isListReturningStatsMethod(scanner.get(i)) && isOpeningBracket(scanner.get(i + 1))) {
                             if (isBinaryOperator(scanner.get(i - 1))) {
-                                //processLogger.writeLog("Invalid Association Discovered For: \""+scanner.get(i-1)+"\" And \""+scanner.get(i)+"\".\n");
+                                errorLog.info("Invalid Association Discovered For: \""+scanner.get(i-1)+"\" And \""+scanner.get(i)+"\".\n");
                                 correctFunction = false;
                                 break;
                             }
                             if (isOpeningBracket(scanner.get(i - 1)) && !Method.isNumberReturningStatsMethod(scanner.get(i - 2))
                                     && !Method.isListReturningStatsMethod(scanner.get(i - 2))) {
-                                //processLogger.writeLog("Invalid Association Discovered For: \"(\" And "+scanner.get(i-2)+" And \""+scanner.get(i-1)+"\" And \""+scanner.get(i)+"\"\n ");
+                                errorLog.info("Invalid Association Discovered For: \"(\" And "+scanner.get(i-2)+" And \""+scanner.get(i-1)+"\" And \""+scanner.get(i)+"\"\n ");
                                 correctFunction = false;
                                 break;
                             }
@@ -1007,7 +1029,7 @@ public class MathExpression implements Savable, Solvable {
 
                 if (!correctFunction) {
                     parser_Result = ParserResult.SYNTAX_ERROR;
-                    //processLogger.writeLog("Verifier discovers invalid association between data set returning operators:");
+                    errorLog.info("Verifier discovers invalid association between data set returning operators:");
                 }
             }//end if isHasListReturningOperator
         }
@@ -1023,7 +1045,7 @@ public class MathExpression implements Savable, Solvable {
      * scanned function.
      * @return a Bracket array that holds related brackets pairs.
      */
-    private static Bracket[] mapBrackets(List<String> scanner) {
+    private Bracket[] mapBrackets(List<String> scanner) {
         for (Iterator<String> it = scanner.iterator(); it.hasNext();) {
             if (" ".equals(it.next())) {
                 it.remove();
@@ -1040,7 +1062,9 @@ public class MathExpression implements Savable, Solvable {
                 stack.push(i);
             } else if (")".equals(token)) {
                 if (stack.isEmpty()) {
-                    throw new InputMismatchException("Unmatched closing bracket at index " + i);
+                    String err = "Unmatched closing bracket at index " + i;
+                    errorLog.info(err);
+                    throw new InputMismatchException(err);
                 }
                 int openIndex = stack.pop();
 
@@ -1057,7 +1081,9 @@ public class MathExpression implements Savable, Solvable {
         }
 
         if (!stack.isEmpty()) {
-            throw new InputMismatchException("Unmatched opening bracket(s) remain");
+            String err = "Unmatched opening bracket(s) remain";
+            errorLog.info(err);
+            throw new InputMismatchException(err);
         }
 
         return bracs.toArray(new Bracket[0]);
@@ -1072,6 +1098,7 @@ public class MathExpression implements Savable, Solvable {
             mapBrackets(scanner);
         }//end method//end method
         catch (InputMismatchException ime) {
+            errorLog.error(ime);
             parser_Result = ParserResult.PARENTHESES_ERROR;
             setCorrectFunction(false);
             scanner.clear();
@@ -1103,7 +1130,7 @@ public class MathExpression implements Savable, Solvable {
                                 && !isLogicOperator(scanner.get(i - 1)) && !isUnaryPreOperator(scanner.get(i - 1))
                                 && !isBinaryOperator(scanner.get(i - 1)) && !isAssignmentOperator(scanner.get(i - 1)) && !isNumber(scanner.get(i - 1))
                                 && !isVariableString(scanner.get(i - 1)) && !isComma(scanner.get(i - 1))) {
-                            //processLogger.writeLog("ParserNG Does Not Allow "+expression+" To Combine The MathExpression Members \""+scanner.get(i-1)+"\" And \""+scanner.get(i)+"\"\n");
+                            errorLog.info("ParserNG Does Not Allow "+expression+" To Combine The MathExpression Members \""+scanner.get(i-1)+"\" And \""+scanner.get(i)+"\"\n");
                             correctFunction = false;
                             scanner.clear();
                             break;
@@ -1115,13 +1142,14 @@ public class MathExpression implements Savable, Solvable {
                                 && !isUnaryPreOperator(scanner.get(i + 1)) && !Method.isNumberReturningStatsMethod(scanner.get(i + 1))
                                 && !Method.isLogToAnyBase(scanner.get(i + 1)) && !Method.isAntiLogToAnyBase(scanner.get(i + 1)) && !isNumber(scanner.get(i + 1))
                                 && !isVariableString(scanner.get(i + 1)) && !isComma(scanner.get(i + 1))) {
-                            //processLogger.writeLog("ParserNG Does Not Allow "+expression+" To Combine The MathExpression Members \""+scanner.get(i)+"\" And \""+scanner.get(i+1)+"\"PLUS As You Have Done.\n");
+                            errorLog.info("ParserNG Does Not Allow "+expression+" To Combine The MathExpression Members \""+scanner.get(i)+"\" And \""+scanner.get(i+1)+"\"PLUS As You Have Done.\n");
                             correctFunction = false;
                             scanner.clear();
                             break;
                         }//end if
                     }//end try
                     catch (IndexOutOfBoundsException ind) {
+                        errorLog.error(ind);
                         ind.printStackTrace();
                     }//end catch
                 }//end else if
@@ -1387,7 +1415,7 @@ public class MathExpression implements Savable, Solvable {
         if (FunctionManager.FUNCTIONS.containsKey(s)) {
             // CRITICAL: Only treat as FUNCTION if it's being CALLED (has "(" after it)
             if (next != null && next.equals("(")) {
-                return new Token(Token.FUNCTION, s, -1, -1); // Arity set during compile
+                return new Token(Token.FUNCTION, s, -1, -1, errorLog); // Arity set during compile
             }
             // If NOT followed by "(", treat as a FUNCTION REFERENCE/POINTER
             // This allows passing function names as arguments (like to diff)
@@ -1401,7 +1429,7 @@ public class MathExpression implements Savable, Solvable {
         if (Method.isInBuiltMethod(s)) {
             String transformedMethodName = Declarations.getTrigFuncDRGVariant(s, DRG);
             int methodId = MethodRegistry.getMethodID(transformedMethodName);
-            return new Token(Token.METHOD, transformedMethodName, -1, methodId); // Arity set during compile
+            return new Token(Token.METHOD, transformedMethodName, -1, methodId, errorLog); // Arity set during compile
         }
 
         // 6. Fallback: Treat as Variable/Constant
@@ -1420,6 +1448,10 @@ public class MathExpression implements Savable, Solvable {
         return t;
     }
 
+     public void readErrorLog(){
+         errorLog.print();
+     }
+    
     private void compileToPostfix() {
 
         if (cachedPostfix != null) {
@@ -1666,11 +1698,9 @@ public class MathExpression implements Savable, Solvable {
             // Just use the pre-allocated stack - no allocation per call
             int ptr = -1;
 
-
-
             for (int i = 0; i < cachedPostfix.length; i++) {
                 Token t = cachedPostfix[i];
-                /*          System.out.println("\n=== Evaluating token: "
+                /*          System.print.println("\n=== Evaluating token: "
                         + (t.kind == Token.NUMBER ? "NUM(" + t.value + ") OR VAR("+t.name+"), "
                                 : t.kind == Token.OPERATOR ? "OP(" + t.opChar + ")"
                                         : t.kind == Token.FUNCTION ? "FUNC(" + t.name + ",arity=" + t.arity + ")"
@@ -1698,7 +1728,9 @@ public class MathExpression implements Savable, Solvable {
                                     //a function that will hold the return value of diff(F)
                                     stack[++ptr] = getNextResult().wrap(t.name); // Store pointer to the to-be-created function as string
                                 } else {
-                                    throw new RuntimeException("Undefined variable or function: " + t.name);
+                                    String err = "Undefined variable or function: " + t.name;
+                                    errorLog.info(err);
+                                    throw new RuntimeException(err);
                                 }
                             }
                         } else {
@@ -1710,14 +1742,18 @@ public class MathExpression implements Savable, Solvable {
                         if (t.isPostfix || t.opChar == '√' || t.opChar == 'R') {
                             // Unary operator
                             if (ptr < 0) {
+                                String err = "Insufficient operands for unary operator: " + t.opChar;
+                                errorLog.info(err);
                                 throw new RuntimeException("Insufficient operands for unary operator: " + t.opChar);
                             }
                             applyUnary(t.opChar, stack[ptr]);
                         } else {
                             // Binary operator
                             if (ptr < 1) {
-                                throw new RuntimeException("Insufficient operands for binary operator: " + t.opChar
-                                        + " (stack ptr=" + ptr + ")");
+                                String err = "Insufficient operands for binary operator: " + t.opChar
+                                        + " (stack ptr=" + ptr + ")";
+                                errorLog.info(err);
+                                throw new RuntimeException(err);
                             }
                             double bVal = stack[ptr--].scalar;
                             applyBinary(t.opChar, stack[ptr], bVal);
@@ -1729,9 +1765,11 @@ public class MathExpression implements Savable, Solvable {
                         int arity = t.arity;
 
                         if (arity > ABSOLUTE_MAX_ARITY) {
-                            throw new RuntimeException(
-                                    "Function " + t.name + " has too many arguments (" + arity
-                                    + "). Maximum supported: " + ABSOLUTE_MAX_ARITY);
+                            String err
+                                    = "Function " + t.name + " has too many arguments (" + arity
+                                    + "). Maximum supported: " + ABSOLUTE_MAX_ARITY;
+                            errorLog.info(err);
+                            throw new RuntimeException(err);
                         }
 
                         int valuesOnStack = ptr + 1;
@@ -1743,8 +1781,11 @@ public class MathExpression implements Savable, Solvable {
                         }
 
                         if (valuesOnStack < arity) {
-                            throw new RuntimeException("Function " + t.name + " requires " + arity
-                                    + " arguments but only " + valuesOnStack + " values available on stack");
+                            String err
+                                    = "Function " + t.name + " requires " + arity
+                                    + " arguments but only " + valuesOnStack + " values available on stack";
+                            errorLog.info(err);
+                            throw new RuntimeException(err);
                         }
 
                         // ULTRA FAST: Reuse cached array for this arity
@@ -1813,7 +1854,9 @@ public class MathExpression implements Savable, Solvable {
             }
 
             if (ptr > 0) {
-                System.out.println("WARNING: Evalaution stack has " + (ptr + 1) + " values at end, returning top");
+                String err = "WARNING: Evalaution stack has " + (ptr + 1) + " values at end, returning top";
+                errorLog.info(err);
+                System.out.println(err);
             }
 
             return stack[0];
@@ -1866,7 +1909,9 @@ public class MathExpression implements Savable, Solvable {
                     break;
                 case '/':
                     if (b == 0) {
-                        throw new ArithmeticException("Division by zero---op=" + op + ", b=" + b + ", aRes=" + aRes + ", aRes.type = " + aRes.getTypeName());
+                        String err = "Division by zero---op=" + op + ", b=" + b + ", aRes=" + aRes + ", aRes.type = " + aRes.getTypeName();
+                        errorLog.info(err);
+                        aRes.scalar = Double.POSITIVE_INFINITY;
                     }
                     aRes.scalar = a / b;
                     break;
@@ -1982,6 +2027,7 @@ public class MathExpression implements Savable, Solvable {
                                 continue;
                             }
                         } catch (Exception e) {
+                            errorLog.error(e);
                             // Don't fold if runtime error occurs
                         }
                     }
@@ -2201,7 +2247,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
 
         // ===== SPECIAL FRACTIONS (do this FIRST, before integer check) =====
         if (isSpecialFraction(exponent)) {
-            // Now figure out WHICH fraction it is
+            // Now figure print WHICH fraction it is
             final double TOLERANCE = 1e-9;
 
             // 1/2 → sqrt
@@ -2679,6 +2725,7 @@ private double evaluateBinaryOpWithStrengthReduction(char op, double a, double b
         }
         me.cachedPostfix = tokens;
         me.commaAlias = commaAlias;
+        errorLog.copyTo(me.errorLog);
 
         me.correctFunction = correctFunction;
         me.executionFrame = new double[executionFrame.length];

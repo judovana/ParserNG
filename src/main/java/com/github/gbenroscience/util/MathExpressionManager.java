@@ -280,7 +280,7 @@ created.
 
             for (String code : scanned) {
                 if (code.contains("=")) {
-                    boolean success = Function.assignObject(code + ";");
+                    boolean success = Function.assignObject(code + ";",new ErrorLog());
                     if (!success) {
                         throw new Exception("Bad Variable or Function assignment!");
                     }

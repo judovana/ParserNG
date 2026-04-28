@@ -88,6 +88,8 @@ public interface FastCompositeExpression extends Savable{
         }
         return result.vector;
     }
+   
+       String checkErrorLogs();
     
     /**
      * Convenience method for string extraction.

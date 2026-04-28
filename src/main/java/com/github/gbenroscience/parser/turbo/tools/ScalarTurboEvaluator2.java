@@ -33,6 +33,7 @@ import com.github.gbenroscience.parser.Variable;
 import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.Method;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
+import com.github.gbenroscience.util.ErrorLog;
 import com.github.gbenroscience.util.FunctionManager;
 import com.github.gbenroscience.util.VariableManager;
 
@@ -59,6 +60,8 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator, Savable 
     protected final double[] turboArgs;
     protected final int[] slots;
 
+    private MathExpression.Token[] postfix;
+    private ErrorLog errorLog = new ErrorLog();
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
     private static final MethodHandle QUAD_HANDLE;
     private static final MethodHandle TARTAGLIA_HANDLE;
@@ -212,6 +215,18 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator, Savable 
         }
     }
 
+    public ScalarTurboEvaluator2(MathExpression me) {
+        if (ScalarTurboEvaluator.SUPPORTS_WIDENING) {
+            this.postfix = me.getCachedPostfix();
+            this.willFoldConstants = me.isWillFoldConstants();
+            slots = me.getSlots();
+            turboArgs = me.getExecutionFrame();
+            me.copyErrorLogTo(errorLog);
+        } else {
+            throw new UnsupportedOperationException("This evaluator does not support adaptive widening of method signatures\nPlease use ScalarTurboEvaluator1");
+        }
+    }
+
     public double[] getTurboArgs() {
         return turboArgs;
     }
@@ -230,19 +245,6 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator, Savable 
             throw new UnsupportedOperationException("No binary fast-path for: " + op);
         }
         return mh;
-    }
-
-    private MathExpression.Token[] postfix;
-
-    public ScalarTurboEvaluator2(MathExpression me) {
-        if (ScalarTurboEvaluator.SUPPORTS_WIDENING) {
-            this.postfix = me.getCachedPostfix();
-            this.willFoldConstants = me.isWillFoldConstants();
-            slots = me.getSlots();
-            turboArgs = me.getExecutionFrame();
-        } else {
-            throw new UnsupportedOperationException("This evaluator does not support adaptive widening of method signatures\nPlease use ScalarTurboEvaluator1");
-        }
     }
 
     public void setWillFoldConstants(boolean willFoldConstants) {
@@ -361,7 +363,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator, Savable 
                         return;
                     }
 
-                    // Use the smallest length to prevent out-of-bounds access
+                    // Use the smallest length to prevent print-of-bounds access
                     int limit = Math.min(variables.length, Math.min(args.length, slots.length));
 
                     for (int i = 0; i < limit; i++) {
@@ -377,6 +379,7 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator, Savable 
                         // the handle now expects a double[]
                         return (double) finalScalar.invokeExact(args);
                     } catch (Throwable t) {
+                        errorLog.error(t);
                         throw new RuntimeException("Turbo scalar execution failed", t);
                     }
                 }
@@ -399,13 +402,21 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator, Savable 
                         }
                         return res;
                     } catch (Throwable t) {
+                        errorLog.error(t);
                         throw new RuntimeException("Turbo execution failed", t);
                     }
                 }
+
+            @Override
+            public String checkErrorLogs() {
+                String logs = errorLog.getLogs();
+                errorLog.print();
+                return logs;
+            }
             };
 
         } catch (Throwable t) {
-            t.printStackTrace();
+            errorLog.error(t);
             throw new RuntimeException("Failed to compile Turbo expression", t);
         }
     }
@@ -495,7 +506,9 @@ public class ScalarTurboEvaluator2 implements TurboExpressionEvaluator, Savable 
                         int defArity = userFunc.getArity();
 
                         if (callArity != defArity) {
-                            throw new RuntimeException("Function " + t.name + " expects " + defArity + " arguments but received " + callArity);
+                            String err = "Function " + t.name + " expects " + defArity + " arguments but received " + callArity;
+                            errorLog.info(err);
+                            throw new RuntimeException(err);
                         }
 
                         List<MethodHandle> argumentHandles = new ArrayList<>(callArity);

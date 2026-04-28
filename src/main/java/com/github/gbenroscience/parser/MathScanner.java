@@ -26,6 +26,7 @@ import static com.github.gbenroscience.parser.Variable.*;
 import static com.github.gbenroscience.parser.Number.*;
 
 import com.github.gbenroscience.math.differentialcalculus.Parser;
+import com.github.gbenroscience.util.ErrorLog;
 
 /**
  *
@@ -45,7 +46,7 @@ public class MathScanner {
     /**
      * Contains a list of Variable objects used that are not declared.
      */
-    private ArrayList<String> errorList = new ArrayList<>();
+    ErrorLog errorLog = new ErrorLog();
     private boolean runnable = true;
 
     /**
@@ -169,22 +170,6 @@ public class MathScanner {
      */
     public boolean isRunnable() {
         return runnable;
-    }
-
-    /**
-     *
-     * @param errorList sets the list of errors.
-     */
-    public void setErrorList(ArrayList<String> errorList) {
-        this.errorList = errorList;
-    }
-
-    /**
-     *
-     * @return the list of errors.
-     */
-    public ArrayList<String> getErrorList() {
-        return errorList;
     }
 
     /**
@@ -588,7 +573,7 @@ public class MathScanner {
                 }//end if
             }//end try
             catch (IndexOutOfBoundsException ind) {
-
+                errorLog.error(ind);
             }
         }//end for loop
 
@@ -667,7 +652,7 @@ public class MathScanner {
 // root,(,@,(x),log(x,2),4,2,5)
                 int close = Bracket.getComplementIndex(true, i + 1, scanner);
                 List<String> list = scanner.subList(i, close + 1);
-                // System.out.println("list: " + list);
+                // System.print.println("list: " + list);
                 //IF THINGS GO BAD, UNCOMMENT HERE---3  RootFinder.extractFunctionStringFromExpression(list);
 
                 if (list.isEmpty()) {
@@ -756,7 +741,7 @@ public class MathScanner {
                         parser_Result = ParserResult.UNDEFINED_ARG;
 
                         setRunnable(false);
-                        errorList.add(scanner.get(i) + " is an undefined variable. Set MathExpression.setAutoInitOn to true to use a variable without defining it");
+                        errorLog.info(scanner.get(i) + " is an undefined variable. Set MathExpression.setAutoInitOn to true to use a variable without defining it");
                     }
                 }//end if
                 /**
@@ -787,7 +772,7 @@ public class MathScanner {
 
             }//end try
             catch (IndexOutOfBoundsException boundsException) {
-
+                errorLog.error(boundsException);
             }//end catch
 
         }//end for loop
@@ -807,18 +792,19 @@ public class MathScanner {
                         && !validNumber(scanner.get(i)) && !Method.isMethodName(scanner.get(i))) {
                     parser_Result = ParserResult.STRANGE_INPUT;
                     setRunnable(false);
-                    errorList.add(scanner.get(i) + " is a strange math object!");
+                    errorLog.info(scanner.get(i) + " is a strange math object!");
                     return;
                 }//end if
             }//end try
             catch (IndexOutOfBoundsException boundsException) {
+                errorLog.error(boundsException);
                 return;
             }//end catch
         }//end for
     }//end validateTokens
 
     private void plusAndMinusStringHandler() {
-        scanner = plusAndMinusStringHandlerHelper(scanner);
+        scanner = plusAndMinusStringHandlerHelper(scanner, errorLog);
     }
 
     /**
@@ -877,7 +863,7 @@ public class MathScanner {
         return result;
     }
 
-    public static final List<String> plusAndMinusStringHandlerHelper(List<String> scanner) {
+    public static final List<String> plusAndMinusStringHandlerHelper(List<String> scanner, ErrorLog log) {
         List<String> result = new ArrayList<>();
 
         for (int i = 0; i < scanner.size(); i++) {
@@ -925,7 +911,7 @@ public class MathScanner {
             }
 
             // --- 2. REDUNDANT "* 1" or "/ 1" REMOVAL ---
-            if ((tk.equals("*") || tk.equals("/")) && i + 1 < scanner.size() && isExactlyOne(scanner.get(i + 1))) {
+            if ((tk.equals("*") || tk.equals("/")) && i + 1 < scanner.size() && isExactlyOne(scanner.get(i + 1), log)) {
                 // Only remove if the previous token is "operand-like" (number, variable, or closing bracket/factorial)
                 if (!result.isEmpty() && isOperandLike(result.get(result.size() - 1))) {
                     i++; // Skip the operator and the '1'
@@ -956,10 +942,11 @@ public class MathScanner {
         return s.equals("+") || s.equals("-");
     }
 
-    private static boolean isExactlyOne(String s) {
+    private static boolean isExactlyOne(String s, ErrorLog log) {
         try {
             return Double.parseDouble(s) == 1.0;
         } catch (Exception e) {
+            log.error(e);
             return false;
         }
     }
@@ -977,12 +964,12 @@ public class MathScanner {
      * names entered by the user have been declared.
      *
      * @return an ArrayList containing a properly scanned version of the string
-     * such that all recognized number substrings,variable substrings and
-     * operator substrings have been resolved. To use this method as a scanner
-     * for math expressions all the programmer has to do is to take care of the
-     * signs where need be(e.g in -2.873*5R+sinh34.2, the scanned view will be
-     * [-,2.873,*,5,R,+,sinh,34.2]) To make sense of this, the programmer has to
-     * write minor code to concatenate the - and the 2.873 and so on.
+such that all recognized number substrings,variable substrings and
+operator substrings have been resolved. To use this method as a scanner
+for math expressions all the programmer has to do is to take care of the
+signs where need be(e.g in -2.873*5R+sinh34.2, the scanned view will be
+[-,2.873,*,5,R,+,sinh,34.2]) To make sense of this, the programmer has to
+error minor code to concatenate the - and the 2.873 and so on.
      *
      */
     public List<String> scanner() {
@@ -1017,8 +1004,9 @@ public class MathScanner {
                     scanner.remove(i + 1);
                 }//end try
                 catch (IndexOutOfBoundsException indexErr) {
+                    errorLog.error(indexErr);
                     break;
-                }//end catch
+                }//end catch//end catch
             }//end if
         }//end for
 
@@ -1037,9 +1025,9 @@ public class MathScanner {
 
             }//end try
             catch (IndexOutOfBoundsException indexErr) {
-
+                errorLog.error(indexErr);
             } catch (NumberFormatException numErr) {
-
+                errorLog.error(numErr);
             }
         }//end for
 
@@ -1064,7 +1052,7 @@ public class MathScanner {
 
             if (!Variable.isVariableString(scanner.get(i)) && !Operator.isOperatorString(scanner.get(i)) && !validNumber(scanner.get(i))
                     && !Method.isMethodName(scanner.get(i))) {
-                errorList.add("Syntax Error! Strange Object Found: " + scanner.get(i));
+                errorLog.info("Syntax Error! Strange Object Found: " + scanner.get(i));
                 setRunnable(false);
                 parser_Result = ParserResult.STRANGE_INPUT;
             }
@@ -1085,7 +1073,7 @@ public class MathScanner {
             else {
                 if (i + 1 < sz && Variable.isVariableString(scanner.get(i)) && !isOpeningBracket(scanner.get(i + 1)) && !variableManager.contains(scanner.get(i))
                         && !FunctionManager.containsAny(scanner.get(i))) {
-                    errorList.add(" Unknown Variable: " + scanner.get(i) + "\n Please Declare And Initialize This Variable Before Using It.\n"
+                    errorLog.info(" Unknown Variable: " + scanner.get(i) + "\n Please Declare And Initialize This Variable Before Using It.\n"
                             + "Use The Command, \'variableName=value\' To Accomplish This.");
                     parser_Result = ParserResult.STRANGE_INPUT;
                     setRunnable(false);
@@ -1095,12 +1083,12 @@ public class MathScanner {
         }
 
         if (!runnable) {
-            errorList.add("\n"
+            errorLog.info("\n"
                     + "Sorry, Errors Were Found In Your Expression."
                     + "Please Consult The Help File For Valid Mathematical Syntax.");
             scanner.clear();
         } else {
-            errorList.add("Scan SuccessFul.No Illegal Object Found.\n"
+            errorLog.info("Scan SuccessFul.No Illegal Object Found.\n"
                     + "Putting Scanner On StandBy");
         }
 
@@ -1116,12 +1104,12 @@ public class MathScanner {
      * scanner will not allow the user to use any variables he/she/it has not
      * declared
      * @return an ArrayList containing a properly scanned version of the string
-     * such that all recognized number substrings,variable substrings and
-     * operator substrings have been resolved. To use this method as a scanner
-     * for math expressions all the programmer has to do is to take care of the
-     * signs where need be(e.g in -2.873*5R+sinh34.2, the scanned view will be
-     * [-,2.873,*,5,R,+,sinh,34.2]) To make sense of this, the programmer has to
-     * write minor code to concatenate the - and the 2.873 and so on.
+such that all recognized number substrings,variable substrings and
+operator substrings have been resolved. To use this method as a scanner
+for math expressions all the programmer has to do is to take care of the
+signs where need be(e.g in -2.873*5R+sinh34.2, the scanned view will be
+[-,2.873,*,5,R,+,sinh,34.2]) To make sense of this, the programmer has to
+error minor code to concatenate the - and the 2.873 and so on.
      *
      */
     public List<String> scanner(VariableManager varMan) {
@@ -1159,8 +1147,9 @@ public class MathScanner {
                 }//end if
             }//end try
             catch (IndexOutOfBoundsException indexErr) {
+                errorLog.error(indexErr);
                 break;
-            }//end catch
+            }//end catch//end catch
         }//end for
 
 //enable interpretation of things like 3^-4 or 3^+4 i.e ^- or ^+ patterns
@@ -1178,9 +1167,9 @@ public class MathScanner {
 
             }//end try
             catch (IndexOutOfBoundsException indexErr) {
-
+                errorLog.error(indexErr);
             } catch (NumberFormatException numErr) {
-
+                errorLog.error(numErr);
             }
         }//end for
 
@@ -1205,7 +1194,7 @@ public class MathScanner {
 
             if (!Variable.isVariableString(scanner.get(i)) && !Operator.isOperatorString(scanner.get(i)) && !validNumber(scanner.get(i))
                     && !Method.isMethodName(scanner.get(i))) {
-                errorList.add("Syntax Error! Strange Object Found: " + scanner.get(i));
+                errorLog.info("Syntax Error! Strange Object Found: " + scanner.get(i));
                 parser_Result = ParserResult.STRANGE_INPUT;
                 setRunnable(false);
             }
@@ -1226,7 +1215,7 @@ public class MathScanner {
             else {
                 if (i + 1 < sz && Variable.isVariableString(scanner.get(i)) && !isOpeningBracket(scanner.get(i + 1)) && !varMan.contains(scanner.get(i))
                         && !FunctionManager.containsAny(scanner.get(i))) {
-                    errorList.add(" Unknown Variable: " + scanner.get(i) + "\n Please Declare And Initialize This Variable Before Using It.\n"
+                    errorLog.info(" Unknown Variable: " + scanner.get(i) + "\n Please Declare And Initialize This Variable Before Using It.\n"
                             + "Use The Command, \'variableName=value\' To Accomplish This.");
                     parser_Result = ParserResult.STRANGE_INPUT;
                     setRunnable(false);
@@ -1236,12 +1225,12 @@ public class MathScanner {
         }//end for loop
 
         if (!runnable) {
-            errorList.add("\n"
+            errorLog.info("\n"
                     + "Sorry, Errors Were Found In Your Expression."
                     + "Please Consult The Help File For Valid Mathematical Syntax.");
             scanner.clear();
         } else {
-            errorList.add("Scan SuccessFul.No Illegal Object Found.\n"
+            errorLog.info("Scan SuccessFul.No Illegal Object Found.\n"
                     + "Putting Scanner On StandBy");
         }
 
@@ -1290,7 +1279,7 @@ public class MathScanner {
                 throw new InputMismatchException("Syntax Error occurred while scanning math expression.\nReason: The @ symbol is used exclusively to create functions. Expected: `(`, found: `" + scanner.get(indexOfAt + 1) + "`");
             }
         }
-        //System.out.println("scanner-debug: "+scanner);
+        //System.print.println("scanner-debug: "+scanner);
     }
 
     /**
@@ -1458,7 +1447,7 @@ public class MathScanner {
          */
         if (list.indexOf("(") == list.lastIndexOf("(") && list.indexOf(")") == list.lastIndexOf(")")) {
             //det,(,A,) or matrix_mul,(,A, , ,B,)
-//System.out.println("list: "+list);
+//System.print.println("list: "+list);
             if (sz == 4 || sz == 6) {
                 if (Method.isMatrixMethod(list.get(0)) && isOpeningBracket(list.get(1)) && Method.isUserDefinedFunction(list.get(2))) {
                     if (sz == 4 && isClosingBracket(list.get(3))) {

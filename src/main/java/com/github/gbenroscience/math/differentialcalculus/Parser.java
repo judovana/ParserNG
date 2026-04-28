@@ -18,6 +18,7 @@ import com.github.gbenroscience.parser.Operator;
 import com.github.gbenroscience.parser.ParserResult;
 import com.github.gbenroscience.parser.Variable;
 import com.github.gbenroscience.parser.methods.Method;
+import com.github.gbenroscience.util.ErrorLog;
 import java.util.Arrays;
 import java.util.List;
 import com.github.gbenroscience.util.FunctionManager;
@@ -25,9 +26,9 @@ import com.github.gbenroscience.util.VariableManager;
 
 /**
  *
- * @author JIBOYE, OLUWAGBEMIRO OLAOLUWA Parses derivative commands of the
+ * @author JIBOYE, OLUWAGBEMIRO OLAOLUWA 
+ * Parses derivative commands of the
  * format:
- *
  *
  * diff(@(x)sin(x),5)... diff(@(x)sin(x),5,2)... diff(y,5)... diff(y,5,2)...
  *
@@ -85,6 +86,8 @@ public class Parser {
 
     public static final int GRAD_FUNC = 1;
     public static final int GRAD_VAL = 2;
+    
+    private ErrorLog errorLog = new ErrorLog();
 
     /**
      *
@@ -100,7 +103,7 @@ public class Parser {
 
         DataSetFormatter dsf = new DataSetFormatter(expression);
         List<String> scanner = dsf.getDataset(); 
-        scanner = MathScanner.plusAndMinusStringHandlerHelper(scanner);
+        scanner = MathScanner.plusAndMinusStringHandlerHelper(scanner, errorLog);
         MathScanner.recognizeAnonymousFunctions(scanner);
 
         this.function = localParseDerivativeCommand(scanner);
@@ -272,7 +275,7 @@ public class Parser {
      *
      */
     public static void parseDerivativeCommand(List<String> list) {
-      //  System.out.println("list-1: "+list); 
+      //  System.print.println("list-1: "+list); 
  
 
         String args1, args2 = "";

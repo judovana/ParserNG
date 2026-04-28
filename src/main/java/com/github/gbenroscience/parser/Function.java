@@ -15,6 +15,7 @@ import com.github.gbenroscience.math.matrix.expressParser.Matrix;
 import com.github.gbenroscience.parser.methods.Declarations;
 import com.github.gbenroscience.parser.methods.MethodRegistry;
 import com.github.gbenroscience.parser.turbo.tools.*;
+import com.github.gbenroscience.util.ErrorLog;
 import com.github.gbenroscience.util.FunctionManager;
 import static com.github.gbenroscience.util.FunctionManager.*;
 import com.github.gbenroscience.util.Serializer;
@@ -57,6 +58,8 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      */
     private Matrix matrix;
 
+    ErrorLog errorLog = new ErrorLog();
+
     public Function() {
     }
 
@@ -94,11 +97,13 @@ public class Function implements Savable, MethodRegistry.MethodAction {
     public Function(String input) throws InputMismatchException {
         try {
             input = Utils.unwrapBracket(input);
-            input = rewriteAsStandardFunction(STRING.purifier(input));//Change function to standard form immediately
+            input = rewriteAsStandardFunction(STRING.purifier(input), errorLog);//Change function to standard form immediately
             parseInput(input);
         } catch (Exception e) {
             e.printStackTrace();
-            throw new InputMismatchException("Bad Function Syntax--" + input);
+            String err = "Bad Function Syntax--" + input;
+            errorLog.info(err);
+            throw new InputMismatchException(err);
         }
     }//end constructor
 
@@ -109,7 +114,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
      * @param input The input string
      * @return the properly formatted string
      */
-    private static String rewriteAsStandardFunction(String input) {
+    private static String rewriteAsStandardFunction(String input, ErrorLog log) {
         int indexOfOpenBrac = -1;
         int indexOfCloseBrac = -1;
         int indexOfAt = -1;
@@ -143,23 +148,33 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                     if (indexOfCloseBrac > indexOfOpenBrac) {
                         return input;
                     } else {
-                        throw new InputMismatchException("Bracket Error in Function creation");
+                        String err = "Bracket Error in Function creation";
+                        log.info(err);
+                        throw new InputMismatchException(err);
                     }
                 } else {
-                    throw new InputMismatchException("Function definition syntax error in token structure");
+                    String err = "Function definition syntax error in token structure";
+                    log.info(err);
+                    throw new InputMismatchException(err);
                 }
             } else {
-                throw new InputMismatchException("The function is supposed to be an anonymous one. SYNATX ERROR");
+                String err = "The function is supposed to be an anonymous one. SYNATX ERROR";
+                log.info(err);
+                throw new InputMismatchException(err);
             }
         }
 
         if (indexOfOpenBrac == -1 || indexOfCloseBrac == -1) {// MUST HAVES, if not INVALID FUNCTION
-            throw new InputMismatchException("Core tokens not found in Function expression.. one or more of (, ) and = not found!");
+            String err = "Core tokens not found in Function expression.. one or more of (, ) and = not found!";
+            log.info(err);
+            throw new InputMismatchException(err);
         }
 
         int computeCloseBracIndex = Bracket.getComplementIndex(true, indexOfOpenBrac, input);//this is the index of the matching close bracket for the args list
         if (computeCloseBracIndex != indexOfCloseBrac) {//Is a major structural flaw in the input...e.g f=@(((args))expr, but this is not allowed! only f=@(args)expr is
-            throw new InputMismatchException("Multiple brackets not allowed on args list e.g: f((x)) is not allowed, only f(x) and f=@((x)) is not allowed");
+            String err = "Multiple brackets not allowed on args list e.g: f((x)) is not allowed, only f(x) and f=@((x)) is not allowed";
+            log.info(err);
+            throw new InputMismatchException(err);
         }
 
         if (indexOfOpenBrac < indexOfEquals && indexOfCloseBrac < indexOfEquals && indexOfOpenBrac < indexOfCloseBrac) {//GOTCHA in f(args)=expr format
@@ -170,10 +185,14 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             if (indexOfAt - indexOfEquals == 1 && indexOfOpenBrac - indexOfAt == 1) {
                 return input;
             } else {
-                throw new InputMismatchException("Function definition is not valid. Invalid token structure");
+                String err = "Function definition is not valid. Invalid token structure";
+                log.info(err);
+                throw new InputMismatchException(err);
             }
         }
-        throw new InputMismatchException("Your Function definition is not valid.. " + input);
+        String err = "Your Function definition is not valid.. " + input;
+        log.info(err);
+        throw new InputMismatchException(err);
 
     }
 
@@ -245,7 +264,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         return nextResult;
     }
 
-    public static boolean assignObject(String input) {
+    public static boolean assignObject(String input, ErrorLog log) {
         /**
          * Check if it is a function assignment operation...e.g:
          * f=matrix_mul(A,B)
@@ -258,7 +277,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
         int indexOfOpenBrac = input.indexOf("(");
         if (equalsIndex == -1 && semiColonIndex == -1 && indexOfOpenBrac == -1) {
-            throw new InputMismatchException("Wrong Input!");
+            String err = "Wrong Input!";
+            log.info(err);
+            throw new InputMismatchException(err);
         }
 
         /**
@@ -308,7 +329,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                         }
                     }
                 }
-                success = true; 
+                success = true;
             } else {
                 MathExpression expr = null;
                 if (rhs.startsWith("@")) {
@@ -381,8 +402,10 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                         String fn = scanner.get(2);
                         Function f = FunctionManager.lookUp(fn);
                         MathExpression.EvalResult ev = expr.solveGeneric();
-                        if (f.type == TYPE.STRING || f.type == TYPE.ALGEBRAIC_EXPRESSION) {//
-                            throw new RuntimeException("rotating a function usually creates an implicit expression, do not try to assign the result of function rotation to a function.");
+                        if (f.type == TYPE.STRING || f.type == TYPE.ALGEBRAIC_EXPRESSION) {
+                            String err = "rotating a function usually creates an implicit expression, do not try to assign the result of function rotation to a function.";
+                            log.info(err);
+                            throw new RuntimeException(err);
                             /**
                              * String fname = f.getFullName(); String fullName =
                              * "@" + fname.substring(fname.indexOf("(")); String
@@ -432,7 +455,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                     switch (expr.getReturnType()) {
                         case MATRIX:
                             if (isVarNamesList && hasCommas) {
-                                throw new InputMismatchException("Initialize a function at a time!");
+                                String err = "Initialize a function at a time!";
+                                log.info(err);
+                                throw new InputMismatchException(err);
                             }
                             val.matrix.setName(newFuncName);
                             Function fm = new Function(val.matrix);
@@ -440,7 +465,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                             break;
                         case ALGEBRAIC_EXPRESSION:
                             if (isVarNamesList && hasCommas) {
-                                throw new InputMismatchException("Initialize a function at a time!");
+                                String err = "Initialize a function at a time!!";
+                                log.info(err);
+                                throw new InputMismatchException(err);
                             }
                             f = FunctionManager.lookUp(referenceName);
                             FunctionManager.FUNCTIONS.put(newFuncName, new Function(newFuncName + "=" + f.expressionForm()));
@@ -448,7 +475,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                             break;
                         case VECTOR:
                             if (isVarNamesList && hasCommas) {
-                                throw new InputMismatchException("Initialize a function at a time!");
+                                String err = "Initialize a function at a time!!!";
+                                log.info(err);
+                                throw new InputMismatchException(err);
                             }
                             f = FunctionManager.lookUp(referenceName);
                             FunctionManager.FUNCTIONS.put(newFuncName, new Function(newFuncName + "=" + f.expressionForm()));
@@ -493,7 +522,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                     }//end switch statement
                 }//end if
                 else {
-                    throw new InputMismatchException("Syntax Error---" + newFuncName);
+                    String err = "Syntax Error---" + newFuncName;
+                    log.info(err);
+                    throw new InputMismatchException(err);
                 }
             }//end else
         }
@@ -539,7 +570,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         int equalsIndex = input.indexOf("=");
         int atIndex = input.indexOf("@");
         if (atIndex == -1) {
-            throw new InputMismatchException("Function Syntax error! " + input);
+            String err = "Function Syntax error! " + input;
+            errorLog.info(err);
+            throw new InputMismatchException();
         }
         String funcName = equalsIndex == -1 ? null : input.substring(0, equalsIndex);//may be null for a anonymous function input
 
@@ -547,7 +580,7 @@ public class Function implements Savable, MethodRegistry.MethodAction {
 
         int firstIndexOfClose = input.indexOf(")");
         int indexOfFirstOpenBrac = input.indexOf("(");
-        String vars = input.substring(indexOfFirstOpenBrac + 1, firstIndexOfClose);//GETS x,y,z,w...,t out of @(x,y,z,w...,t)expr
+        String vars = input.substring(indexOfFirstOpenBrac + 1, firstIndexOfClose);//GETS x,y,z,w...,t print of @(x,y,z,w...,t)expr
         String expr = input.substring(Bracket.getComplementIndex(true, indexOfFirstOpenBrac, input) + 1).trim();
         List<String> varList = new Scanner(vars, false, ",").scan();
         ArrayList<Variable> indVars = new ArrayList<>(varList.size());
@@ -572,9 +605,11 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 break;
             }//end catch
         }//end for
-        if (numCount > 0 && varCount > 0) {//mixed args, not acceptable, either number args for matrices and vectors or variabble args for math expre
-            throw new RuntimeException("Bad args for function! Matrix definition must have args that are "
-                    + "purely numbers and must be 2 in number. Variable definition must have args that are purely variable names.");
+        if (numCount > 0 && varCount > 0) {//mixed args, not acceptable, either number args for matrices and vectors or variable args for math expression
+            String err = "Bad args for function! Matrix definition must have args that are "
+                    + "purely numbers and must be 2 in number. Variable definition must have args that are purely variable names.";
+            errorLog.info(err);
+            throw new RuntimeException(err);
         }
         boolean isMathExpr = varCount == varList.size();
         boolean isMatrix = numCount == varList.size() && numCount == 2;
@@ -603,7 +638,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             int sz = entries.size();
 
             if (rows * cols != sz) {
-                throw new RuntimeException("Invalid matrix! rows x cols must be equal to items supplied in matrix list. Expected: " + (rows * cols) + ", Found: " + sz + " items");
+                String err = "Invalid matrix! rows x cols must be equal to items supplied in matrix list. Expected: " + (rows * cols) + ", Found: " + sz + " items";
+                errorLog.info(err);
+                throw new RuntimeException(err);
             }
             double[] flatArray = new double[sz];
             try {
@@ -611,7 +648,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                     flatArray[i] = Double.parseDouble(entries.get(i));
                 }
             } catch (Exception e) {
-                throw new RuntimeException("Elements of a matrix must be numbers!");
+                String err = "Elements of a matrix must be numbers!";
+                errorLog.info(err);
+                throw new RuntimeException(err);
             }
             Matrix m = new Matrix(flatArray, rows, cols);
             anonFn = FunctionManager.lockDownAnon(varList.toArray(new String[0]));
@@ -627,7 +666,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             int sz = entries.size();
 
             if (rows != sz) {
-                throw new RuntimeException("Invalid matrix! rows x cols must be equal to items supplied in matrix list. Expected: " + (rows) + ", Found: " + sz + " items");
+                String err = "Invalid matrix! rows x cols must be equal to items supplied in matrix list. Expected: " + (rows) + ", Found: " + sz + " items";
+                errorLog.info(err);
+                throw new RuntimeException(err);
             }
             double[] flatArray = new double[sz];
             try {
@@ -635,7 +676,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                     flatArray[i] = Double.parseDouble(entries.get(i));
                 }
             } catch (Exception e) {
-                throw new RuntimeException("Elements of a vector must be numbers!");
+                     String err = "Elements of a vector must be numbers!";
+                errorLog.info(err);
+                throw new RuntimeException(err);
             }
             Matrix m = new Matrix(flatArray, 1, sz);
             anonFn = FunctionManager.lockDownAnon(varList.toArray(new String[0]));
@@ -647,7 +690,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
             // FunctionManager.update(anonFn);
 
         } else {
-            throw new InputMismatchException("SYNTAX ERROR IN FUNCTION");
+       String err = "SYNTAX ERROR IN FUNCTION";
+                errorLog.info(err);
+            throw new InputMismatchException(err);
         }
 
         //DONE PROCESSIING anon function side of F=@(args)expr
@@ -992,7 +1037,9 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 for (int i = 0; i < sz; i++) {
                     String token = l.get(i);
                     if (!Number.validNumber(token) && !Variable.isVariableString(token)) {
-                        throw new NumberFormatException("Unrecognized Value or Variable: " + l.get(i));
+                        String err = "Unrecognized Value or Variable: " + l.get(i);
+                        errorLog.info(err);
+                        throw new NumberFormatException(err);
                     }//end if
                     else {
                         String v = independentVariables.get(i).getName();
@@ -1004,12 +1051,16 @@ public class Function implements Savable, MethodRegistry.MethodAction {
                 return mathExpression.solve();
             }//end if
             else {
-                throw new InputMismatchException("Invalid Argument List! " + sz1 + " arguments expected!");
+                 String err = "Invalid Argument List! " + sz1 + " arguments expected!";
+                        errorLog.info(err);
+                throw new InputMismatchException(err);
             }//end else
 
         }//end if
         else {
-            throw new InputMismatchException("Pass Arguments To The Format: " + str);
+               String err = "Pass Arguments To The Format: " + str;
+                        errorLog.info(err);
+            throw new InputMismatchException(err);
         }//end else
 
     }//end method
@@ -1491,10 +1542,10 @@ public class Function implements Savable, MethodRegistry.MethodAction {
         d = System.nanoTime() - s;
         System.out.println("t2 = " + d + "ns");
 
-        System.out.println(Function.rewriteAsStandardFunction("f(x)=sin(x)-cos(x)"));
-        System.out.println(Function.rewriteAsStandardFunction("f(x,y,z)=sin(x+y)-cos(z-2*x)"));
-        System.out.println(Function.rewriteAsStandardFunction("f=@(x)sin(x)-cos(x)"));
-        System.out.println(Function.rewriteAsStandardFunction("f=@(x)sin(x)-cos(x)"));
+        System.out.println(Function.rewriteAsStandardFunction("f(x)=sin(x)-cos(x)",f.errorLog));
+        System.out.println(Function.rewriteAsStandardFunction("f(x,y,z)=sin(x+y)-cos(z-2*x)",f.errorLog));
+        System.out.println(Function.rewriteAsStandardFunction("f=@(x)sin(x)-cos(x)",f.errorLog));
+        System.out.println(Function.rewriteAsStandardFunction("f=@(x)sin(x)-cos(x)",f.errorLog));
 
         FunctionManager.add("K=@(3,3)(2,3,4,9,8,1,9,8,1);");
 
